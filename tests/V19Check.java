@@ -1,0 +1,5 @@
+package com.kongye.floatball;
+public class V19Check {
+ static int count;static void check(boolean value){count++;if(!value)throw new AssertionError("check "+count);}
+ public static void main(String[] args){check(BrowserSearch.home(null).equals("https://www.bing.com/"));check(BrowserSearch.home("google").equals("https://www.google.com/"));check(BrowserSearch.url("空叶 hello","bing").equals("https://www.bing.com/search?q=%E7%A9%BA%E5%8F%B6%20hello"));check(BrowserSearch.url("a&b","google").endsWith("q=a%26b"));check(BrowserSearch.url("example.com/path","google").equals("https://example.com/path"));check(BrowserSearch.url("https://example.com","bing").equals("https://example.com"));check(BrowserSearch.url("http://example.com","bing")==null);check(BrowserSearch.url("  ","bing")==null);check(GestureRules.visibleInset(-263,126,32)==-94);check(GestureRules.visibleInset(-263,394,32)==-263);check(GestureRules.visibleInset(0,126,32)==0);check(GestureRules.visibleInset(-32,126,32)==-32);System.out.println(count+" search and recoverable edge checks passed.");}
+}

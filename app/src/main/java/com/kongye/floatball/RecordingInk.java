@@ -1,0 +1,22 @@
+package com.kongye.floatball;
+import android.content.*;
+import android.graphics.*;
+import android.os.Build;
+import android.view.*;
+import android.widget.*;
+import java.util.*;
+/** Live ink is a normal transparent overlay and therefore appears in the captured recording. */
+final class RecordingInk {
+    private final Context context;private final WindowManager wm;private FrameLayout root;private LinearLayout tools;private Ink canvas;private WindowManager.LayoutParams params;
+    RecordingInk(Context c){context=c;wm=OverlayWindows.get(c);}
+    private int dp(float n){return Ui.dp(context,n);}
+    void edit(){if(root==null){root=new FrameLayout(context);root.setContentDescription("录制画面标注层");canvas=new Ink(context);root.addView(canvas,new FrameLayout.LayoutParams(-1,-1));tools=Ui.row(context);Ui.pad(tools,6,6,6,6);tools.setBackground(Ui.bg(0xEF132C3A,29,context));tools.setElevation(dp(6));tools.addView(round("check","完成录制标注",()->editing(false)),slot(42));tools.addView(round("undo","撤销录制标注",()->{if(!canvas.lines.isEmpty())canvas.lines.remove(canvas.lines.size()-1);canvas.invalidate();}),slot(42));tools.addView(round("close","清空录制标注",()->{canvas.lines.clear();canvas.invalidate();}),slot(42));View gap=new View(context);tools.addView(gap,new LinearLayout.LayoutParams(dp(6),1));java.util.List<View> swatches=new ArrayList<>();int[] colors={Color.RED,0xFFFFCF25,0xFF2CA4FF};for(int color:colors){View swatch=new View(context);swatch.setContentDescription(color==Color.RED?"录制标注红色":color==0xFFFFCF25?"录制标注黄色":"录制标注蓝色");swatch.setOnClickListener(v->{canvas.color=color;markSwatches(swatches,colors,color);});swatches.add(swatch);tools.addView(swatch,slot(30));}markSwatches(swatches,colors,canvas.color);FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL);p.topMargin=dp(40);root.addView(tools,p);params=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);params.gravity=Gravity.TOP|Gravity.LEFT;params.setTitle("空叶录制画面标注");if(Build.VERSION.SDK_INT>=30)params.setFitInsetsTypes(0);wm.addView(root,params);}editing(true);}
+    private FrameLayout round(String icon,String description,Runnable action){FrameLayout v=Ui.symbol(context,icon,description,action);v.setBackground(Ui.ripple(context,Ui.PALE,21));return v;}
+    private LinearLayout.LayoutParams slot(int size){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(size),dp(size));p.setMargins(dp(3),0,dp(3),0);return p;}
+    /** The active ink colour carries a white ring so it reads on the dark bar. */
+    private void markSwatches(java.util.List<View> swatches,int[] colors,int active){for(int i=0;i<swatches.size();i++){android.graphics.drawable.GradientDrawable dot=Ui.bg(colors[i],100,context);if(colors[i]==active)dot.setStroke(dp(3),Color.WHITE);swatches.get(i).setBackground(dot);}}
+    private void editing(boolean value){if(root==null)return;tools.setVisibility(value?View.VISIBLE:View.GONE);canvas.enabled=value;params.alpha=value?1f:.7f;if(value)params.flags&=~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;else params.flags|=WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;wm.updateViewLayout(root,params);}
+    void close(){if(root!=null){try{wm.removeView(root);}catch(IllegalArgumentException ignored){}root=null;canvas=null;}}
+    private final class Ink extends View {final ArrayList<Line> lines=new ArrayList<>();final Paint paint=new Paint(3);int color=Color.RED;boolean enabled;Ink(Context c){super(c);setContentDescription("录制画面画笔");}protected void onDraw(Canvas c){paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(4));paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);for(Line line:lines){paint.setColor(line.color);c.drawPath(line.path,paint);}}public boolean onTouchEvent(MotionEvent e){if(!enabled)return false;switch(e.getActionMasked()){case MotionEvent.ACTION_DOWN->{Line line=new Line();line.color=color;line.path.moveTo(e.getX(),e.getY());lines.add(line);}case MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP->{if(!lines.isEmpty())lines.get(lines.size()-1).path.lineTo(e.getX(),e.getY());if(e.getActionMasked()==MotionEvent.ACTION_UP)performClick();}case MotionEvent.ACTION_CANCEL->{}}invalidate();return true;}public boolean performClick(){super.performClick();return true;}}
+    private static final class Line {final Path path=new Path();int color;}
+}

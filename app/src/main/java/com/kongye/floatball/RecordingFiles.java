@@ -1,0 +1,13 @@
+package com.kongye.floatball;
+import android.content.*;
+import android.net.Uri;
+import android.os.*;
+import android.provider.MediaStore;
+import java.io.*;
+import java.util.*;
+/** Only explicit Save publishes recording output. Working MP4/GIF files stay in private cache. */
+final class RecordingFiles {
+    static File create(Context c,String extension)throws IOException{File dir=new File(c.getCacheDir(),"recordings");if(!dir.isDirectory()&&!dir.mkdirs())throw new IOException("临时空间不可用");File[] old=dir.listFiles();if(old!=null)for(File f:old)if(f.getName().matches("[a-f0-9-]{36}\\.(mp4|gif)")&&f.lastModified()<System.currentTimeMillis()-86400000L)f.delete();return new File(dir,UUID.randomUUID()+"."+extension);}
+    static File checked(Context c,String path)throws IOException{File f=new File(path),dir=new File(c.getCacheDir(),"recordings");if(!f.getCanonicalFile().getParentFile().equals(dir.getCanonicalFile())||!f.getName().matches("[a-f0-9-]{36}\\.(mp4|gif)")||!f.isFile())throw new IOException("录制文件不可用");f.setLastModified(System.currentTimeMillis());return f;}
+    static Uri save(Context c,File source)throws IOException{boolean gif=source.getName().endsWith(".gif");String ext=gif?".gif":".mp4",mime=gif?"image/gif":"video/mp4";if(Build.VERSION.SDK_INT<29){File dir=c.getExternalFilesDir(gif?Environment.DIRECTORY_PICTURES:Environment.DIRECTORY_MOVIES);if(dir==null)throw new IOException("存储不可用");File dest=new File(dir,MediaFiles.name(gif?"GIF":"Record",ext));try(InputStream in=new FileInputStream(source);OutputStream out=new FileOutputStream(dest)){byte[] block=new byte[8192];int n;while((n=in.read(block))!=-1)out.write(block,0,n);}return Uri.fromFile(dest);}ContentValues v=new ContentValues();v.put(MediaStore.MediaColumns.DISPLAY_NAME,MediaFiles.name(gif?"GIF":"Record",ext));v.put(MediaStore.MediaColumns.MIME_TYPE,mime);v.put(MediaStore.MediaColumns.RELATIVE_PATH,(gif?"Pictures":"Movies")+"/Kongye");v.put(MediaStore.MediaColumns.IS_PENDING,1);Uri uri=c.getContentResolver().insert(gif?MediaStore.Images.Media.EXTERNAL_CONTENT_URI:MediaStore.Video.Media.EXTERNAL_CONTENT_URI,v);if(uri==null)throw new IOException("无法创建相册文件");try{try(InputStream in=new FileInputStream(source);OutputStream out=c.getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException("无法写入");byte[] block=new byte[8192];int n;while((n=in.read(block))!=-1)out.write(block,0,n);}v.clear();v.put(MediaStore.MediaColumns.IS_PENDING,0);c.getContentResolver().update(uri,v,null,null);return uri;}catch(IOException|RuntimeException e){c.getContentResolver().delete(uri,null,null);throw e;}}
+}

@@ -1,0 +1,112 @@
+package com.kongye.floatball;
+
+import android.content.*;
+import android.graphics.*;
+import android.os.*;
+import android.text.*;
+import android.util.DisplayMetrics;
+import android.view.*;
+import android.widget.*;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
+
+/** Transparent outside, editable OCR and image sections, movable pin, selectable text and local editing. */
+final class RegionResult {
+    private final Context context;private Bitmap image;private final CaptureWindow window;private final Runnable finished;private final ExecutorService worker;private final Consumer<Boolean> pinChanged;
+    private final String kind;private ImageEditView editingCanvas;private int brushColor=0xFFF44336,brushSize=4;
+    private String value="",statusText="本机识别中…";private boolean recognizing=true,closed,saving,pinned,allFolded,textFolded,imageFolded,edited;
+    private LinearLayout editorTools;private EditText editor;private TextView status;private int x=-1,y=-1,mode;private View currentCard;
+    RegionResult(Context c,Bitmap image,ExecutorService worker,Runnable finished,Consumer<Boolean> pinChanged){this(c,image,worker,finished,pinChanged,"Region");}
+    RegionResult(Context c,Bitmap image,ExecutorService worker,Runnable finished,Consumer<Boolean> pinChanged,String kind){context=c;this.kind=kind;this.image=image;this.worker=worker;this.finished=finished;this.pinChanged=pinChanged;window=new CaptureWindow(c);Prefs.of(c).edit().putString("document_kind",kind).putInt("document_width",image.getWidth()).putInt("document_height",image.getHeight()).apply();recognizing=kind.equals("Region");show();if(recognizing)recognize();}
+    private String title(){return kind.equals("Screen")?"整屏截图":kind.equals("Long")?"拼接长图":"区域截图";}
+    private void back(){if(editingCanvas!=null&&editingCanvas.isTyping()){finishInlineText();return;}if(mode==3)cancelEdit();else if(mode==0)close();else show();}
+    boolean isPinned(){return pinned;}
+    private int dp(float n){return Ui.dp(context,n);}
+    private void toast(String text){if(!closed)Feedback.show(context,text);}
+    private DisplayMetrics metrics(){DisplayMetrics m=new DisplayMetrics();context.getSystemService(WindowManager.class).getDefaultDisplay().getRealMetrics(m);return m;}
+    private FrameLayout icon(String name,String description,Runnable action){return Ui.symbol(context,name,description,action);}
+    private void addIcon(LinearLayout row,String name,String description,Runnable action){FrameLayout v=Ui.tool(context,name,description,action);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(40),dp(40));p.leftMargin=dp(2);row.addView(v,p);}
+    private void addAction(LinearLayout row,String name,String label,String description,Runnable action){LinearLayout v=Ui.action(context,name,label,description,action);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(42),1);p.setMargins(dp(4),0,dp(4),0);row.addView(v,p);}
+    private TextView section(String title){TextView t=Ui.text(context,title,13,Ui.MUTED,true);Ui.pad(t,2,0,0,0);return t;}
+    /** Round primary button floating over a preview. */
+    private FrameLayout fab(String name,String description,Runnable action){FrameLayout v=new FrameLayout(context);v.setContentDescription(description);v.setBackground(Ui.ripple(context,Ui.GREEN,26));v.setElevation(dp(6));v.addView(new Ui.Icon(context,name,Ui.dark?0xFF102E21:Color.WHITE),new FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));v.setOnClickListener(w->action.run());return v;}
+    private LinearLayout heading(String title,Runnable back){LinearLayout row=Ui.row(context);row.setMinimumHeight(dp(44));if(back!=null){addIcon(row,"back","返回截图结果",back);((LinearLayout.LayoutParams)row.getChildAt(0).getLayoutParams()).leftMargin=-dp(8);}TextView label=Ui.text(context,title,17,Ui.INK,true);Ui.pad(label,back!=null?4:2,0,0,0);row.addView(label,new LinearLayout.LayoutParams(0,-2,1));label.setContentDescription("拖动截图结果窗口");drag(label);return row;}
+    private void drag(View title){title.setOnTouchListener(new View.OnTouchListener(){float startX,startY;int oldX,oldY;public boolean onTouch(View view,MotionEvent event){if(!pinned||mode==3)return false;switch(event.getActionMasked()){case MotionEvent.ACTION_DOWN->{int[] p=window.position();oldX=p[0];oldY=p[1];startX=event.getRawX();startY=event.getRawY();return true;}case MotionEvent.ACTION_MOVE->{DisplayMetrics m=metrics();x=Math.max(0,Math.min(m.widthPixels-currentCard.getWidth()-dp(24),oldX+Math.round(event.getRawX()-startX)));y=Math.max(dp(28),Math.min(m.heightPixels-dp(64),oldY+Math.round(event.getRawY()-startY)));window.move(x,y);return true;}case MotionEvent.ACTION_UP->{view.performClick();Prefs.of(context).edit().putInt("result_x",x).putInt("result_y",y).apply();return true;}case MotionEvent.ACTION_CANCEL->{return true;}}return false;}});}
+    private void present(LinearLayout card){
+        if(closed)return;ThemePolicy.apply(context);DisplayMetrics m=metrics();boolean expanded=mode!=0;int width=expanded?m.widthPixels-dp(16):m.widthPixels-dp(pinned?40:16);int editorHeight=m.heightPixels-dp(80);currentCard=card;card.setTag(mode==3?"capture_editor":null);card.setOnClickListener(v->{});card.setContentDescription(title()+(pinned?"结果已置顶":"结果未置顶"));
+        card.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(expanded?editorHeight:0,expanded?View.MeasureSpec.EXACTLY:View.MeasureSpec.UNSPECIFIED));
+        if(x<0)x=(m.widthPixels-width)/2;if(y<0)y=Math.max(dp(40),(m.heightPixels-card.getMeasuredHeight())/2);
+        if(pinned&&!expanded){x=Math.max(0,Math.min(m.widthPixels-width-dp(24),x));y=Math.max(dp(28),Math.min(m.heightPixels-dp(64),y));FrameLayout floating=window.frame(this::back);floating.setClipChildren(false);floating.setClipToPadding(false);Ui.pad(floating,12,12,12,12);floating.addView(card,new FrameLayout.LayoutParams(-1,-2));window.showFloating(floating,width+dp(24),m.heightPixels-dp(80),x,y);}
+        else{FrameLayout root=window.frame(this::back);root.setClipChildren(false);root.setClipToPadding(false);root.setBackgroundColor(Color.TRANSPARENT);root.setContentDescription("截图结果透明背景，点击关闭");root.setOnClickListener(v->close());FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(width,expanded?editorHeight:-2,Gravity.CENTER);p.setMargins(0,dp(40),0,dp(32));root.addView(card,p);window.show(root,true);}
+        Prefs.of(context).edit().putBoolean("result_pinned",pinned).putBoolean("result_all_folded",allFolded).putBoolean("result_text_folded",textFolded).putBoolean("result_image_folded",imageFolded).apply();pinChanged.accept(pinned);
+    }
+    private LinearLayout base(){LinearLayout card=Ui.card(context);Ui.pad(card,16,12,16,14);card.setElevation(dp(16));if(Build.VERSION.SDK_INT>=28){card.setOutlineAmbientShadowColor(0xAA000000);card.setOutlineSpotShadowColor(0xAA000000);}return card;}
+    private void show(){
+        if(closed)return;mode=0;editor=null;status=null;ThemePolicy.apply(context);LinearLayout card=base();LinearLayout head=heading(title(),null);
+        addIcon(head,allFolded?"expand":"collapse",allFolded?"展开全部":"收起全部",()->{allFolded=!allFolded;show();});addIcon(head,"close","关闭截图结果",this::close);
+        addIcon(head,pinned?"pinned":"pin",pinned?"取消置顶":"置顶截图结果",()->{pinned=!pinned;show();});card.addView(head);
+        if(!allFolded){
+            Ui.gap(card,10);ScrollView viewport=new ScrollView(context);LinearLayout sections=Ui.column(context);viewport.addView(sections);
+            if(kind.equals("Region")){LinearLayout textHead=Ui.row(context);textHead.addView(section("文字"),new LinearLayout.LayoutParams(0,-2,1));addIcon(textHead,"zoom","放大选择文字",this::selectText);addIcon(textHead,textFolded?"expand":"collapse",textFolded?"展开文字":"收起文字",()->{textFolded=!textFolded;show();});sections.addView(textHead);
+            if(!textFolded){Ui.gap(sections,8);editor=new EditText(context);editor.setTextColor(Ui.INK);editor.setHintTextColor(Ui.MUTED);editor.setTextSize(16);editor.setGravity(Gravity.TOP);editor.setBackground(Ui.bg(Ui.BG,14,context));Ui.pad(editor,12,10,12,10);editor.setLineSpacing(dp(2),1);editor.setText(value);editor.setEnabled(!recognizing);editor.setHint(recognizing?"正在本机识别…":"可编辑识别文字");editor.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100000)});sections.addView(editor,new LinearLayout.LayoutParams(-1,dp(120)));editor.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){}public void onTextChanged(CharSequence s,int st,int before,int count){value=s.toString();}public void afterTextChanged(Editable e){}});
+                Ui.gap(sections,8);LinearLayout actions=Ui.row(context);addAction(actions,"copy","复制","复制文字",()->copy(value));addAction(actions,"share","分享","分享文字",this::shareText);addAction(actions,"notes","便签","追加便签",this::note);sections.addView(actions);status=Ui.text(context,statusText,11,Ui.MUTED,false);Ui.pad(status,2,0,0,0);Ui.gap(sections,6);sections.addView(status);
+            }
+            Ui.gap(sections,14);View line=new View(context);line.setBackgroundColor(Ui.LINE);sections.addView(line,new LinearLayout.LayoutParams(-1,1));Ui.gap(sections,10);}
+            LinearLayout imageHead=Ui.row(context);imageHead.addView(section("图片"),new LinearLayout.LayoutParams(0,-2,1));addIcon(imageHead,imageFolded?"expand":"collapse",imageFolded?"展开图片":"收起图片",()->{imageFolded=!imageFolded;show();});sections.addView(imageHead);
+            if(!imageFolded){Ui.gap(sections,8);ImageView preview=new ImageView(context);preview.setImageBitmap(image);preview.setScaleType(ImageView.ScaleType.FIT_CENTER);Ui.frame(preview,Ui.BG,14);Ui.pad(preview,6,6,6,6);preview.setContentDescription("截图图片，点击预览");preview.setOnClickListener(v->zoom());sections.addView(preview,new LinearLayout.LayoutParams(-1,kind.equals("Region")?Math.min(dp(300),metrics().heightPixels/3):metrics().heightPixels-dp(280)));Ui.gap(sections,8);LinearLayout actions=Ui.row(context);addAction(actions,"save","保存","保存图片",()->save(false));addAction(actions,"share","分享","分享图片",()->save(true));addAction(actions,"edit","编辑","编辑图片",this::editImage);sections.addView(actions);}
+            DisplayMetrics m=metrics();int width=m.widthPixels-dp(pinned?72:48);sections.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));card.addView(viewport,new LinearLayout.LayoutParams(-1,Math.min(sections.getMeasuredHeight(),m.heightPixels-dp(190))));
+        }
+        present(card);
+    }
+    private void recognize(){
+        final Bitmap input;
+        try{float factor=Math.min(1f,2048f/Math.max(image.getWidth(),image.getHeight()));input=factor<1?Bitmap.createScaledBitmap(image,Math.max(1,Math.round(image.getWidth()*factor)),Math.max(1,Math.round(image.getHeight()*factor)),true):image.copy(Bitmap.Config.ARGB_8888,false);}catch(RuntimeException|OutOfMemoryError e){failed();return;}
+        Prefs.of(context).edit().putString("last_ocr_state","recognizing").apply();
+        com.google.mlkit.vision.text.TextRecognizer recognizer;
+        try{recognizer=TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());}catch(RuntimeException|LinkageError error){input.recycle();failed();return;}
+        try{recognizer.process(InputImage.fromBitmap(input,0)).addOnSuccessListener(text->{recognizing=false;value=text.getText();statusText=value.isBlank()?"未识别到文字，可手动编辑":"本机识别完成 · 文字可编辑";Prefs.of(context).edit().putInt("last_ocr_length",value.length()).putString("last_ocr_state","done").apply();if(!closed&&mode==0)show();}).addOnFailureListener(error->failed()).addOnCompleteListener(task->{input.recycle();recognizer.close();});}catch(RuntimeException|LinkageError error){input.recycle();recognizer.close();failed();}
+    }
+    private void failed(){recognizing=false;statusText="识别暂不可用，仍可编辑文字和保存图片";Prefs.of(context).edit().putString("last_ocr_state","failed").apply();if(!closed&&mode==0)show();}
+    private void copy(String text){if(text.isBlank()){toast("没有可复制的文字");return;}try{context.getSystemService(android.content.ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("空叶识别文字",text));Prefs.of(context).edit().putInt("last_selection_copy_length",text.length()).apply();toast("文字已复制");}catch(RuntimeException error){toast("复制失败，请重试");}}
+    private void note(){if(value.isBlank()){toast("请先输入或识别文字");return;}String old=Prefs.of(context).getString("note","");String combined=old.isEmpty()?value:old+"\n\n"+value;if(combined.length()>100000){toast("便签已达字数上限");return;}Prefs.of(context).edit().putString("note",combined).apply();toast("已追加到便签");}
+    private void launch(Intent intent){try{context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));}catch(RuntimeException e){toast("没有可处理此内容的应用");}}
+    private void shareText(){if(value.isBlank()){toast("没有可分享的文字");return;}Intent intent=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,value);close();launch(Intent.createChooser(intent,"分享文字"));}
+    private void selectText(){
+        if(recognizing){toast("请等待识别完成");return;}mode=1;LinearLayout card=base();card.addView(heading("选择文字",this::show));Ui.gap(card,12);card.addView(Ui.text(context,"点击或滑动可跳着选择多段；再次点选可取消，不显示选择句柄。",12,Ui.MUTED,false));Ui.gap(card,12);
+        DragSelectTextView selectable=new DragSelectTextView(context,value);selectable.setPadding(dp(8),dp(8),dp(8),dp(8));ScrollView scroll=new ScrollView(context);Ui.frame(scroll,Ui.BG,14);scroll.addView(selectable);card.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));Ui.gap(card,12);
+        LinearLayout actions=Ui.row(context);addAction(actions,"copy","复制","复制所选文字",()->{Prefs.of(context).edit().putInt("last_selection_range_count",selectable.rangeCount()).apply();copy(selectable.selectedText());});addAction(actions,"select_all","全选","全选文字",selectable::selectAll);addAction(actions,"close","清空","清空所选文字",selectable::clearSelection);card.addView(actions);present(card);
+    }
+    private void zoom(){mode=2;LinearLayout card=base();card.addView(heading("图片预览",this::show));Ui.gap(card,10);FrameLayout preview=new FrameLayout(context);Ui.frame(preview,Ui.BG,16);preview.addView(new PanZoomImageView(context,image),new FrameLayout.LayoutParams(-1,-1));FrameLayout pen=fab("edit","编辑图片",this::editImage);FrameLayout.LayoutParams pp=new FrameLayout.LayoutParams(dp(52),dp(52),Gravity.BOTTOM|Gravity.RIGHT);pp.setMargins(0,0,dp(14),dp(14));preview.addView(pen,pp);card.addView(preview,new LinearLayout.LayoutParams(-1,0,1));present(card);}
+    private void finishInlineText(){if(editingCanvas!=null)editingCanvas.finishText();}
+    private void cancelEdit(){if(editingCanvas!=null&&editingCanvas.isTyping()){finishInlineText();return;}if(editingCanvas!=null){editingCanvas.dispose();editingCanvas=null;}editorTools=null;zoom();}
+    void openEditor(){editImage();}
+    private void editImage(){
+        if(saving){toast("图片保存中，请稍候");return;}mode=3;if(editingCanvas==null)editingCanvas=new ImageEditView(context,image);ImageEditView canvas=editingCanvas;canvas.color(brushColor);canvas.width(brushSize);if(canvas.getParent() instanceof ViewGroup parent)parent.removeView(canvas);
+        LinearLayout card=base();LinearLayout editHead=heading("编辑图片",this::cancelEdit);addIcon(editHead,"collapse","收起或展开编辑工具",()->{if(editorTools!=null)editorTools.setVisibility(editorTools.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);});addIcon(editHead,"check","应用图片编辑",()->applyImage(canvas));card.addView(editHead);Ui.gap(card,6);Ui.frame(canvas,Ui.BG,14);card.addView(canvas,new LinearLayout.LayoutParams(-1,0,1));Ui.gap(card,10);
+        editorTools=Ui.column(context);card.addView(editorTools);
+        TextView toolLabel=Ui.text(context,"绘制工具 · 可选颜色和粗细",12,Ui.MUTED,false);Ui.pad(toolLabel,4,0,0,0);editorTools.addView(toolLabel);Ui.gap(editorTools,6);
+        String[] ids={"pen","rect","line","arrow","number","text","mosaic","crop","rotate","mirror_h","mirror_v","undo","reset"};String[] names={"画笔","画框","画线","箭头","序号","添加文字","马赛克","裁剪","旋转90度","水平镜像","垂直镜像","撤销","重置图片编辑"};
+        java.util.Map<String,FrameLayout> modes=new java.util.HashMap<>();java.util.List<String> modeIds=java.util.Arrays.asList("pen","rect","line","arrow","number","text","mosaic","crop");
+        for(int r=0;r<2;r++){LinearLayout tools=Ui.row(context);for(int col=0;col<7;col++){int at=r*7+col;if(at>=ids.length){tools.addView(new View(context),new LinearLayout.LayoutParams(0,dp(40),1));continue;}String id=ids[at],name=names[at];FrameLayout button=icon(id,name,()->{try{switch(id){case "rotate"->canvas.rotate();case "mirror_h"->canvas.mirror(false);case "mirror_v"->canvas.mirror(true);case "undo"->canvas.undo();case "reset"->canvas.reset();default->canvas.tool(id);}}catch(RuntimeException|OutOfMemoryError error){toast("内存不足，请应用当前编辑后重试");}toolLabel.setText(name);markTools(modes,canvas.tool());});if(modeIds.contains(id))modes.put(id,button);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(40),1);bp.setMargins(dp(2),dp(2),dp(2),dp(2));tools.addView(button,bp);}editorTools.addView(tools);}
+        markTools(modes,canvas.tool());Ui.gap(editorTools,4);
+        LinearLayout colors=Ui.row(context);editorTools.addView(colors);paintSwatches(colors,canvas,toolLabel);
+        LinearLayout widths=Ui.row(context);TextView widthLabel=Ui.text(context,"粗细 "+brushSize,12,Ui.MUTED,false);Ui.pad(widthLabel,4,0,0,0);widths.addView(widthLabel,new LinearLayout.LayoutParams(dp(62),-2));SeekBar width=new SeekBar(context);width.setMax(23);width.setProgress(brushSize-1);width.setContentDescription("画笔粗细");width.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.GREEN));width.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.GREEN));width.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int value,boolean user){brushSize=value+1;canvas.width(brushSize);widthLabel.setText("粗细 "+brushSize);}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});widths.addView(width,new LinearLayout.LayoutParams(0,dp(36),1));editorTools.addView(widths);Ui.gap(editorTools,6);
+        editorTools.addView(Ui.button(context,"应用编辑",true,()->applyImage(canvas)));present(card);
+    }
+    /** Drawing modes stay filled while active; one-shot actions (rotate, undo…) never stay highlighted. */
+    private void markTools(java.util.Map<String,FrameLayout> modes,String active){for(java.util.Map.Entry<String,FrameLayout> e:modes.entrySet()){boolean on=e.getKey().equals(active);FrameLayout b=e.getValue();b.setSelected(on);b.setBackground(Ui.ripple(context,on?Ui.GREEN:Ui.PALE,12));b.removeAllViews();b.addView(new Ui.Icon(context,e.getKey(),on?(Ui.dark?0xFF102E21:Color.WHITE):Ui.GREEN),new FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));}}
+    private void paintSwatches(LinearLayout colors,ImageEditView canvas,TextView toolLabel){
+        colors.removeAllViews();int[] palette={0xFFF44336,0xFFFFC928,0xFF24A86B,0xFF2196F3,0xFF9C53C8,Color.BLACK,Color.WHITE};String[] labels={"红色","黄色","绿色","蓝色","紫色","黑色","白色"};
+        for(int i=0;i<palette.length;i++){int color=palette[i],at=i;boolean on=color==brushColor;FrameLayout cell=new FrameLayout(context);cell.setContentDescription("画笔颜色"+labels[i]+(on?"，已选择":""));cell.setOnClickListener(v->{brushColor=color;canvas.color(color);toolLabel.setText("已选择"+labels[at]);paintSwatches(colors,canvas,toolLabel);});
+            if(on){android.graphics.drawable.GradientDrawable ring=Ui.bg(Color.TRANSPARENT,17,context);ring.setStroke(dp(2),color==Color.WHITE?Ui.MUTED:color);View r=new View(context);r.setBackground(ring);cell.addView(r,new FrameLayout.LayoutParams(dp(34),dp(34),Gravity.CENTER));}
+            android.graphics.drawable.GradientDrawable dot=Ui.bg(color,13,context);if(on)dot.setStroke(dp(2),Ui.SURFACE);else if(color==Color.WHITE||color==Color.BLACK&&Ui.dark)dot.setStroke(1,Ui.MUTED);View d=new View(context);d.setBackground(dot);cell.addView(d,new FrameLayout.LayoutParams(dp(26),dp(26),Gravity.CENTER));colors.addView(cell,new LinearLayout.LayoutParams(0,dp(40),1));}
+    }
+    private void applyImage(ImageEditView canvas){finishInlineText();Bitmap next;try{next=canvas.render();}catch(RuntimeException|OutOfMemoryError e){toast("编辑内存不足，请重试");return;}Bitmap old=image;image=next;edited=true;Prefs.of(context).edit().putInt("last_edit_width",image.getWidth()).putInt("last_edit_height",image.getHeight()).putString("last_edit_marks",canvas.marks()).apply();canvas.dispose();editingCanvas=null;zoom();old.recycle();}
+    private void save(boolean share){
+        if(saving){toast("正在处理图片，请稍候");return;}saving=true;if(!share)toast("正在保存图片…");Bitmap target=image;worker.execute(()->{String message;android.net.Uri uri=null;try{uri=share?ShareImageProvider.prepare(context,target):MediaFiles.saveBitmap(context,target,kind+(edited?"Edited":""));message=share?null:"图片已保存到相册";}catch(Exception e){message="保存失败，请检查剩余空间";}String response=message;android.net.Uri saved=uri;new Handler(Looper.getMainLooper()).post(()->{saving=false;if(!closed){if(response!=null)toast(response);if(share&&saved!=null){Intent intent=new Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM,saved).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);intent.setClipData(ClipData.newRawUri("空叶截图",saved));close();launch(Intent.createChooser(intent,"分享图片").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}}else target.recycle();});});
+    }
+    void close(){if(closed)return;closed=true;window.remove();if(editingCanvas!=null){editingCanvas.dispose();editingCanvas=null;}if(!saving)image.recycle();pinChanged.accept(false);finished.run();}
+}

@@ -1,0 +1,4 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
+    <application><activity android:name=".DiagnosticActivity" android:exported="true" android:label="空叶本地功能验收" /><activity android:name=".OverlayCheckActivity" android:exported="true" android:launchMode="singleTask" android:label="空叶悬浮层本地验收" /><receiver android:name=".OverlayCheckReceiver" android:exported="true" /></application>
+</manifest>

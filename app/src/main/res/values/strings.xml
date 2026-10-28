@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">空叶悬浮球</string>
+    <string name="accessibility_description">开启后可提供增强悬浮层；仅在你操作悬浮球时执行导航、锁屏和截图。长截图时只按你的操作滚动并在手机内拼接；仅点击「提取文字」时读取可访问文字并跳过密码框。截图、文字和录屏只保存在本机，不上传，可随时关闭服务。</string>
+</resources>

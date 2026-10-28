@@ -1,0 +1,5 @@
+import com.kongye.floatball.MultiTextSelection;
+public class MultiSelectionCheck {
+    static int count;static void check(boolean ok){count++;if(!ok)throw new AssertionError("Multi selection "+count);}
+    public static void main(String[] args){MultiTextSelection s=new MultiTextSelection("abc DEF ghi JKL");s.add(0,3);s.add(8,11);check(s.count()==2);check(s.selectedText().equals("abc\nghi"));s.add(2,9);check(s.count()==1);check(s.selectedText().equals("abc DEF ghi"));s.remove(3,8);check(s.count()==2);check(s.selectedText().equals("abc\nghi"));s.toggleWord(1);check(s.selectedText().equals("ghi"));s.toggleWord(13);check(s.selectedText().equals("ghi\nJKL"));s.clear();check(s.count()==0);check(s.selectedText().equals("abc DEF ghi JKL"));MultiTextSelection e=new MultiTextSelection("叶😀球");e.add(2,3);check(e.selectedText().equals("😀"));s.clear();s.add(0,15);check(s.contains(4));s.drag(4,7,true);check(!s.contains(5)&&s.count()==2);s.drag(0,15,true);check(s.count()==0);s.drag(0,15,false);s.drag(15,0,true);check(s.count()==0);System.out.println(count+" disjoint selection checks passed.");}
+}
