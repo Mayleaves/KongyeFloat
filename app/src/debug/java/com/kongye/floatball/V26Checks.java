@@ -1,0 +1,6 @@
+package com.kongye.floatball;
+import android.content.Context;
+import java.io.IOException;
+final class V26Checks {
+    static void run(Context c){int count=0;String error="";try{GitHubUpdate.Result newer=GitHubUpdate.parse("{\"tag_name\":\"v1.15.0\",\"draft\":false,\"prerelease\":false}","1.14.1");if(newer.comparison<=0||!newer.latest.equals("1.15.0"))throw new AssertionError("new release");count++;if(GitHubUpdate.parse("{\"tag_name\":\"v1.15.0\"}","1.15").comparison!=0)throw new AssertionError("same version");count++;if(GitHubUpdate.parse("{\"tag_name\":\"v1.15.0\"}","1.16").comparison>=0)throw new AssertionError("local newer");count++;for(String invalid:new String[]{"{}","not-json","{\"tag_name\":\"v1.16-rc1\"}","{\"tag_name\":\"v1.16\",\"prerelease\":true}","{\"tag_name\":\"v1.16\",\"draft\":true}"}){boolean rejected=false;try{GitHubUpdate.parse(invalid,"1.15");}catch(IOException expected){rejected=true;}if(!rejected)throw new AssertionError("invalid release");count++;}if(!GitHubUpdate.RELEASES.equals("https://github.com/Mayleaves/KongyeFloat/releases/latest"))throw new AssertionError("release URL");count++;}catch(Throwable t){error=t.toString();}Prefs.of(c).edit().putInt("qa_v26_checks",count).putBoolean("qa_v26_pass",error.isEmpty()).putString("qa_v26_error",error).apply();}
+}

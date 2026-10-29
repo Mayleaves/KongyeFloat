@@ -84,6 +84,7 @@ final class Ui {
                 case "recent_apps" -> {canvas.drawCircle(12,12,9,p);canvas.drawLine(12,6,12,12,p);canvas.drawLine(12,12,17,15,p);}
                 case "favorite_apps", "star_on" -> {for(int i=0;i<10;i++){double angle=-Math.PI/2+i*Math.PI/5;float radius=i%2==0?10:4.5f;float x=12+(float)Math.cos(angle)*radius,y=12+(float)Math.sin(angle)*radius;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();if(name.equals("star_on"))p.setStyle(Paint.Style.FILL_AND_STROKE);canvas.drawPath(path,p);}
                 case "text" -> {canvas.drawLine(4,5,20,5,p);canvas.drawLine(12,5,12,20,p);canvas.drawLine(8,20,16,20,p);canvas.drawLine(4,5,4,8,p);canvas.drawLine(20,5,20,8,p);}
+                case "translate" -> {p.setStyle(Paint.Style.FILL);p.setTextSize(10);p.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));canvas.drawText("A",2,11,p);canvas.drawText("文",12,21,p);p.setStyle(Paint.Style.STROKE);canvas.drawLine(10,4,21,4,p);canvas.drawLine(18,2,21,4,p);canvas.drawLine(21,4,18,6,p);}
                 case "notes" -> {canvas.drawRoundRect(4,3,20,21,3,3,p);canvas.drawLine(8,8,16,8,p);canvas.drawLine(8,12,16,12,p);canvas.drawLine(8,16,13,16,p);}
                 case "browser" -> {canvas.drawCircle(12,12,9,p);canvas.drawOval(8,3,16,21,p);canvas.drawLine(3,12,21,12,p);}
                 case "notifications" -> {path.moveTo(5,17);path.lineTo(7,14);path.lineTo(7,9);path.cubicTo(7,2,17,2,17,9);path.lineTo(17,14);path.lineTo(19,17);path.close();canvas.drawPath(path,p);canvas.drawArc(10,18,14,22,0,180,false,p);}

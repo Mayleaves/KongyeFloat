@@ -2,7 +2,7 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [1.15.0 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v1.15.0) · [详细使用说明](docs/USER_GUIDE.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [1.16.0 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v1.16.0) · [详细使用说明](docs/USER_GUIDE.md)
 
 ## 功能
 
@@ -11,6 +11,8 @@
 - **图片编辑**：裁剪、旋转、镜像、文字、画笔、画框、直线、箭头、序号和马赛克；支持颜色、粗细和双指缩放。
 - **录屏与 GIF**：选择录制区域、分辨率和声音来源，可添加水印；录制完成后预览、保存、分享或将视频转换为 GIF。
 - **个性化**：导入图片或透明 GIF 作为悬浮球，调整尺寸、透明度和边距；支持深色、浅色、跟随系统和定时切换。
+- **文字翻译**：区域截图识别的文字可选择语言翻译，首次使用通过 Wi-Fi 下载语言模型，下载后在设备上翻译。
+- **更新与项目主页**：在「外观 → 其他」手动检查 GitHub 最新正式版本，或打开项目主页。检测到更新时可前往发布页下载。
 - **其他工具**：常用应用、最近应用、便签、悬浮浏览器，以及针对特定应用的显示规则。首页工具可自选和拖动排序。
 
 ## 安装与权限
@@ -24,7 +26,7 @@
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 1.15.0。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 1.16.0。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 
@@ -38,7 +40,7 @@ Windows 上可运行 `gradlew.bat assembleDebug`。项目里的 `scripts/build.p
 
 ## 数据与保存
 
-截图识别使用随应用打包的 Google ML Kit 中文模型，在手机上处理；ML Kit SDK 可能发送性能和使用统计，详见 [ML Kit 条款](https://developers.google.com/ml-kit/terms)。便签和配置保存在设备本地。浏览器访问用户打开的网站，网站按其自身政策处理请求和 Cookie。
+截图识别使用随应用打包的 Google ML Kit 中文模型，在手机上处理；ML Kit SDK 可能发送性能和使用统计，详见 [ML Kit 条款](https://developers.google.com/ml-kit/terms)。便签和配置保存在设备本地。浏览器访问用户打开的网站，网站按其自身政策处理请求和 Cookie。点击检查更新时，应用会请求本项目的 GitHub Releases API。翻译使用 Google ML Kit，首次使用时通过 Wi-Fi 下载语言模型，识别文字在设备上翻译。
 
 区域截图、整屏截图、手动长图和录制先进入预览，点击保存后写入相册；独立的自动滚动长截图通过“完成保存”写入相册。分享使用应用私有的临时文件和系统选择器。使用细节、权限说明与功能限制见[详细使用说明](docs/USER_GUIDE.md)。
 

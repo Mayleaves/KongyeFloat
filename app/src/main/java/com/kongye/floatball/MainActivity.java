@@ -23,6 +23,8 @@ public class MainActivity extends Activity {
     private Preview preview;
     private int tab=0, renderedTab=-1;
     private final Handler handler=new Handler(Looper.getMainLooper());
+    private final java.util.concurrent.ExecutorService updateWorker=java.util.concurrent.Executors.newSingleThreadExecutor();
+    private AlertDialog updateDialog;private java.util.concurrent.Future<?> updateTask;private int updateGeneration;
     private boolean renderedDark;
     private final Runnable themeTicker=new Runnable(){public void run(){if(ThemePolicy.isDark(MainActivity.this)!=renderedDark)render();handler.postDelayed(this,60000-System.currentTimeMillis()%60000);}};
     @Override public void onCreate(Bundle state) {
@@ -32,7 +34,8 @@ public class MainActivity extends Activity {
     }
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putInt("tab",tab);}
     @Override protected void onResume(){super.onResume();visible=new java.lang.ref.WeakReference<>(this);render();handler.removeCallbacks(themeTicker);handler.postDelayed(themeTicker,60000-System.currentTimeMillis()%60000);}
-    @Override protected void onPause(){if(visible.get()==this)visible.clear();handler.removeCallbacks(themeTicker);super.onPause();}
+    @Override protected void onPause(){if(visible.get()==this)visible.clear();handler.removeCallbacks(themeTicker);cancelUpdate();super.onPause();}
+    @Override protected void onDestroy(){cancelUpdate();updateWorker.shutdownNow();super.onDestroy();}
     private int dp(float v){return Ui.dp(this,v);}
     private void render() {
         ThemePolicy.apply(this);renderedDark=Ui.dark;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);
@@ -132,11 +135,13 @@ public class MainActivity extends Activity {
         link(other,"特定应用中的悬浮球",null,()->startActivity(new Intent(this,AppBehaviorActivity.class)));
         link(other,"找回悬浮球",null,()->startService(new Intent(this,FloatService.class).setAction(FloatService.RECOVER)));
         link(other,"重置悬浮球位置",null,()->{Prefs.of(this).edit().remove("x").remove("y").apply();refreshBall();Toast.makeText(this,"位置已重置",Toast.LENGTH_SHORT).show();});
-        link(other,"检查更新","待接入",()->placeholder("检查更新","更新检查功能待接入，当前未发起网络请求。"));
-        link(other,"GitHub","待配置",()->placeholder("GitHub","GitHub 地址待配置，后续再接入仓库入口。"));
+        link(other,"检查更新",null,this::checkForUpdates);
+        link(other,"GitHub",null,()->openWeb(GitHubUpdate.PROJECT));
         content.addView(other);
     }
-    private void placeholder(String title,String message){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("知道了",null).show();}
+    private void openWeb(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE));}catch(ActivityNotFoundException|SecurityException e){Feedback.show(this,"没有可用的浏览器，请先安装或启用浏览器");}}
+    private void cancelUpdate(){updateGeneration++;if(updateTask!=null){updateTask.cancel(true);updateTask=null;}if(updateDialog!=null){updateDialog.dismiss();updateDialog=null;}}
+    private void checkForUpdates(){cancelUpdate();int generation=updateGeneration;String current=appVersion();updateDialog=new AlertDialog.Builder(this).setTitle("检查更新").setMessage("正在检查 GitHub 最新版本…").setNegativeButton("取消",(d,w)->cancelUpdate()).setOnCancelListener(d->cancelUpdate()).show();updateTask=updateWorker.submit(()->{GitHubUpdate.Result result=null;String error=null;try{result=GitHubUpdate.check(current);}catch(java.io.IOException|RuntimeException e){error=e.getMessage();}GitHubUpdate.Result answer=result;String failure=error;handler.post(()->{if(generation!=updateGeneration||isFinishing()||isDestroyed())return;updateTask=null;if(updateDialog!=null){updateDialog.dismiss();updateDialog=null;}if(answer==null){new AlertDialog.Builder(this).setTitle("检查更新失败").setMessage((failure==null?"无法连接 GitHub，请检查网络后重试":failure)+"。\n也可以直接打开发布页查看。").setPositiveButton("重试",(d,w)->checkForUpdates()).setNeutralButton("发布页",(d,w)->openWeb(GitHubUpdate.RELEASES)).setNegativeButton("关闭",null).show();return;}String title=answer.comparison>0?"发现新版本":answer.comparison<0?"当前版本较新":"已是最新版本";String detail="当前版本："+current+"\nGitHub 最新版本："+answer.latest+(answer.comparison>0?"\n\n可前往发布页下载 APK，安装时由系统校验签名。":"");new AlertDialog.Builder(this).setTitle(title).setMessage(detail).setPositiveButton(answer.comparison>0?"前往下载":"知道了",(d,w)->{if(answer.comparison>0)openWeb(GitHubUpdate.RELEASES);}).setNeutralButton(answer.comparison>0?null:"发布页",(d,w)->openWeb(GitHubUpdate.RELEASES)).show();});});}
     private LinearLayout group(){LinearLayout g=Ui.column(this);g.setBackground(Ui.bg(Ui.SURFACE,20,this));g.setClipToOutline(true);return g;}
     private void label(String title){Ui.gap(content,22);TextView t=Ui.text(this,title,13,Ui.MUTED,true);Ui.pad(t,6,0,6,8);content.addView(t);}
     private void hint(String value){TextView t=Ui.text(this,value,12,Ui.MUTED,false);t.setLineSpacing(dp(3),1);Ui.pad(t,6,0,6,0);content.addView(t);}

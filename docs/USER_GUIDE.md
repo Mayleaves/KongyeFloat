@@ -1,4 +1,4 @@
-# 空叶悬浮球 1.15.0
+# 空叶悬浮球 1.16.0
 
 独立 Android 原生项目，包名 `com.kongye.floatball`，仅使用本项目目录。界面、图标及代码独立实现，交互参考 FV 悬浮球。
 
@@ -46,7 +46,7 @@
 
 复制文字、保存图片、保存视频/GIF、追加便签及工具错误使用应用内短提示，显示在增强悬浮层上方，不阻挡触摸；长操作先显示处理中，完成后才显示成功或失败。录制结果另保留操作状态文字。分享仍由系统选择器展示，不显示“已准备临时分享”，也不将打开选择器当作发送成功。
 
-「外观 → 其他」新增「检查更新」和「GitHub」入口，目前仅显示待接入/待配置说明，不检查服务器、不下载、不打开仓库链接。
+「外观 → 其他」提供「检查更新」和「GitHub」入口。手动检查会读取 GitHub 最新正式 Release 并比较版本，更新时可打开发布页下载；GitHub 入口打开项目主页。不会自动下载或安装。
 
 ## 手势与应用
 
@@ -145,3 +145,6 @@ Java 17 源码，AGP 9.4.1、Gradle 9.8.2、compile SDK 37.0、target 36、min 2
 代码入口：MainActivity、FloatService / GestureCaptureOverlay、QuickDock / QuickSettingsActivity / QuickOrbitLayout / AppPickerActivity、CaptureController / RegionResult / DragSelectTextView / MultiTextSelection / ImageEditView / ShareImageProvider、StitchSession / CompositionLayout / CropGeometry、AutoCaptureController / FrameStitcher、ScreenRecordingActivity、ScreenRecordingService、RecordingEngine / RecordingGl / RecordingSetup / RecordingWatermark / RecordingPlayer / RecordingResultActivity / GifWriter / GifConversion、AppBehaviorActivity / AppBehavior、OverlayWindows / DragOverlay / FloatingBrowser / BrowserSearch、BallArt、ThemePolicy / ThemeSchedule、AppCatalog。
 
 Android API 参考：[本机中文 OCR](https://developers.google.com/ml-kit/vision/text-recognition/v2/android)、[屏幕捕获](https://developer.android.com/media/grow/media-projection)、[内部声音捕获](https://developer.android.com/media/platform/av-capture)、[动画图像](https://developer.android.com/reference/android/graphics/drawable/AnimatedImageDrawable)、[使用记录](https://developer.android.com/reference/android/app/usage/UsageStatsManager)。
+
+
+区域截图识别完成后，可编辑文字并点击「翻译」，选择源语言和目标语言后开始翻译；译文可编辑、复制。首次使用语言需通过 Wi-Fi 下载语言模型，下载后在本机翻译。
