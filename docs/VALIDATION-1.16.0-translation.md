@@ -4,5 +4,5 @@
 
 - 区域截图中程序生成的测试文字识别成功，编辑后可进入翻译界面，英语和中文语言选择及翻译操作正常显示。
 - 实际语言模型下载长时间等待，未能验证最终译文；界面提供下载较慢提示及重试。
-- Release 编译和 Android Lint 完成，0 errors、64 warnings。
+- Release 编译和 Android Lint 完成，0 errors、65 warnings。
 - APK SHA-256：`9704E7CDA470933DC1D314900E6FBF52EBCC56DDF51AA7BA638466D996FB18D1`。
