@@ -2,7 +2,7 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [1.16.1 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v1.16.1) · [详细使用说明](docs/USER_GUIDE.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [1.16.2 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v1.16.2) · [详细使用说明](docs/USER_GUIDE.md)
 
 ## 功能
 
@@ -26,7 +26,7 @@
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 1.16.1。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 1.16.2。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 

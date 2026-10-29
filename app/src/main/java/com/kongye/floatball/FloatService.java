@@ -132,11 +132,11 @@ public class FloatService extends Service {
         snapAnimator.addUpdateListener(animation->{float t=(float)animation.getAnimatedValue();ballParams.x=startX+Math.round((x-startX)*t);ballParams.y=startY+Math.round((y-startY)*t);updateBall();});
         snapAnimator.addListener(new android.animation.AnimatorListenerAdapter(){boolean cancelled;@Override public void onAnimationCancel(android.animation.Animator animation){cancelled=true;}@Override public void onAnimationEnd(android.animation.Animator animation){if(!cancelled){followReturning=false;if(running)done.run();}}});snapAnimator.start();
     }
-    private float captureX(){int[] at=ballLocation();return Math.max(0,Math.min(screenWidth(),at[0]-dp(24)));}
-    private float captureY(){int[] at=ballLocation();return Math.max(0,Math.min(screenHeight(),at[1]-dp(24)));}
+    private float captureX(){int[] at=ballLocation();return Math.max(0,Math.min(screenWidth(),at[0]-dp(32)));}
+    private float captureY(){int[] at=ballLocation();return Math.max(0,Math.min(screenHeight(),at[1]-dp(32)));}
     private int[] ballLocation(){int[] at={ballParams.x,ballParams.y};if(ball!=null&&ball.isAttachedToWindow())ball.getLocationOnScreen(at);return at;}
     private void showCaptureCross(){
-        if(captureTarget==null){captureTarget=new GestureCaptureOverlay(this);captureTarget.position=()->new PointF(captureX(),captureY());WindowManager.LayoutParams p=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);p.gravity=Gravity.TOP|Gravity.LEFT;p.alpha=.7f;p.setTitle("空叶截图十字");if(Build.VERSION.SDK_INT>=30)p.setFitInsetsTypes(0);try{windows.addView(captureTarget,p);}catch(RuntimeException e){captureTarget=null;return;}}
+        if(captureTarget==null){captureTarget=new GestureCaptureOverlay(this);captureTarget.position=()->new PointF(captureX(),captureY());WindowManager.LayoutParams p=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);p.gravity=Gravity.TOP|Gravity.LEFT;p.alpha=1f;p.setTitle("空叶截图十字");if(Build.VERSION.SDK_INT>=30)p.setFitInsetsTypes(0);try{windows.addView(captureTarget,p);}catch(RuntimeException e){captureTarget=null;return;}}
         captureTarget.x=captureX();captureTarget.y=captureY();captureTarget.ready=touch.armed;captureTarget.drawing=touch.drawing;captureTarget.anchorX=touch.anchorX;captureTarget.anchorY=touch.anchorY;captureTarget.invalidate();
     }
     private void hideCaptureTarget(){if(captureTarget!=null){try{windows.removeView(captureTarget);}catch(IllegalArgumentException ignored){}captureTarget=null;}}
