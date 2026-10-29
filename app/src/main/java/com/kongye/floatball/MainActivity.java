@@ -103,12 +103,14 @@ public class MainActivity extends Activity {
     // A permanently denied request returns at once without a dialog; send the user to the system page instead.
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(request==12&&!notificationsAllowed()&&Build.VERSION.SDK_INT>=33&&!shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS))notificationSettings();render();}
     private void gestures() {
+        ballAppearance();
+        label("手势");
         LinearLayout card=group();
         for(int i=0;i<GESTURES.length;i++){String key=GESTURES[i],name=GESTURE_NAMES[i];link(card,name,Prefs.label(this,Prefs.action(this,key)),()->{String[] actions=Prefs.gestureActions();new AlertDialog.Builder(this).setTitle(name).setItems(gestureChoices(),(d,which)->{if(which==actions.length){pickGestureApp(key);return;}Prefs.of(this).edit().putString("gesture_"+key,actions[which]).apply();render();}).show();});}
         content.addView(card);Ui.gap(content,12);hint("按住小叶约 0.3 秒即可拖动；拖动中停住，十字变黄后拖出矩形，松手即截图。");
         Ui.gap(content,20);content.addView(textButton("恢复默认手势",()->{SharedPreferences.Editor e=Prefs.of(this).edit();for(String k:GESTURES)e.remove("gesture_"+k);e.apply();render();}));
     }
-    private void appearance() {
+    private void ballAppearance() {
         SharedPreferences prefs=Prefs.of(this);boolean custom=prefs.getBoolean("custom_art",false)&&BallArt.file(this).isFile();
         LinearLayout look=group();Ui.pad(look,18,18,18,18);
         FrameLayout stage=new FrameLayout(this);stage.setBackground(Ui.bg(Ui.BG,16,this));preview=new Preview(this,0);stage.addView(preview,new FrameLayout.LayoutParams(-1,-1));look.addView(stage,new LinearLayout.LayoutParams(-1,dp(132)));Ui.gap(look,16);
@@ -123,6 +125,9 @@ public class MainActivity extends Activity {
         if(custom){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.leftMargin=dp(10);buttons.addView(Ui.button(this,"恢复叶片",false,()->{Prefs.of(this).edit().putBoolean("custom_art",false).apply();refreshBall();render();}),lp);}
         look.addView(buttons);content.addView(look);
         label("尺寸");LinearLayout size=group();slider(size,"大小","size",48,36,150," dp");slider(size,"不透明度","opacity",90,30,100,"%");slider(size,"边框距离","edge_gap",0,-100,0," dp");content.addView(size);
+    }
+    private void appearance() {
+        SharedPreferences prefs=Prefs.of(this);
         label("行为");LinearLayout behavior=group();
         toggle(behavior,"自动吸边",null,"snap",true);toggle(behavior,"空闲时淡化","3 秒未操作时降低透明度","fade",true);toggle(behavior,"触感反馈",null,"haptic",true);toggle(behavior,"增强悬浮层","无障碍开启时，显示在更多界面上方","enhanced_overlay",true);content.addView(behavior);
         label("主题");LinearLayout theme=group();
