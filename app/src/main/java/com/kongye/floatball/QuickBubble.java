@@ -7,7 +7,7 @@ import android.widget.*;
 
 /** Icon-only circle; content descriptions remain available to accessibility. */
 final class QuickBubble {
-    static final int[] COLORS={0xFF168DB8,0xFFE0B638,0xFF6C9F45,0xFF963A75,0xFF23A69C,0xFF5885B5};
+    static final int[] COLORS={0xFF28765A,0xFF617B4D,0xFF456950,0xFF789261,0xFF527C68,0xFF3C6254};
     static FrameLayout create(Context c,String id,int size,int color){
         FrameLayout bubble=new FrameLayout(c);bubble.setBackground(Ui.bg(color,100,c));bubble.setElevation(Ui.dp(c,3));if(id.isEmpty())return bubble;
         int iconSize=Ui.dp(c,size*.57f);View icon;

@@ -38,7 +38,7 @@ final class CaptureController {
     }
     private void adopt(Bitmap image,String kind,boolean edit){active=true;stitching=null;ball.accept(false);try{result=new RegionResult(context,image,worker,this::done,pinned->ball.accept(pinned),kind);if(edit)result.openEditor();}catch(RuntimeException|OutOfMemoryError error){image.recycle();cancel();toast("无法显示拼接结果，请重试");}}
     private void done(){active=false;result=null;stitching=null;++generation;ball.accept(true);}
-    private void toast(String value){if(!destroyed)Toast.makeText(context,value,Toast.LENGTH_LONG).show();}
+    private void toast(String value){if(!destroyed)Feedback.show(context,value);}
     void cancel(){++generation;handler.removeCallbacksAndMessages(null);window.remove();if(frozen!=null){frozen.recycle();frozen=null;}if(result!=null){RegionResult old=result;result=null;old.close();}if(stitching!=null){StitchSession old=stitching;stitching=null;old.close();}automatic.cancel();active=false;ball.accept(true);}
     void destroy(){destroyed=true;cancel();automatic.destroy();worker.shutdown();}
 }

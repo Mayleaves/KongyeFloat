@@ -20,17 +20,17 @@ final class QuickDock {
     void show(int anchorX,int anchorY){
         close();DisplayMetrics m=new DisplayMetrics();wm.getDefaultDisplay().getRealMetrics(m);
         int w=m.widthPixels,h=m.heightPixels;boolean left=anchorX<w/2;int diameter=Math.round(QuickOrbitLayout.diameter(w,h,m.density)),bubbleDp=Math.round(diameter/m.density);
-        root=new FrameLayout(context);root.setContentDescription("按住显示的环形快捷菜单");root.setBackgroundColor(0x66081526);
+        root=new FrameLayout(context);root.setContentDescription("按住显示的环形快捷菜单");root.setBackgroundColor(0x66304134);
         float[][] points=QuickOrbitLayout.positions(w,h,anchorX,anchorY,m.density);
         ArrayList<String> entries=QuickActions.load(context);entries.addAll(QuickActions.recent(context));
         for(int i=0;i<entries.size();i++){
             String id=entries.get(i);if(id.isEmpty()&&i==12)id="recent_apps";String target=id.isEmpty()?"edit_slot:"+i:id;
-            FrameLayout bubble=QuickBubble.create(context,id,bubbleDp,i<12?(id.isEmpty()?Color.WHITE:QuickBubble.COLORS[i%6]):0xFF536E76);
+            FrameLayout bubble=QuickBubble.create(context,id,bubbleDp,i<12?(id.isEmpty()?Color.WHITE:QuickBubble.COLORS[i%6]):Ui.MUTED);
             bubble.setContentDescription(i<12?(id.isEmpty()?"空白快捷位置"+(i+1):"快捷："+Prefs.label(context,id)):"最近："+Prefs.label(context,id));
             FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(diameter,diameter);p.leftMargin=Math.round(points[i][0])-diameter/2;p.topMargin=Math.round(points[i][1])-diameter/2;
             root.addView(bubble,p);targets.put(bubble,target);
         }
-        FrameLayout manage=QuickBubble.create(context,"quick_manage",40,0xEE304F58);manage.setContentDescription("管理快捷");
+        FrameLayout manage=QuickBubble.create(context,"quick_manage",40,Ui.toolbar());manage.setContentDescription("管理快捷");
         FrameLayout.LayoutParams mp=new FrameLayout.LayoutParams(dp(44),dp(44));mp.leftMargin=left?w-dp(58):dp(14);mp.topMargin=Math.max(dp(36),Math.min(h-dp(90),anchorY-dp(22)));root.addView(manage,mp);targets.put(manage,"manage_quick");
         preview=Ui.column(context);preview.setGravity(Gravity.CENTER);preview.setContentDescription("快捷操作放大预览");
         previewIcon=new FrameLayout(context);preview.addView(previewIcon,new LinearLayout.LayoutParams(dp(80),dp(80)));Ui.gap(preview,10);
@@ -47,7 +47,7 @@ final class QuickDock {
         }
         if(Objects.equals(next,hovered))return;hovered=next;
         if(next==null){preview.setVisibility(View.INVISIBLE);return;}
-        previewIcon.removeAllViews();previewIcon.addView(QuickBubble.create(context,next.equals("manage_quick")||next.startsWith("edit_slot:")?"quick_manage":next,80,0xFF2F7890),new FrameLayout.LayoutParams(-1,-1));
+        previewIcon.removeAllViews();previewIcon.addView(QuickBubble.create(context,next.equals("manage_quick")||next.startsWith("edit_slot:")?"quick_manage":next,80,Ui.GREEN),new FrameLayout.LayoutParams(-1,-1));
         previewName.setText(next.equals("manage_quick")?"管理快捷":next.startsWith("edit_slot:")?"设置快捷位置":Prefs.label(context,next));preview.setVisibility(View.VISIBLE);
         Prefs.of(context).edit().putString("last_quick_hover",next).apply();
     }

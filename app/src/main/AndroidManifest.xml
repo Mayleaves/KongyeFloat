@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- User grants this app-op explicitly in Usage Access settings; not a runtime/system grant. -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
@@ -19,6 +20,8 @@
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
+        <activity android:name=".UpdateActivity" android:exported="false" />
+        <provider android:name=".UpdateProvider" android:authorities="com.kongye.floatball.update" android:exported="false" android:grantUriPermissions="true" />
         <activity android:name=".FilePickerActivity" android:exported="false" android:theme="@style/TransparentTheme" />
         <activity android:name=".ScreenRecordingActivity" android:exported="false" android:theme="@style/TransparentTheme" android:excludeFromRecents="true" android:launchMode="singleTask" android:taskAffinity="com.kongye.floatball.recording" />
         <activity android:name=".RecordingResultActivity" android:exported="false" android:theme="@style/TransparentTheme" android:taskAffinity="com.kongye.floatball.result" android:excludeFromRecents="true" />

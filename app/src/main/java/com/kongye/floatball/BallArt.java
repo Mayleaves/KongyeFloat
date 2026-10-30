@@ -9,6 +9,10 @@ import android.widget.ImageView;
 import java.io.*;
 
 final class BallArt {
+    static final int DEFAULT_SIZE=36;
+    static final float LEAF_SCALE=.62f;
+    static final int DEFAULT_COLOR=0xFF86A26D,FOREGROUND=0xFFFAF7EF;
+    static int color(Context c){int value=Prefs.of(c).getInt("color",DEFAULT_COLOR);return value==Ui.BRAND||value==0xFF287A59?DEFAULT_COLOR:value;}
     static File file(Context c){return new File(c.getFilesDir(),"ball-art");}
     // Overlay widgets use the platform theme; this app does not use AppCompat activities.
     @android.annotation.SuppressLint("AppCompatCustomView")
@@ -16,7 +20,7 @@ final class BallArt {
         File file=file(c);if(!file.isFile()||!Prefs.of(c).getBoolean("custom_art",false))return null;
         return decode(c,file,pixels);
     }
-    static void styleContainer(View view,boolean custom){Context c=view.getContext();view.setBackground(custom?null:Ui.bg(Prefs.of(c).getInt("color",Ui.BRAND),100,c));view.setElevation(custom?0:Ui.dp(c,6));}
+    static void styleContainer(View view,boolean custom){Context c=view.getContext();if(custom)view.setBackground(null);else{GradientDrawable circle=Ui.bg(color(c),100,c);circle.setStroke(Math.max(1,Ui.dp(c,1.5f)),FOREGROUND);view.setBackground(circle);}view.setElevation(custom?0:Ui.dp(c,3));}
     @android.annotation.SuppressLint("AppCompatCustomView")
     static View decode(Context c,File file,int pixels){
         try{

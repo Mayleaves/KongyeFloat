@@ -61,17 +61,17 @@ public class FloatService extends Service {
     private int screenHeight(){android.util.DisplayMetrics m=new android.util.DisplayMetrics();windows.getDefaultDisplay().getRealMetrics(m);return m.heightPixels;}
     private float baseAlpha(){return Prefs.of(this).getInt("opacity",90)/100f;}
     private void addBall(){
-        int size=dp(GestureRules.clamp(Prefs.of(this).getInt("size",48),36,150));
+        int size=dp(GestureRules.clamp(Prefs.of(this).getInt("size",BallArt.DEFAULT_SIZE),36,150));
         ball=new FrameLayout(this);ball.setContentDescription("空叶悬浮球：点击菜单，双击返回，按住后拖动");
         if(Build.VERSION.SDK_INT>=29)ball.setSystemGestureExclusionRects(Collections.singletonList(new Rect(0,0,size,size)));
-        View art=BallArt.create(this,size);customBallArt=art!=null;BallArt.styleContainer(ball,art!=null);View leaf=art==null?new Ui.Icon(this,"leaf",Color.WHITE):art;int iconSize=art==null?(int)(size*.57):size;FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(iconSize,iconSize,Gravity.CENTER);ball.addView(leaf,lp);
+        View art=BallArt.create(this,size);customBallArt=art!=null;BallArt.styleContainer(ball,art!=null);View leaf=art==null?new Ui.Icon(this,"leaf_outline",BallArt.FOREGROUND):art;int iconSize=art==null?Math.round(size*BallArt.LEAF_SCALE):size;FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(iconSize,iconSize,Gravity.CENTER);ball.addView(leaf,lp);
         ballParams=new WindowManager.LayoutParams(size,size,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,PixelFormat.TRANSLUCENT);
         ballParams.setTitle("空叶悬浮球");if(Build.VERSION.SDK_INT>=30)ballParams.setFitInsetsTypes(0);if(Build.VERSION.SDK_INT>=28)ballParams.layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;ballParams.gravity=Gravity.TOP|Gravity.LEFT;ballParams.x=GestureRules.clamp(Prefs.of(this).getInt("x",screenWidth()-size-edgeGap()),edgeGap(),screenWidth()-size-edgeGap());ballParams.y=GestureRules.clamp(Prefs.of(this).getInt("y",screenHeight()/3),edgeGap(),screenHeight()-size-edgeGap());
         if(Prefs.of(this).getBoolean("snap",true))ballParams.x=GestureRules.edgeWithInset(ballParams.x,screenWidth(),size,edgeGap());
         touch=new BallTouch();ball.setAlpha(baseAlpha());ball.setOnTouchListener(touch);ball.setOnClickListener(v->perform(Prefs.action(this,"tap")));windows.addView(ball,ballParams);applyPolicy();wakeBall();
         KeyguardManager km=getSystemService(KeyguardManager.class);if(km.isKeyguardLocked())ball.setVisibility(View.GONE);
     }
-    private int edgeGap(){return GestureRules.visibleInset(dp(GestureRules.clamp(Prefs.of(this).getInt("edge_gap",0),-100,0)),dp(GestureRules.clamp(Prefs.of(this).getInt("size",48),36,150)),dp(12));}
+    private int edgeGap(){return GestureRules.visibleInset(dp(GestureRules.clamp(Prefs.of(this).getInt("edge_gap",0),-100,0)),dp(GestureRules.clamp(Prefs.of(this).getInt("size",BallArt.DEFAULT_SIZE),36,150)),dp(12));}
     void foregroundChanged(String pkg){foreground=pkg==null?"":pkg;String next=AppBehavior.mode(this,foreground);if(!next.equals(appMode)){appMode=next;if(next.equals("disabled")){closePanel();quickDock.close();hideCaptureTarget();if(touch!=null){touch.pressed=false;handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);}}applyPolicy();}}
     private void applyPolicy(){if(ball==null)return;String effective=SystemClock.uptimeMillis()<recoveryUntil?"normal":appMode;boolean disabled=effective.equals("disabled"),locked=getSystemService(KeyguardManager.class).isKeyguardLocked();ball.animate().cancel();boolean hidden=effective.equals("hidden");if(hidden){ball.setBackground(null);ball.setElevation(0);ball.setAlpha(1);}else{BallArt.styleContainer(ball,customBallArt);ball.setAlpha(baseAlpha());}for(int i=0;i<ball.getChildCount();i++)ball.getChildAt(i).setAlpha(hidden?0:1);boolean recording=ScreenRecordingService.running;ball.setVisibility(disabled||locked||recording?View.GONE:captureVisible?View.VISIBLE:View.INVISIBLE);if(disabled||recording)ballParams.flags|=WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;else ballParams.flags&=~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;updateBall();if((getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putString("qa_ball_app_mode",appMode).putString("qa_ball_foreground",foreground).putBoolean("qa_ball_touchable",!disabled&&!recording).putBoolean("qa_ball_visible",ball.getVisibility()==View.VISIBLE).putFloat("qa_ball_alpha",appMode.equals("hidden")?0:ball.getAlpha()).apply();}
     int[] recordingAnchor(){int size=ballParams==null?dp(48):ballParams.width;return new int[]{Math.max(0,Math.min(screenWidth()-dp(58),(ballParams==null?screenWidth()-size:ballParams.x)+size/2-dp(27))),Math.max(dp(30),Math.min(screenHeight()-dp(66),(ballParams==null?screenHeight()/3:ballParams.y)+size/2-dp(27)))};}
@@ -83,7 +83,7 @@ public class FloatService extends Service {
     private void vibrate(){if(Prefs.of(this).getBoolean("haptic",true)){Vibrator v=(Vibrator)getSystemService(VIBRATOR_SERVICE);if(v!=null&&v.hasVibrator())v.vibrate(VibrationEffect.createOneShot(12,VibrationEffect.DEFAULT_AMPLITUDE));}}
     private void savePosition(){Prefs.of(this).edit().putInt("x",ballParams.x).putInt("y",ballParams.y).apply();}
     private class BallTouch implements View.OnTouchListener {
-        float downX,downY,lastMoveX,lastMoveY,anchorX,anchorY;int initialX,initialY,maxFollow;long downAt;
+        float downX,downY,lastMoveX,lastMoveY,anchorX,anchorY,pointerX,pointerY;int initialX,initialY,maxFollow;long downAt;
         boolean moved,dragging,pendingTap,holdTriggered,holdMoved,pressed,armed,drawing;
         final Runnable single=()->{pendingTap=false;if(ball!=null)ball.performClick();};
         final Runnable hold=()->{if(!pressed||moved||dragging)return;handler.removeCallbacks(single);pendingTap=false;holdTriggered=true;holdMoved=false;touchReceipt("HOLD",downX,downY);vibrate();perform(Prefs.action(FloatService.this,"long"));};
@@ -91,6 +91,7 @@ public class FloatService extends Service {
         private void reset(){handler.removeCallbacks(hold);handler.removeCallbacks(arm);hideCaptureTarget();if(ball!=null){ball.setScaleX(1);ball.setScaleY(1);}}
         private void restore(){ballParams.x=initialX;ballParams.y=initialY;updateBall();}
         @Override public boolean onTouch(View view,MotionEvent event){
+            pointerX=event.getRawX();pointerY=event.getRawY();
             switch(event.getActionMasked()){
                 case MotionEvent.ACTION_DOWN->{touchReceipt("DOWN",event.getRawX(),event.getRawY());wakeBall();if(snapAnimator!=null)snapAnimator.cancel();if(followReturning){ballParams.x=followHomeX;ballParams.y=followHomeY;followReturning=false;updateBall();}downX=lastMoveX=event.getRawX();downY=lastMoveY=event.getRawY();initialX=ballParams.x;initialY=ballParams.y;downAt=SystemClock.uptimeMillis();moved=dragging=holdTriggered=holdMoved=armed=drawing=false;pressed=true;maxFollow=0;handler.postDelayed(hold,650);return true;}
                 case MotionEvent.ACTION_MOVE->{
@@ -132,9 +133,8 @@ public class FloatService extends Service {
         snapAnimator.addUpdateListener(animation->{float t=(float)animation.getAnimatedValue();ballParams.x=startX+Math.round((x-startX)*t);ballParams.y=startY+Math.round((y-startY)*t);updateBall();});
         snapAnimator.addListener(new android.animation.AnimatorListenerAdapter(){boolean cancelled;@Override public void onAnimationCancel(android.animation.Animator animation){cancelled=true;}@Override public void onAnimationEnd(android.animation.Animator animation){if(!cancelled){followReturning=false;if(running)done.run();}}});snapAnimator.start();
     }
-    private float captureX(){int[] at=ballLocation();return Math.max(0,Math.min(screenWidth(),at[0]-dp(32)));}
-    private float captureY(){int[] at=ballLocation();return Math.max(0,Math.min(screenHeight(),at[1]-dp(32)));}
-    private int[] ballLocation(){int[] at={ballParams.x,ballParams.y};if(ball!=null&&ball.isAttachedToWindow())ball.getLocationOnScreen(at);return at;}
+    private float captureX(){return GestureRules.capturePointer(touch.pointerX,screenWidth(),dp(56),dp(96),dp(8));}
+    private float captureY(){return GestureRules.capturePointer(touch.pointerY,screenHeight(),dp(56),dp(96),dp(8));}
     private void showCaptureCross(){
         if(captureTarget==null){captureTarget=new GestureCaptureOverlay(this);captureTarget.position=()->new PointF(captureX(),captureY());WindowManager.LayoutParams p=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);p.gravity=Gravity.TOP|Gravity.LEFT;p.alpha=1f;p.setTitle("空叶截图十字");if(Build.VERSION.SDK_INT>=30)p.setFitInsetsTypes(0);try{windows.addView(captureTarget,p);}catch(RuntimeException e){captureTarget=null;return;}}
         captureTarget.x=captureX();captureTarget.y=captureY();captureTarget.ready=touch.armed;captureTarget.drawing=touch.drawing;captureTarget.anchorX=touch.anchorX;captureTarget.anchorY=touch.anchorY;captureTarget.invalidate();

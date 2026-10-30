@@ -18,12 +18,13 @@ final class ThemePolicy {
     }
     static boolean apply(Context c){
         boolean dark=isDark(c),changed=Ui.dark!=dark;Ui.dark=dark;
-        Ui.BG=dark?0xFF101613:0xFFF3F5F2;Ui.SURFACE=dark?0xFF1B231F:0xFFFFFFFF;
-        Ui.INK=dark?0xFFE6EEE9:0xFF18261F;Ui.MUTED=dark?0xFF97A59D:0xFF6B7871;
-        Ui.GREEN=dark?0xFF83CCA8:Ui.BRAND;Ui.PALE=dark?0xFF23372C:0xFFE5F0E8;
-        Ui.LINE=dark?0xFF2A3530:0xFFE9EDE8;
+        Ui.BG=dark?0xFF101613:0xFFF3F6F1;Ui.SURFACE=dark?0xFF1B231F:0xFFFFFFFF;
+        Ui.INK=dark?0xFFE6EEE9:0xFF1E2E26;Ui.MUTED=dark?0xFF97A59D:0xFF8B958B;
+        Ui.GREEN=dark?0xFF83CCA8:Ui.BRAND;Ui.PALE=dark?0xFF23372C:0xFFE8F0E4;
+        Ui.LINE=dark?0xFF2A3530:0xFFEDF0E9;
         return changed;
     }
+    static String icon(Context c){return isDark(c)?"theme":"sun";}
     static String label(Context c){String mode=Prefs.of(c).getString("theme","system");for(int i=0;i<MODES.length;i++)if(MODES[i].equals(mode))return LABELS[i];return LABELS[0];}
     static String time(int minute){return String.format(Locale.getDefault(),"%02d:%02d",minute/60,minute%60);}
 }

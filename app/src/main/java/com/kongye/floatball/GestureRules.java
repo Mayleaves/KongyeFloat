@@ -4,6 +4,12 @@ package com.kongye.floatball;
 public final class GestureRules {
     private GestureRules() {}
     public static int dragPosition(int initial,float pointer,float down){return initial+Math.round(pointer-down);}
+    /** Keep the cross independent of artwork size, easing toward the far edge as the finger approaches it. */
+    public static float capturePointer(float pointer,int extent,float offset,float reach,float edgeInset){
+        if(extent<=0)return 0;edgeInset=Math.max(0,edgeInset);offset=Math.max(0,offset);float end=Math.max(0,extent-edgeInset);
+        float start=Math.max(0,end-Math.max(1,reach));float progress=Math.max(0,Math.min(1,(pointer-start)/Math.max(1,end-start)));
+        return Math.max(0,Math.min(extent,pointer-offset+(offset+edgeInset)*progress));
+    }
     public static boolean isDrag(float dx, float dy, long duration, float slop) {
         return Math.hypot(dx, dy) > slop && duration >= 280;
     }
