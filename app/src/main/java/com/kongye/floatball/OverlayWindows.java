@@ -23,7 +23,7 @@ final class OverlayWindows implements WindowManager {
     private static boolean overlay(int type){return type==LayoutParams.TYPE_APPLICATION_OVERLAY||type==LayoutParams.TYPE_ACCESSIBILITY_OVERLAY;}
     @Override public void addView(View view,ViewGroup.LayoutParams layout){
         if(!(layout instanceof WindowManager.LayoutParams p)){ordinary.addView(view,layout);return;}
-        boolean managed=overlay(p.type);Target t=managed?target():new Target(ordinary,p.type);if(managed){p.type=t.type;p.token=null;}
+        boolean managed=overlay(p.type);Target t=managed?target():new Target(ordinary,p.type);if(managed){p.type=t.type;p.token=null;p.windowAnimations=0;}
         try{t.manager.addView(view,p);}catch(RuntimeException error){if(!managed||t.manager==ordinary)throw error;p.type=LayoutParams.TYPE_APPLICATION_OVERLAY;p.token=null;ordinary.addView(view,p);t=new Target(ordinary,p.type);}
         entries.put(view,new Entry(t.manager,p,managed));
     }

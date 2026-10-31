@@ -21,7 +21,7 @@ final class RegionResult {
     private int translationGeneration;private LinearLayout editorTools;private EditText editor;private TextView status;private int x=-1,y=-1,mode;private View currentCard;
     RegionResult(Context c,Bitmap image,ExecutorService worker,Runnable finished,Consumer<Boolean> pinChanged){this(c,image,worker,finished,pinChanged,"Region");}
     RegionResult(Context c,Bitmap image,ExecutorService worker,Runnable finished,Consumer<Boolean> pinChanged,String kind){context=c;this.kind=kind;this.image=image;this.worker=worker;this.finished=finished;this.pinChanged=pinChanged;window=new CaptureWindow(c);Prefs.of(c).edit().putString("document_kind",kind).putInt("document_width",image.getWidth()).putInt("document_height",image.getHeight()).apply();recognizing=kind.equals("Region");show();if(recognizing)recognize();}
-    private String title(){return kind.equals("Screen")?"整屏截图":kind.equals("Long")?"拼接长图":"区域截图";}
+    private String title(){return kind.equals("Screen")?"整屏截图":kind.equals("Long")?"长截图":"区域截图";}
     private void back(){if(editingCanvas!=null&&editingCanvas.isTyping()){finishInlineText();return;}if(mode==3)cancelEdit();else if(mode==0)close();else show();}
     boolean isPinned(){return pinned;}
     private int dp(float n){return Ui.dp(context,n);}
@@ -44,20 +44,37 @@ final class RegionResult {
         Prefs.of(context).edit().putBoolean("result_pinned",pinned).putBoolean("result_all_folded",allFolded).putBoolean("result_text_folded",textFolded).putBoolean("result_image_folded",imageFolded).apply();pinChanged.accept(pinned);
     }
     private LinearLayout base(){LinearLayout card=Ui.card(context);Ui.pad(card,16,12,16,14);card.setElevation(dp(16));if(Build.VERSION.SDK_INT>=28){card.setOutlineAmbientShadowColor(0xAA000000);card.setOutlineSpotShadowColor(0xAA000000);}return card;}
+    private LinearLayout resultSection(){
+        LinearLayout section=Ui.column(context);Ui.pad(section,14,10,14,14);
+        android.graphics.drawable.GradientDrawable frame=Ui.bg(Ui.SURFACE,18,context);frame.setStroke(dp(.7f),Ui.LINE);section.setBackground(frame);return section;
+    }
+    private void recognizeAgain(){if(recognizing){toast("正在识别，请稍候");return;}recognizing=true;statusText="本机识别中…";show();recognize();}
     private void show(){
-        if(closed)return;mode=0;editor=null;status=null;ThemePolicy.apply(context);LinearLayout card=base();LinearLayout head=heading(title(),null);
-        addIcon(head,allFolded?"expand":"collapse",allFolded?"展开全部":"收起全部",()->{allFolded=!allFolded;show();});addIcon(head,"close","关闭截图结果",this::close);
-        addIcon(head,pinned?"pinned":"pin",pinned?"取消置顶":"置顶截图结果",()->{pinned=!pinned;show();});card.addView(head);
+        if(closed)return;mode=0;editor=null;status=null;ThemePolicy.apply(context);LinearLayout card=base();card.setBackground(Ui.bg(Ui.dark?Ui.BG:0xFFF7FAF7,24,context));
+        LinearLayout head=heading(title(),null);
+        View accent=new View(context);accent.setBackground(Ui.bg(Ui.GREEN,3,context));LinearLayout.LayoutParams accentAt=new LinearLayout.LayoutParams(dp(5),dp(20));accentAt.rightMargin=dp(7);head.addView(accent,0,accentAt);
+        addIcon(head,allFolded?"expand":"collapse",allFolded?"展开全部":"收起全部",()->{allFolded=!allFolded;show();});
+        addIcon(head,pinned?"pinned":"pin",pinned?"取消置顶":"置顶截图结果",()->{pinned=!pinned;show();});addIcon(head,"close","关闭截图结果",this::close);card.addView(head);
         if(!allFolded){
-            Ui.gap(card,10);ScrollView viewport=new ScrollView(context);LinearLayout sections=Ui.column(context);viewport.addView(sections);
-            if(kind.equals("Region")){LinearLayout textHead=Ui.row(context);textHead.addView(section("文字"),new LinearLayout.LayoutParams(0,-2,1));addIcon(textHead,"zoom","放大选择文字",this::selectText);addIcon(textHead,textFolded?"expand":"collapse",textFolded?"展开文字":"收起文字",()->{textFolded=!textFolded;show();});sections.addView(textHead);
-            if(!textFolded){Ui.gap(sections,8);editor=new EditText(context);editor.setTextColor(Ui.INK);editor.setHintTextColor(Ui.MUTED);editor.setTextSize(16);editor.setGravity(Gravity.TOP);editor.setBackground(Ui.bg(Ui.BG,14,context));Ui.pad(editor,12,10,12,10);editor.setLineSpacing(dp(2),1);editor.setText(value);editor.setEnabled(!recognizing);editor.setHint(recognizing?"正在本机识别…":"可编辑识别文字");editor.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100000)});sections.addView(editor,new LinearLayout.LayoutParams(-1,dp(120)));editor.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){}public void onTextChanged(CharSequence s,int st,int before,int count){value=s.toString();}public void afterTextChanged(Editable e){}});
-                Ui.gap(sections,8);LinearLayout actions=Ui.row(context);addAction(actions,"copy","复制","复制文字",()->copy(value));addAction(actions,"share","分享","分享文字",this::shareText);addAction(actions,"translate","翻译","翻译文字",this::translateText);addAction(actions,"notes","便签","追加便签",this::note);sections.addView(actions);status=Ui.text(context,statusText,11,Ui.MUTED,false);Ui.pad(status,2,0,0,0);Ui.gap(sections,6);sections.addView(status);
+            Ui.gap(card,12);ScrollView viewport=new ScrollView(context);viewport.setVerticalScrollBarEnabled(false);LinearLayout sections=Ui.column(context);viewport.addView(sections);
+            if(kind.equals("Region")){
+                LinearLayout textSection=resultSection();textSection.setContentDescription("OCR 识别文字卡片");LinearLayout textHead=Ui.row(context);textHead.addView(section("OCR 识别文字"),new LinearLayout.LayoutParams(0,-2,1));
+                LinearLayout retry=Ui.action(context,"scan_text","重新识别","重新识别文字",this::recognizeAgain);retry.setBackground(Ui.ripple(context,0,10));retry.setEnabled(!recognizing);((TextView)retry.getChildAt(1)).setTextSize(11);retry.getChildAt(0).setLayoutParams(new LinearLayout.LayoutParams(dp(14),dp(14)));textHead.addView(retry,new LinearLayout.LayoutParams(dp(82),dp(36)));
+                addIcon(textHead,"zoom","放大选择文字",this::selectText);addIcon(textHead,textFolded?"expand":"collapse",textFolded?"展开文字":"收起文字",()->{textFolded=!textFolded;show();});textSection.addView(textHead);
+                if(!textFolded){
+                    Ui.gap(textSection,6);editor=new EditText(context);editor.setTextColor(Ui.INK);editor.setHintTextColor(Ui.MUTED);editor.setTextSize(14);editor.setGravity(Gravity.TOP);android.graphics.drawable.GradientDrawable field=Ui.bg(Ui.BG,14,context);field.setStroke(dp(.7f),Ui.LINE);editor.setBackground(field);Ui.pad(editor,12,10,12,10);editor.setLineSpacing(dp(2),1);editor.setText(value);editor.setEnabled(!recognizing);editor.setHint(recognizing?"正在本机识别…":"可编辑识别文字");editor.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100000)});textSection.addView(editor,new LinearLayout.LayoutParams(-1,dp(96)));editor.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){}public void onTextChanged(CharSequence s,int st,int before,int count){value=s.toString();}public void afterTextChanged(Editable e){}});
+                    Ui.gap(textSection,12);LinearLayout actions=Ui.row(context);addAction(actions,"copy","复制","复制文字",()->copy(value));addAction(actions,"share","分享","分享文字",this::shareText);addAction(actions,"translate","翻译","翻译文字",this::translateText);addAction(actions,"notes","便签","追加便签",this::note);textSection.addView(actions);
+                    status=Ui.text(context,statusText,10,Ui.MUTED,false);Ui.pad(status,2,0,0,0);Ui.gap(textSection,6);textSection.addView(status);
+                }
+                sections.addView(textSection);Ui.gap(sections,14);
             }
-            Ui.gap(sections,14);View line=new View(context);line.setBackgroundColor(Ui.LINE);sections.addView(line,new LinearLayout.LayoutParams(-1,1));Ui.gap(sections,10);}
-            LinearLayout imageHead=Ui.row(context);imageHead.addView(section("图片"),new LinearLayout.LayoutParams(0,-2,1));addIcon(imageHead,imageFolded?"expand":"collapse",imageFolded?"展开图片":"收起图片",()->{imageFolded=!imageFolded;show();});sections.addView(imageHead);
-            if(!imageFolded){Ui.gap(sections,8);ImageView preview=new ImageView(context);preview.setImageBitmap(image);preview.setScaleType(ImageView.ScaleType.FIT_CENTER);Ui.frame(preview,Ui.BG,14);Ui.pad(preview,6,6,6,6);preview.setContentDescription("截图图片，点击预览");preview.setOnClickListener(v->zoom());sections.addView(preview,new LinearLayout.LayoutParams(-1,kind.equals("Region")?Math.min(dp(300),metrics().heightPixels/3):metrics().heightPixels-dp(280)));Ui.gap(sections,8);LinearLayout actions=Ui.row(context);addAction(actions,"save","保存","保存图片",()->save(false));addAction(actions,"share","分享","分享图片",()->save(true));addAction(actions,"edit","编辑","编辑图片",this::editImage);sections.addView(actions);}
-            DisplayMetrics m=metrics();int width=m.widthPixels-dp(pinned?72:48);sections.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));card.addView(viewport,new LinearLayout.LayoutParams(-1,Math.min(sections.getMeasuredHeight(),m.heightPixels-dp(190))));
+            LinearLayout imageSection=resultSection();imageSection.setContentDescription("画面预览卡片");LinearLayout imageHead=Ui.row(context);imageHead.addView(section("画面预览"),new LinearLayout.LayoutParams(0,-2,1));imageHead.addView(Ui.text(context,image.getWidth()+" × "+image.getHeight()+" px",11,Ui.MUTED,false));addIcon(imageHead,imageFolded?"expand":"collapse",imageFolded?"展开图片":"收起图片",()->{imageFolded=!imageFolded;show();});imageSection.addView(imageHead);
+            if(!imageFolded){
+                Ui.gap(imageSection,8);ImageView preview=new ImageView(context);preview.setImageBitmap(image);preview.setScaleType(ImageView.ScaleType.FIT_CENTER);Ui.frame(preview,Ui.BG,14);preview.setContentDescription("截图图片，点击预览");preview.setOnClickListener(v->zoom());imageSection.addView(preview,new LinearLayout.LayoutParams(-1,kind.equals("Region")?Math.min(dp(260),metrics().heightPixels/3):metrics().heightPixels-dp(320)));Ui.gap(imageSection,12);
+                LinearLayout actions=Ui.row(context);addAction(actions,"save","保存","保存图片",()->save(false));addAction(actions,"share","分享","分享图片",()->save(true));addAction(actions,"edit","编辑标注","编辑图片",this::editImage);
+                LinearLayout primary=(LinearLayout)actions.getChildAt(2);primary.setBackground(Ui.ripple(context,Ui.GREEN,14));primary.removeViewAt(0);int primaryInk=Ui.dark?0xFF102E21:Color.WHITE;primary.addView(Ui.icon(context,"edit",primaryInk,18),0,new LinearLayout.LayoutParams(dp(18),dp(18)));((TextView)primary.getChildAt(1)).setTextColor(primaryInk);((TextView)primary.getChildAt(1)).setTextSize(12);imageSection.addView(actions);
+            }
+            sections.addView(imageSection);DisplayMetrics m=metrics();int width=m.widthPixels-dp(pinned?72:48);sections.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));card.addView(viewport,new LinearLayout.LayoutParams(-1,Math.min(sections.getMeasuredHeight(),m.heightPixels-dp(190))));
         }
         present(card);
     }

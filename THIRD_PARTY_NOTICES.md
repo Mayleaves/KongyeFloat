@@ -25,3 +25,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Lucide sun-moon and sliders-horizontal
+
+The theme-system and home tool-management symbols use Lucide's original SVG paths, converted to Android vectors with theme tinting. Sources: https://github.com/lucide-icons/lucide/blob/main/icons/sun-moon.svg and https://github.com/lucide-icons/lucide/blob/main/icons/sliders-horizontal.svg.
+
+Original SVG files are included in `app/src/main/assets/icons/`. The complete upstream license is included in `app/src/main/assets/licenses/lucide-LICENSE` and packaged in the APK.

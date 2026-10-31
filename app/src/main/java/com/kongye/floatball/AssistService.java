@@ -31,6 +31,7 @@ public class AssistService extends AccessibilityService {
     @Override public void onInterrupt(){}
     static String captureError(int error){if(error==ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT)return "截图太快，请稍后重试";if(Build.VERSION.SDK_INT>=34&&error==ERROR_TAKE_SCREENSHOT_SECURE_WINDOW)return "当前页面禁止截图，增强悬浮层不能解除截图保护";return "当前界面受保护或无法截图";}
     void captureBitmap(java.util.function.BiConsumer<Bitmap,String> callback){
+        if((getApplicationInfo().flags&android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putInt("qa_bitmap_requests",Prefs.of(this).getInt("qa_bitmap_requests",0)+1).apply();
         if(Build.VERSION.SDK_INT<30){callback.accept(null,"区域截图和长截图需要 Android 11 或以上");return;}
         takeScreenshot(Display.DEFAULT_DISPLAY,getMainExecutor(),new TakeScreenshotCallback(){
             public void onSuccess(ScreenshotResult result){HardwareBuffer buffer=result.getHardwareBuffer();Bitmap hardware=null;try{hardware=Bitmap.wrapHardwareBuffer(buffer,result.getColorSpace());Bitmap copy=hardware==null?null:hardware.copy(Bitmap.Config.ARGB_8888,false);callback.accept(copy,copy==null?"无法读取截图":null);}catch(RuntimeException|OutOfMemoryError e){callback.accept(null,"无法读取截图，请关闭其他工具后重试");}finally{if(hardware!=null)hardware.recycle();buffer.close();}}

@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 175" width="100%" height="100%">
+  <defs>
+    <!-- 单元格独立裁剪蒙版，确保越界移动被自然裁切 -->
+    <clipPath id="cell-0-clip"><rect x="0" y="0" width="100" height="87.5" /></clipPath>
+    <clipPath id="cell-3-clip"><rect x="300" y="0" width="100" height="87.5" /></clipPath>
+    <clipPath id="cell-6-clip"><rect x="200" y="87.5" width="100" height="87.5" /></clipPath>
+    <clipPath id="cell-7-clip"><rect x="300" y="87.5" width="100" height="87.5" /></clipPath>
+
+    <!-- 1:1 复刻参考图的圆角弯月路径：背部在左下方，凹口朝向右上，两端为平滑圆头 -->
+    <path id="plump-moon" d="M -2.2 -17.8
+             A 19 19 0 1 0 17.8 2.2
+             A 14.8 14.8 0 0 1 -2.2 -17.8 Z" stroke-linejoin="round" stroke-linecap="round" stroke-width="3.6" />
+  </defs>
+
+  <style>
+    /* 4.6秒自动无限循环动画（直接用浏览器打开 .svg 即可看到动态效果） */
+
+    /* 第一处(左上格)：右上角太阳 -> 移向左下角变成圆润弯月，并被左下角边界遮住一部分 */
+    .celestial-1-pos {
+      animation: move-1 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .celestial-1-sun {
+      animation: sun-fade-1 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .celestial-1-moon {
+      animation: moon-fade-1 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes move-1 {
+      0%, 18%   { transform: translate(78px, 16px) rotate(0deg); }
+      45%, 68%  { transform: translate(22px, 66px) rotate(0deg); }
+      92%, 100% { transform: translate(78px, 16px) rotate(0deg); }
+    }
+
+    @keyframes sun-fade-1 {
+      0%, 18%   { opacity: 1; transform: scale(1); }
+      38%, 74%  { opacity: 0; transform: scale(0.75); }
+      92%, 100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes moon-fade-1 {
+      0%, 16%   { opacity: 0; transform: scale(0.7) rotate(-18deg); }
+      42%, 68%  { opacity: 1; transform: scale(1.08) rotate(0deg); }
+      90%, 100% { opacity: 0; transform: scale(0.7) rotate(-18deg); }
+    }
+
+    /* 第二处(下排右二格 - 顺序反转)：太阳往右上角消失，同款圆润弯月从左下角缓缓滑入中心 */
+    .celestial-2-sun {
+      animation: sun-2 4.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    .celestial-2-moon {
+      animation: moon-2 4.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    }
+
+    @keyframes sun-2 {
+      /* 太阳在格子正中 (250, 131.25) -> 往右上角 (298, 84) 飞出消失 */
+      0%, 18%   { transform: translate(250px, 131.25px) scale(1); opacity: 1; }
+      42%, 70%  { transform: translate(298px, 84px) scale(0.55); opacity: 0; }
+      92%, 100% { transform: translate(250px, 131.25px) scale(1); opacity: 1; }
+    }
+
+    @keyframes moon-2 {
+      /* 月亮从左下角 (202, 180) 升起滑入格子正中 (250, 131.25) */
+      0%, 20%   { transform: translate(202px, 180px) rotate(15deg) scale(0.65); opacity: 0; }
+      46%, 68%  { transform: translate(250px, 131.25px) rotate(0deg) scale(1.08); opacity: 1; }
+      90%, 100% { transform: translate(202px, 180px) rotate(15deg) scale(0.65); opacity: 0; }
+    }
+  </style>
+
+  <!-- 1. 左上格：太阳从右上角移到左下角变成参考图同款弯月（均被边缘遮住一部分） -->
+  <g clip-path="url(#cell-0-clip)">
+    <rect x="0" y="0" width="100" height="87.5" fill="#DBE7B8" />
+    <g class="celestial-1-pos">
+      <circle class="celestial-1-sun" cx="0" cy="0" r="27" fill="#F6C945" />
+      <g class="celestial-1-moon">
+        <use href="#plump-moon" fill="#FFF3B0" stroke="#FFF3B0" />
+      </g>
+    </g>
+  </g>
+
+  <!-- 2. 上排左二：空叶图标 -->
+  <g transform="translate(100, 0)">
+    <rect width="100" height="87.5" fill="#284E33" />
+    <g transform="translate(34, 27.5) scale(1.33)" fill="none" stroke="#DCE7C6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 4C11.5 4 6 8 6 15.5c0 2 1 3.5 1 3.5s1.5 1 3.5 1C18 20 22 14.5 22 9c0-2.5-2-5-5-5ZM5 20l10-10" />
+    </g>
+  </g>
+
+  <!-- 3. 上排右二：小花图标 -->
+  <g transform="translate(200, 0)">
+    <rect width="100" height="87.5" fill="#B5CF83" />
+    <g transform="translate(34, 27.5) scale(1.33)" fill="none" stroke="#284E33" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="2.5" />
+      <path d="M12 4C7-4 0 4 6 8c-7 4 0 12 6 4 6 8 13 0 6-4 6-4-1-12-6-4Zm0 8v11M3 17c7 0 9 3 9 6-7 0-9-3-9-6Zm18 0c-7 0-9 3-9 6 7 0 9-3 9-6Z" />
+    </g>
+  </g>
+
+  <!-- 4. 上排最右：扇形山丘 -->
+  <g clip-path="url(#cell-3-clip)">
+    <rect x="300" y="0" width="100" height="87.5" fill="#DCE7C6" />
+    <circle cx="401" cy="88" r="62" fill="#92BA53" />
+  </g>
+
+  <!-- 5. 下排左一：嫩芽图标 -->
+  <g transform="translate(0, 87.5)">
+    <rect width="100" height="87.5" fill="#88AA50" />
+    <g transform="translate(34, 27.5) scale(1.33)" fill="none" stroke="#233D29" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22c0-8-2-14 7-18 6-2 4 8-5 8M11 17C0 17 1 7 8 11c3 1 4 3 3 6M4 23h17" />
+    </g>
+  </g>
+
+  <!-- 6. 下排左二：羽毛叶片图标 -->
+  <g transform="translate(100, 87.5)">
+    <rect width="100" height="87.5" fill="#CFE0AD" />
+    <g transform="translate(34, 27.5) scale(1.33)" fill="none" stroke="#4C6B3C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m3 22 14-14M6 19v-8l8-8c8-7 15 4 7 11l-5 5Zm1-5h13" />
+    </g>
+  </g>
+
+  <!-- 7. 下排右二(第二处)：太阳往右上消失，100%同款弯月从左下角滑入 -->
+  <g clip-path="url(#cell-6-clip)">
+    <rect x="200" y="87.5" width="100" height="87.5" fill="#B2CF78" />
+    <circle class="celestial-2-sun" cx="0" cy="0" r="22" fill="#F6C945" />
+    <g class="celestial-2-moon">
+      <use href="#plump-moon" fill="#FFF3B0" stroke="#FFF3B0" />
+    </g>
+  </g>
+
+  <!-- 8. 下排最右：扇形山丘 -->
+  <g clip-path="url(#cell-7-clip)">
+    <rect x="300" y="87.5" width="100" height="87.5" fill="#284E33" />
+    <circle cx="388" cy="176" r="72" fill="#9EC459" />
+  </g>
+</svg>

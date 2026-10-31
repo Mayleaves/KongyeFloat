@@ -1,2 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources><item name="app_search" type="id" /></resources>
+<resources><item name="app_search" type="id"/><item name="dialog_layout_guard" type="id"/></resources>

@@ -2,7 +2,7 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [1.19.2 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v1.19.2) · [详细使用说明](docs/USER_GUIDE.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [1.25.1 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v1.25.1) · [详细使用说明](docs/USER_GUIDE.md)
 
 ## 功能
 
@@ -10,7 +10,8 @@
 - **截图**：整屏、区域截图和长截图；区域截图支持本机中英文文字识别、编辑和复制。长图支持手动或自动滚动拼接、预览、拖动排序和删除。
 - **图片编辑**：裁剪、旋转、镜像、文字、画笔、画框、直线、箭头、序号、高亮和马赛克；支持颜色、粗细和双指缩放。
 - **录屏与 GIF**：选择录制区域、分辨率和声音来源，可添加水印；录制完成后预览、保存、分享或将视频转换为 GIF。
-- **个性化**：导入图片或透明 GIF 作为悬浮球，调整尺寸、透明度和边距；支持深色、浅色、跟随系统和定时切换。
+- **个性化**：导入图片或透明 GIF 作为悬浮球，调整尺寸（100%–500%）、透明度和边距；支持深色、浅色、跟随系统和定时切换。
+- **植物主题界面**：首页时段盆栽、随机问候气泡、悬浮导航和动态关于页；控制项与结果窗口采用统一的绿色风格。
 - **文字翻译**：区域截图识别的文字可选择语言翻译，首次使用通过 Wi-Fi 下载语言模型，下载后在设备上翻译。
 - **更新与项目主页**：在「设置 → 关于与更新」手动检查 GitHub 最新正式版本，或打开项目主页。检测到更新时在应用内下载 APK、显示进度并校验，然后由系统确认安装。
 - **其他工具**：常用应用、最近应用、便签、悬浮浏览器，以及针对特定应用的显示规则。首页工具可自选和拖动排序。
@@ -26,7 +27,7 @@
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 1.19.2。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 1.25.1。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 
@@ -51,8 +52,5 @@ Windows 上可运行 `gradlew.bat assembleDebug`。项目里的 `scripts/build.p
 - `tests`：手势、截图几何、拼接、文字选择等逻辑检查。
 - `scripts`：构建和真机验证脚本。
 - `docs`：详细使用说明与历史验证记录。
-- `prototype`：界面布局、图标及不同视觉方案的纯前端演示。
-
-`prototype` 中的 HTML/CSS/JS 可通过本地 HTTP 服务查看。
 
 当前仓库不包含签名密钥、本机 SDK 配置、构建缓存或设备测试数据。第三方标志说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

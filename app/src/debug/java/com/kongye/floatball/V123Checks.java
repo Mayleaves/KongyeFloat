@@ -1,0 +1,19 @@
+package com.kongye.floatball;
+import android.app.*;import android.content.*;import android.graphics.*;import android.os.*;import android.view.*;import java.lang.reflect.*;
+/** Debug fixtures: generated pixels and owned view scalars, never phone media. */
+final class V123Checks {
+ private static Object get(Object o,String k)throws Exception{Field f=o.getClass().getDeclaredField(k);f.setAccessible(true);return f.get(o);}
+ private static MainActivity main()throws Exception{Field f=MainActivity.class.getDeclaredField("visible");f.setAccessible(true);MainActivity p=(MainActivity)((java.lang.ref.WeakReference<?>)f.get(null)).get();if(p==null)throw new IllegalStateException("Main not visible");return p;}
+ static void run(Context c,String cmd)throws Exception{
+  if(cmd.startsWith("service_")){c.startForegroundService(new Intent(c,FloatService.class).setAction("com.kongye.floatball."+cmd.substring(8)));return;}
+  if(cmd.equals("native")){BotanicalPanel p=new BotanicalPanel(c);p.layout(0,0,400,175);Bitmap b=Bitmap.createBitmap(400,175,Bitmap.Config.ARGB_8888);p.running(true,false);p.draw(new Canvas(b));int sun=b.getPixel(250,131);p.running(false,false);b.eraseColor(0);p.draw(new Canvas(b));int moon=b.getPixel(242,138);if(sun!=0xFFF6C945||moon!=0xFFFFF3B0)throw new AssertionError("SVG colors "+Integer.toHexString(sun)+" "+Integer.toHexString(moon));if(b.getPixel(110,10)!=0xFF284E33)throw new AssertionError("tile");b.recycle();Prefs.of(c).edit().putString("qa_v123_native","3 checks passed").commit();return;}
+  if(cmd.equals("snapshot")){android.content.SharedPreferences.Editor e=Prefs.of(c).edit().putBoolean("qa_v123_running",FloatService.running);
+   try{MainActivity p=main();e.putBoolean("qa_v123_checking",((UpdateCheckSession)get(p,"updateCheck")).checking);Object art=get(p,"botanical");if(art!=null)e.putFloat("qa_v123_awake",(float)get(art,"awake"));View ready=(View)get(p,"readyText"),rest=(View)get(p,"restText");if(ready!=null)e.putFloat("qa_v123_ready_alpha",ready.getAlpha()).putFloat("qa_v123_rest_alpha",rest.getAlpha());}catch(IllegalStateException ignored){}
+   FloatService s=FloatService.instance;e.putBoolean("qa_v123_service",s!=null);if(s!=null){View ball=(View)get(s,"ball");android.animation.ValueAnimator a=(android.animation.ValueAnimator)get(s,"recoveryAnimator");e.putBoolean("qa_v123_recovering",a!=null&&a.isRunning()).putBoolean("qa_v123_pulse_window",get(s,"recoveryPulse")!=null);if(ball!=null){WindowManager.LayoutParams p=(WindowManager.LayoutParams)get(s,"ballParams");e.putFloat("qa_v123_ball_alpha",ball.getAlpha()).putFloat("qa_v123_ball_scale",ball.getScaleX()).putInt("qa_v123_ball_x",p.x).putInt("qa_v123_ball_y",p.y);}}e.commit();return;}
+  if(cmd.equals("recreate")){main().recreate();return;}
+  if(cmd.startsWith("check_")){MainActivity p=main();String mode=cmd.substring(6);UpdateCheckSession job=(UpdateCheckSession)get(p,"updateCheck");job.source=version->{Thread.sleep(1800);if(mode.equals("error"))throw new java.io.IOException("测试网络错误");return new GitHubUpdate.Result(mode.equals("available")?"9.9.9":version,mode.equals("available")?1:0,"test.apk","https://github.com/Mayleaves/KongyeFloat/releases/download/v9.9.9/test.apk",4404019,"","• Generated fixture release notes");};
+   p.getApplication().registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks(){public void onActivityResumed(Activity a){if(a instanceof UpdateActivity){V1221Checks.page=a;p.getApplication().unregisterActivityLifecycleCallbacks(this);}}public void onActivityCreated(Activity a,Bundle b){}public void onActivityStarted(Activity a){}public void onActivityPaused(Activity a){}public void onActivityStopped(Activity a){}public void onActivitySaveInstanceState(Activity a,Bundle b){}public void onActivityDestroyed(Activity a){}});
+   Method m=MainActivity.class.getDeclaredMethod("checkForUpdates");m.setAccessible(true);m.invoke(p);return;
+  }throw new IllegalArgumentException(cmd);
+ }
+}

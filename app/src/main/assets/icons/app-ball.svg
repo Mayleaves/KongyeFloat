@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+  <!-- 左上、右上、左下三个应用块，代表“特定应用” -->
+  <rect x="3" y="3" width="7" height="7" rx="2" />
+  <rect x="14" y="3" width="7" height="7" rx="2" />
+  <rect x="3" y="14" width="7" height="7" rx="2" />
+  <!-- 右下角双环圆点，代表“悬浮球” -->
+  <circle cx="17.5" cy="17.5" r="4.5" />
+  <circle cx="17.5" cy="17.5" r="1.5" fill="currentColor" stroke="none" />
+</svg>

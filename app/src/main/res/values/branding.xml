@@ -1,0 +1,1 @@
+<resources><color name="launcher_background">#D5E3B8</color><color name="launch_background">#F4F7F0</color><style name="LauncherTheme" parent="AppTheme"><item name="android:windowBackground">@color/launch_background</item></style></resources>

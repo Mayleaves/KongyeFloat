@@ -12,8 +12,8 @@ android {
         applicationId = "com.kongye.floatball"
         minSdk = 26
         targetSdk = 36
-        versionCode = 27
-        versionName = "1.19.2"
+        versionCode = 42
+        versionName = "1.25.1"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; media-src blob:; connect-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>关于空叶 · 改版</title>
+  <style>
+    @property --sky1 { syntax: '<color>'; inherits: false; initial-value: #eef4ea; }
+    @property --sky2 { syntax: '<color>'; inherits: false; initial-value: #f4f7f2; }
+    @property --orb-c { syntax: '<color>'; inherits: false; initial-value: #f5ca44; }
+
+    :root {
+      --page: #e9efe6;
+      --bg: #f4f7f2;
+      --card: #ffffff;
+      --ink: #1e3327;
+      --muted: #6b8070;
+      --faint: #9aab9d;
+      --green: #23533d;
+      --sage: #e6eee2;
+      --line: #e2eadf;
+      --line-strong: #cfdccb;
+      --p-ink: #28664b;
+      --p-leaf: #88b399;
+      --p-petal: #f8faf5;
+      --p-pot: #e7eee1;
+      --corner: rgba(40, 102, 75, 0.32);
+      --hill: rgba(35, 83, 61, 0.07);
+      --cloud: 0.75;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--ink);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 28px 16px;
+      background: var(--page);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 8px; }
+
+    .layout {
+      width: 100%;
+      max-width: 1000px;
+      display: grid;
+      grid-template-columns: 392px 1fr;
+      gap: 40px;
+      align-items: center;
+    }
+
+    /* ============ 手机容器 ============ */
+    .phone {
+      width: 392px;
+      height: 820px;
+      background: var(--bg);
+      color: var(--ink);
+      border: 7px solid #ffffff;
+      border-radius: 44px;
+      box-shadow: 0 24px 60px rgba(28, 54, 36, 0.14), 0 0 0 1px #d6e1d2;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.5s, color 0.5s;
+    }
+    .phone.night {
+      --bg: #0f1913;
+      --card: #16241c;
+      --ink: #e1ece3;
+      --muted: #8ea494;
+      --faint: #5d7464;
+      --green: #9ccfae;
+      --sage: #1e3027;
+      --line: #233629;
+      --line-strong: #31493a;
+      --p-ink: #cfe2d4;
+      --p-leaf: #6e9e82;
+      --p-petal: #e7eee5;
+      --p-pot: #22362a;
+      --corner: rgba(220, 235, 225, 0.26);
+      --hill: rgba(0, 0, 0, 0.2);
+      --cloud: 0.07;
+    }
+
+    .statusbar {
+      height: 36px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .sb-icons { display: flex; align-items: center; gap: 6px; }
+    .sb-icons svg { height: 13px; fill: currentColor; }
+
+    .topbar {
+      height: 52px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .back {
+      height: 40px;
+      padding: 0 14px 0 6px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 17px;
+      font-weight: 650;
+    }
+    .back:hover { background: var(--sage); }
+    .back svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* 只有一张卡：撑满剩余高度，屏幕矮时才滚动 */
+    .scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: none;
+    }
+    .scroll::-webkit-scrollbar { display: none; }
+
+    /* ============ 标本卡：小叶的一天 ============ */
+    .specimen {
+      flex: 1 0 auto;
+      display: flex;
+      flex-direction: column;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 10px 10px 0;
+      box-shadow: 0 6px 20px rgba(35, 83, 61, 0.04);
+      transition: background-color 0.5s, border-color 0.5s;
+    }
+    .win {
+      flex: 1 1 auto;
+      min-height: 250px;
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--sky1), var(--sky2));
+      transition: --sky1 0.9s ease, --sky2 0.9s ease;
+    }
+    .win.is-night {
+      --p-ink: #c7d9cc;
+      --p-leaf: #5f8c73;
+      --p-petal: #e4ece4;
+      --p-pot: #253a2e;
+      --corner: rgba(220, 235, 225, 0.26);
+      --hill: rgba(0, 0, 0, 0.22);
+      --cloud: 0;
+    }
+    .corner { position: absolute; z-index: 2; width: 12px; height: 12px; border: 0 solid var(--corner); }
+    .corner.tl { top: 10px; left: 10px; border-width: 1.5px 0 0 1.5px; border-top-left-radius: 4px; }
+    .corner.tr { top: 10px; right: 10px; border-width: 1.5px 1.5px 0 0; border-top-right-radius: 4px; }
+    .corner.bl { bottom: 10px; left: 10px; border-width: 0 0 1.5px 1.5px; border-bottom-left-radius: 4px; }
+    .corner.br { bottom: 10px; right: 10px; border-width: 0 1.5px 1.5px 0; border-bottom-right-radius: 4px; }
+
+    .orb {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--orb-c);
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 24px 7px color-mix(in srgb, var(--orb-c) 40%, transparent);
+      transition: left 1.1s cubic-bezier(0.45, 0, 0.2, 1), top 1.1s cubic-bezier(0.45, 0, 0.2, 1),
+                  --orb-c 0.8s, background-color 0.6s, box-shadow 0.6s;
+    }
+    .orb.moon { background: transparent; box-shadow: 6px -3px 0 0 var(--orb-c); }
+
+    .cloud {
+      position: absolute;
+      height: 13px;
+      border-radius: 13px;
+      background: #ffffff;
+      opacity: var(--cloud);
+      transition: opacity 0.8s;
+      animation: cloud 26s ease-in-out infinite alternate;
+    }
+    .cloud::before {
+      content: "";
+      position: absolute;
+      left: 24%;
+      bottom: 5px;
+      width: 44%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: #ffffff;
+    }
+    .cloud.a { top: 19%; left: 10%; width: 50px; }
+    .cloud.b { top: 42%; left: 70%; width: 36px; animation-duration: 34s; animation-delay: -12s; }
+
+    .ff {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #f6e065;
+      box-shadow: 0 0 8px 3px rgba(246, 224, 101, 0.55);
+      opacity: 0;
+      transition: opacity 0.8s;
+    }
+    .win.is-night .ff { opacity: 1; animation: drift 4s ease-in-out infinite alternate; }
+
+    .hill {
+      position: absolute;
+      left: -25%;
+      right: -25%;
+      bottom: -92px;
+      height: 134px;
+      border-radius: 50%;
+      background: var(--hill);
+      transition: background-color 0.8s;
+    }
+    .ground {
+      position: absolute;
+      left: 50%;
+      bottom: 33px;
+      width: 136px;
+      height: 10px;
+      margin-left: -68px;
+      border-radius: 50%;
+      background: rgba(35, 83, 61, 0.1);
+    }
+    .win.is-night .ground { background: rgba(0, 0, 0, 0.28); }
+
+    .plant {
+      position: absolute;
+      left: 50%;
+      bottom: 30px;
+      width: 184px;
+      height: 184px;
+      margin-left: -92px;
+      border-radius: 28px;
+    }
+    .plant .pl { width: 100%; height: 100%; display: block; transform-origin: 50% 92%; transition: transform 0.2s; }
+    .plant:hover .pl { transform: translateY(-2px); }
+    .plant.boing .pl { animation: boing 0.6s cubic-bezier(0.28, 0.84, 0.42, 1); }
+
+    .pl .pot { fill: var(--p-pot); stroke: var(--p-ink); stroke-width: 2; stroke-linejoin: round; }
+    .pl .ink { fill: none; stroke: var(--p-ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .pl .thin { stroke-width: 1.6; }
+    .pl .petal { fill: var(--p-petal); }
+    .pl .leaf { fill: var(--p-leaf); }
+    .pl .dot { fill: var(--p-ink); }
+    .pl .gold { fill: #e6a940; }
+    .pl .dew { fill: #5ba8a0; }
+    .pl .sway { transform-origin: 32px 39px; animation: sway 4.8s ease-in-out infinite; }
+    .win.is-night .pl .sway { animation-duration: 7s; }
+    .pl .zz { transform-box: fill-box; transform-origin: center; animation: zz 2.6s ease-in-out infinite; }
+    .pl path, .pl circle { transition: fill 0.6s, stroke 0.6s; }
+
+    .drop {
+      position: absolute;
+      left: 50%;
+      bottom: 196px;
+      width: 10px;
+      height: 10px;
+      margin-left: -5px;
+      background: #5ba8a0;
+      border-radius: 50% 0 50% 50%;
+      animation: drip 0.32s ease-in forwards;
+    }
+    .note {
+      position: absolute;
+      bottom: 190px;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--p-ink);
+      animation: rise 1s ease-out forwards;
+      pointer-events: none;
+    }
+
+    .ticks {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      margin: 16px 2px 0;
+    }
+    .ticks::before {
+      content: "";
+      position: absolute;
+      left: calc(100% / 12);
+      right: calc(100% / 12);
+      top: 6.25px;
+      height: 1.5px;
+      background: var(--line);
+    }
+    .tick {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      padding-bottom: 2px;
+    }
+    .tick i {
+      width: 8px;
+      height: 8px;
+      margin-top: 3px;
+      border-radius: 50%;
+      background: var(--card);
+      border: 1.5px solid var(--faint);
+      transition: all 0.25s;
+    }
+    .tick span {
+      font-size: 11.5px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      transition: color 0.25s;
+    }
+    .tick:hover i { border-color: var(--green); }
+    .tick.on i {
+      width: 14px;
+      height: 14px;
+      margin-top: 0;
+      background: var(--green);
+      border-color: var(--green);
+      box-shadow: 0 0 0 4px var(--sage);
+    }
+    .tick.on span { color: var(--ink); font-weight: 650; }
+
+    .cap { padding: 14px 8px 16px; }
+    .cap-h { display: flex; align-items: baseline; gap: 8px; }
+    .cap-h b { font-size: 16px; font-weight: 700; }
+    .cap-h span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .cap-h em {
+      margin-left: auto;
+      font-style: normal;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--green);
+      background: var(--sage);
+      padding: 1px 8px;
+      border-radius: 8px;
+    }
+    .cap p { margin: 6px 0 0; min-height: 44px; font-size: 13.5px; line-height: 1.6; color: var(--muted); }
+
+    .label {
+      margin: 0 -10px;
+      padding: 16px 18px 18px;
+      border-top: 1px dashed var(--line-strong);
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .label h1 { margin: 0; font-size: 19px; font-weight: 700; }
+    .ver { margin-top: 4px; font-size: 12.5px; color: var(--muted); text-align: left; border-radius: 6px; }
+    .ver i { font-family: Georgia, "Times New Roman", serif; }
+
+    /* 图标：照搬 AboutLogoView —— 四宫格 + 太阳，中央叶片球 2 秒上浮 6dp、转 2°，往返循环 */
+    .logo-btn { position: relative; width: 56px; height: 56px; flex-shrink: 0; border-radius: 17px; }
+    .logo { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 3px 5px rgba(35, 66, 51, 0.22)); }
+    .logo-btn.boing .logo { animation: boing-pop 0.6s cubic-bezier(0.28, 0.84, 0.42, 1); }
+    /* 角标压在图标之上，图标 Q 弹跳起时不遮挡它 */
+    .tap-lv {
+      position: absolute;
+      top: -7px;
+      right: -14px;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px 2px 5px;
+      border-radius: 12px;
+      border: 2px solid var(--card);
+      background: #23533d;
+      color: #ffffff;
+      font-size: 10.5px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      transform: scale(0);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .tap-lv.show { transform: scale(1); }
+    .tap-lv svg { width: 11px; height: 11px; fill: none; stroke: #b5d68e; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+    .logo.floating .logo-orb {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: logo-float 2s ease-in-out infinite alternate;
+    }
+
+    /* ============ 特效与提示 ============ */
+    .fx { position: absolute; inset: 0; pointer-events: none; z-index: 30; overflow: hidden; }
+    .leafdrop { position: absolute; top: -24px; width: 16px; height: 16px; color: #6fa07f; animation: leaf-fall linear forwards; }
+    .fx .firefly {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #f6e065;
+      box-shadow: 0 0 9px 3px rgba(246, 224, 101, 0.55);
+      animation: drift 4.5s ease-in-out infinite alternate;
+    }
+    .toast {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      width: max-content;
+      max-width: 84%;
+      transform: translate(-50%, 10px);
+      background: rgba(25, 46, 33, 0.94);
+      color: #ffffff;
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: center;
+      padding: 9px 16px;
+      border-radius: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 40;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .phone.night .toast { background: rgba(225, 236, 227, 0.96); color: #12201a; }
+
+    @keyframes logo-float {
+      from { transform: translateY(0) rotate(0deg); }
+      to { transform: translateY(-6px) rotate(2deg); }
+    }
+    @keyframes boing-pop {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.15, 0.85) rotate(-5deg); }
+      55% { transform: scale(0.92, 1.1) translateY(-7px) rotate(5deg); }
+    }
+    @keyframes boing {
+      0%, 100% { transform: none; }
+      25% { transform: scale(1.08, 0.9); }
+      55% { transform: scale(0.95, 1.06) translateY(-6px); }
+    }
+    @keyframes sway {
+      0%, 100% { transform: rotate(-2deg); }
+      50% { transform: rotate(2deg); }
+    }
+    @keyframes zz {
+      0% { opacity: 0; transform: translate(-2px, 3px) scale(0.8); }
+      40% { opacity: 1; }
+      100% { opacity: 0; transform: translate(3px, -5px) scale(1.1); }
+    }
+    @keyframes cloud {
+      from { transform: translateX(-10px); }
+      to { transform: translateX(22px); }
+    }
+    @keyframes drip {
+      0% { transform: translateY(0) rotate(-45deg); opacity: 1; }
+      100% { transform: translateY(40px) rotate(-45deg); opacity: 0; }
+    }
+    @keyframes rise {
+      0% { transform: translateY(0) scale(0.7); opacity: 1; }
+      100% { transform: translateY(-44px) scale(1.1); opacity: 0; }
+    }
+    @keyframes drift {
+      0% { transform: translate(0, 0) scale(0.7); opacity: 0.35; }
+      100% { transform: translate(18px, -26px) scale(1.2); opacity: 1; }
+    }
+    @keyframes leaf-fall {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      50% { transform: translate(26px, 400px) rotate(160deg); opacity: 0.9; }
+      100% { transform: translate(-18px, 830px) rotate(340deg); opacity: 0; }
+    }
+
+    /* ============ 右侧：说明 ============ */
+    .notes {
+      background: #ffffff;
+      color: #1e3327;
+      border: 1px solid #dbe5d7;
+      border-radius: 28px;
+      padding: 30px 30px 26px;
+      box-shadow: 0 14px 36px rgba(32, 58, 38, 0.05);
+    }
+    .notes h2 { margin: 0 0 16px; font-size: 20px; }
+    .changes { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 14px; counter-reset: c; }
+    .changes li { display: grid; grid-template-columns: 24px 1fr; gap: 10px; font-size: 13px; line-height: 1.65; color: #6b8070; }
+    .changes li::before {
+      counter-increment: c;
+      content: counter(c);
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #e6eee2;
+      color: #23533d;
+      font-size: 12px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+    }
+    .changes b { display: block; margin-bottom: 2px; font-size: 14px; color: #1e3327; }
+    .eggs h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: #6b8070; }
+    .egg-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .egg {
+      padding: 8px 13px;
+      border-radius: 12px;
+      background: #f1f6ef;
+      border: 1px solid #e0eadd;
+      color: #23533d;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .egg small { margin-left: 4px; font-weight: 400; color: #6b8070; }
+    .egg:hover { background: #e6eee2; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; justify-items: center; }
+    }
+    @media (max-width: 430px) {
+      body { padding: 16px; }
+      .phone { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  
+    html,body{width:100%;height:100%;min-height:0;margin:0;padding:0;overflow:hidden;display:block;background:var(--bg)}
+    .layout{width:100%;max-width:none;height:100%;display:block}
+    .phone{width:100%;height:100%;min-height:0;border:0;border-radius:0;box-shadow:none}
+    .topbar{justify-content:space-between;height:56px}
+    .suspended *,.suspended *::before,.suspended *::after{animation-play-state:paused!important}
+  </style>
+</head>
+<body>
+  <main class="layout">
+    <section class="phone __APP_DARK__" id="phone">
+      <div class="fx" id="fx"></div>
+
+
+      <header class="topbar">
+        <button class="back" id="back" aria-label="返回设置">
+          <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+          <span>关于空叶</span>
+        </button>
+      </header>
+
+      <div class="scroll">
+        <section class="specimen">
+          <div class="win" id="win">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <span class="orb" id="orb"></span>
+            <span class="cloud a"></span>
+            <span class="cloud b"></span>
+            <div id="fireflies"></div>
+            <span class="hill"></span>
+            <span class="ground"></span>
+            <button class="plant" id="plant">
+              <svg class="pl" id="plant-svg" viewBox="8 7 48 48"></svg>
+            </button>
+          </div>
+
+          <div class="ticks" id="ticks" role="tablist" aria-label="六个时段"></div>
+
+          <div class="cap" aria-live="polite">
+            <div class="cap-h">
+              <b id="cap-name">开花</b>
+              <span id="cap-time">19:00 – 22:59</span>
+              <em id="cap-now">此刻</em>
+            </div>
+            <p id="cap-line"></p>
+          </div>
+
+          <div class="label">
+            <button class="logo-btn" id="logo-btn" aria-label="空叶动态图标">
+              <span class="tap-lv" id="tap-lv"><svg viewBox="0 0 24 24"><path d="M17 4C11.5 4 6 8 6 15.5C6 17.5 7 19 7 19C7 19 8.5 20 10.5 20C18 20 22 14.5 22 9C22 6.5 20 4 17 4ZM5 20L15 10"/></svg><span id="tap-n">×1</span></span>
+              <svg class="logo floating" id="logo" viewBox="0 0 64 64">
+                <defs><clipPath id="logo-clip"><rect width="64" height="64" rx="20"/></clipPath></defs>
+                <g clip-path="url(#logo-clip)">
+                  <rect width="64" height="64" fill="#294233"/>
+                  <rect width="32" height="32" fill="#DCE8C6"/>
+                  <rect x="32" width="32" height="32" fill="#294233"/>
+                  <rect y="32" width="32" height="32" fill="#7D9B57"/>
+                  <rect x="32" y="32" width="32" height="32" fill="#B8D293"/>
+                  <circle cx="17" cy="15" r="7" fill="#F5D042"/>
+                </g>
+                <g class="logo-orb">
+                  <circle cx="32" cy="32" r="19" fill="#294233" fill-opacity=".9" stroke="#E5EDE0" stroke-opacity=".8" stroke-width="2"/>
+                  <path transform="translate(22 22) scale(.8333)" d="M17 4C11.5 4 6 8 6 15.5C6 17.5 7 19 7 19C7 19 8.5 20 10.5 20C18 20 22 14.5 22 9C22 6.5 20 4 17 4ZM5 20L15 10" fill="none" stroke="#B5D68E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </svg>
+            </button>
+            <div>
+              <h1>空叶悬浮球</h1>
+              <button class="ver" id="ver"><i>Folia fluitans</i> · 版本 __APP_VERSION__</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="toast" id="toast" role="status"></div>
+    </section>
+
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const phone = $('phone'), fx = $('fx'), win = $('win'), orb = $('orb');
+    const plantBtn = $('plant'), plantSvg = $('plant-svg'), toastEl = $('toast');
+
+    /* 六个时段与首页 PlantCycle 一致：06 / 09 / 12 / 16 / 19 / 23 */
+    const STAGES = [
+      { t: '06:00', range: '06:00 – 08:59', name: '发芽', note: 523.25,
+        line: '🌱 早安！新芽正在努力钻出泥土~',
+        sky: ['#f7e7d6', '#eef4ea'], dsky: ['#2a2b21', '#18241d'], orb: { x: 14, y: 64, c: '#f2bf6a' } },
+      { t: '09:00', range: '09:00 – 11:59', name: '成长', note: 587.33,
+        line: '🌿 上午好，小叶正在舒展筋骨~',
+        sky: ['#e2efee', '#f1f6ee'], dsky: ['#1a2a2a', '#16231c'], orb: { x: 27, y: 30, c: '#f5ca44' } },
+      { t: '12:00', range: '12:00 – 15:59', name: '茂盛', note: 659.25,
+        line: '☀️ 午后阳光真暖，光合作用满分！',
+        sky: ['#eaf3da', '#f6f9ef'], dsky: ['#202b1b', '#17241b'], orb: { x: 50, y: 12, c: '#f5ca44' } },
+      { t: '16:00', range: '16:00 – 18:59', name: '花苞', note: 783.99,
+        line: '🌷 花骨朵鼓鼓的，马上就要开花啦~',
+        sky: ['#f5ebcd', '#f4f6ec'], dsky: ['#2b291b', '#19241b'], orb: { x: 73, y: 27, c: '#f0b54a' } },
+      { t: '19:00', range: '19:00 – 22:59', name: '开花', note: 880.00,
+        line: '🌸 晚风轻拂，小花正在温柔呼吸~',
+        sky: ['#eedce2', '#f3eee8'], dsky: ['#2b2027', '#1b2019'], orb: { x: 86, y: 62, c: '#e98a5b' } },
+      { t: '23:00', range: '23:00 – 05:59', name: '休息', note: 392.00,
+        line: '💤 嘘…夜深了，小叶正在打瞌睡~',
+        sky: ['#13221b', '#1f3428'], dsky: ['#0c1611', '#152a1f'], orb: { x: 78, y: 15, c: '#f1eed2', moon: true } }
+    ];
+
+    const POT = '<path class="pot" d="M21 39L24 51C24.3 52.2 25.3 53 26.5 53H37.5C38.7 53 39.7 52.2 40 51L43 39Z"/><path class="ink" d="M18 39H46"/>';
+    const ART = [
+      '<circle class="dew" cx="31" cy="15" r="1.5"/><path class="leaf" d="M32 32C26 32 24 27 24 24C28 24 32 27 32 32Z"/><path class="ink" d="M32 39V28M32 30C32 25 36 22 40 22C40 26 37 30 32 30Z"/>',
+      '<path class="leaf" d="M30 36C23 34 20 27 22 21C27 22 31 28 30 36Z"/><path class="ink petal" d="M30 39C30 27 36 17 45 16C46 25 40 35 30 39Z"/><path class="ink" d="M30 39L39 23"/>',
+      '<circle class="dot" cx="22" cy="17" r="1.5"/><circle class="leaf" cx="48" cy="29" r="1.3"/><path class="leaf" d="M30 37C21 35 18 26 20 19C26 20 31 28 30 37Z"/><path class="ink petal" d="M30 39C30 26 37 15 47 14C48 24 41 35 30 39Z"/><path class="ink" d="M30 39L40 21"/>',
+      '<path class="leaf" d="M31 38C22 36 18 28 20 22C26 23 30 30 31 38Z"/><path class="ink" d="M32 39C35 37 44 32 45 22C39 22 33 29 32 39Z"/><path class="ink" d="M32 39V28"/><path class="ink petal" d="M32 29C27 29 26 20 32 13C38 20 37 29 32 29Z"/><circle class="gold" cx="32" cy="22" r="1.8"/>',
+      '<circle class="gold" cx="20" cy="17" r="1.4"/><circle class="dot" cx="44" cy="15" r="1.4"/><path class="leaf" d="M32 38C22 37 19 29 21 24C26 24 31 30 32 38Z"/><path class="leaf" d="M32 38C42 37 45 29 43 24C38 24 33 30 32 38Z"/><path class="ink" d="M32 39V26"/><g class="ink petal thin"><circle cx="32" cy="14" r="4.5"/><circle cx="32" cy="24" r="4.5"/><circle cx="27" cy="19" r="4.5"/><circle cx="37" cy="19" r="4.5"/></g><circle class="gold" cx="32" cy="19" r="2.6"/>',
+      '<path class="ink thin zz" d="M38 19H43L38 24H43"/><path class="leaf" d="M32 39C35 32 42 32 44 39Z"/><path class="ink" d="M32 39C31 30 25 25 20 27C17 28 16 32 17 35"/><path class="ink petal thin" d="M17 35C14 33 14 29 18 28C21 30 20 34 17 35Z"/>'
+    ];
+
+    function nowStage() {
+      const h = new Date().getHours();
+      if (h < 6 || h >= 23) return 5;
+      if (h >= 19) return 4;
+      if (h >= 16) return 3;
+      if (h >= 12) return 2;
+      return Math.floor((h - 6) / 3);
+    }
+
+    function restartAnim(el, cls) {
+      el.classList.remove(cls);
+      void el.getBoundingClientRect();
+      el.classList.add(cls);
+    }
+
+    let toastTimer;
+    function toast(msg) {
+      clearTimeout(toastTimer);
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
+
+    /* 八音盒音色：正弦基音 + 三角泛音，短促起音、长尾衰减 */
+    let audioCtx;
+    function chime(freq) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const overtone = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const overGain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        overtone.type = 'triangle';
+        overtone.frequency.setValueAtTime(freq * 2, now);
+        overGain.gain.setValueAtTime(0.06, now);
+        overGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.26, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.15);
+        osc.connect(gain);
+        overtone.connect(overGain);
+        overGain.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        overtone.start(now);
+        osc.stop(now + 1.2);
+        overtone.stop(now + 0.4);
+      } catch (err) {}
+    }
+
+    function leafShower(count) {
+      const width = fx.offsetWidth;
+      for (let i = 0; i < count; i++) {
+        const leaf = document.createElement('div');
+        leaf.className = 'leafdrop';
+        leaf.style.left = Math.random() * (width - 30) + 10 + 'px';
+        leaf.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+        leaf.style.animationDelay = (Math.random() * 0.5) + 's';
+        leaf.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 4C11.5 4 6 8 6 15.5c0 2 1 3.5 1 3.5s1.5 1 3.5 1C18 20 22 14.5 22 9c0-2.5-2-5-5-5Z"/></svg>';
+        fx.appendChild(leaf);
+        setTimeout(() => leaf.remove(), 4500);
+      }
+    }
+
+    /* ---------- 标本卡 ---------- */
+    const ticksEl = $('ticks');
+    ticksEl.innerHTML = STAGES.map((s, i) =>
+      `<button class="tick" role="tab" data-i="${i}" aria-label="${s.t} ${s.name}"><i></i><span>${s.t}</span></button>`
+    ).join('');
+    const ticks = [...ticksEl.children];
+
+    const ffBox = $('fireflies');
+    for (let i = 0; i < 9; i++) {
+      const dot = document.createElement('i');
+      dot.className = 'ff';
+      dot.style.left = (6 + Math.random() * 88) + '%';
+      dot.style.top = (10 + Math.random() * 62) + '%';
+      dot.style.animationDelay = (Math.random() * 2.5) + 's';
+      ffBox.appendChild(dot);
+    }
+
+    let stage = nowStage();
+
+    function paintSky() {
+      const s = STAGES[stage];
+      const [top, bottom] = phone.classList.contains('night') ? s.dsky : s.sky;
+      win.style.setProperty('--sky1', top);
+      win.style.setProperty('--sky2', bottom);
+      orb.style.left = s.orb.x + '%';
+      orb.style.top = s.orb.y + '%';
+      orb.style.setProperty('--orb-c', s.orb.c);
+      orb.classList.toggle('moon', !!s.orb.moon);
+    }
+
+    function setStage(i, { sound = false, bounce = false } = {}) {
+      stage = i;
+      const s = STAGES[i];
+      plantSvg.innerHTML = POT + `<g class="sway">${ART[i]}</g>`;
+      win.classList.toggle('is-night', i === 5);
+      paintSky();
+      ticks.forEach((t, k) => {
+        t.classList.toggle('on', k === i);
+        t.setAttribute('aria-selected', k === i);
+      });
+      $('cap-name').textContent = s.name;
+      $('cap-time').textContent = s.range;
+      $('cap-now').hidden = i !== nowStage();
+      $('cap-line').textContent = s.line;
+      plantBtn.setAttribute('aria-label', `盆栽：${s.name}。点按浇水，长按演奏一日`);
+      if (sound) {
+        chime(s.note);
+        floatNote();
+      }
+      if (bounce) restartAnim(plantBtn, 'boing');
+    }
+
+    function floatNote() {
+      const note = document.createElement('span');
+      note.className = 'note';
+      note.textContent = '♪';
+      note.style.left = (50 + (Math.random() * 30 - 15)) + '%';
+      win.appendChild(note);
+      setTimeout(() => note.remove(), 1000);
+    }
+
+    let playing = false;
+    function water() {
+      if (playing) return;
+      const drop = document.createElement('span');
+      drop.className = 'drop';
+      win.appendChild(drop);
+      setTimeout(() => drop.remove(), 340);
+      setTimeout(() => {
+        const next = (stage + 1) % STAGES.length;
+        setStage(next, { sound: true, bounce: true });
+        if (next === 4) {
+          leafShower(14);
+          toast('开花了，谢谢你陪它长大');
+        } else if (next === 5) {
+          toast('夜深了，小叶睡着了');
+        } else if (next === 0) {
+          toast('新的一天');
+        }
+      }, 260);
+    }
+
+    /* 一日：发芽 → 开花 → 回落 → 再开 → 入睡 */
+    const MELODY = [0, 1, 2, 3, 4, 3, 2, 1, 2, 4, 5];
+    function playDay() {
+      if (playing) return;
+      playing = true;
+      MELODY.forEach((i, k) => {
+        setTimeout(() => {
+          setStage(i, { sound: true, bounce: true });
+          if (k === MELODY.length - 1) {
+            setTimeout(() => { playing = false; }, 400);
+            toast('一日 · 弹完了');
+          }
+        }, k * 300 + (k === MELODY.length - 1 ? 260 : 0));
+      });
+    }
+
+    let pressTimer, longFired = false;
+    plantBtn.addEventListener('pointerdown', () => {
+      longFired = false;
+      pressTimer = setTimeout(() => { longFired = true; playDay(); }, 520);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(type =>
+      plantBtn.addEventListener(type, () => clearTimeout(pressTimer))
+    );
+    plantBtn.addEventListener('contextmenu', e => e.preventDefault());
+    plantBtn.addEventListener('click', () => {
+      if (longFired) {
+        longFired = false;
+        return;
+      }
+      water();
+    });
+
+    ticksEl.addEventListener('click', e => {
+      const btn = e.target.closest('.tick');
+      if (!btn || playing) return;
+      setStage(+btn.dataset.i, { sound: true, bounce: true });
+    });
+
+    /* 图标：叶片球照 AboutLogoView 一直浮动；点击 Q 弹一下、右上角计数，每 3 下落一场叶子雨 */
+    /* 计数按天累计：连同日期一起存，本地零点后从 0 开始 */
+    const TAP_KEY = 'kongye-about-leaf-taps';
+    function today() {
+      const d = new Date();
+      return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    }
+    function loadTaps() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(TAP_KEY));
+        if (saved && saved.day === today()) return saved.n;
+      } catch (err) {}
+      return 0;
+    }
+    function saveTaps() {
+      try {
+        localStorage.setItem(TAP_KEY, JSON.stringify({ day: tapDay, n: logoTaps }));
+      } catch (err) {}
+    }
+    function showTaps() {
+      $('tap-n').textContent = '×' + logoTaps;
+      $('tap-lv').classList.toggle('show', logoTaps > 0);
+    }
+    let tapDay = today();
+    let logoTaps = loadTaps();
+    showTaps();
+    $('logo-btn').addEventListener('click', e => {
+      if (tapDay !== today()) {
+        tapDay = today();
+        logoTaps = 0;
+      }
+      logoTaps++;
+      saveTaps();
+      restartAnim(e.currentTarget, 'boing');
+      showTaps();
+      if (logoTaps % 3 === 0) {
+        leafShower(15);
+        toast(`落叶雨 · 今天收集了 ${logoTaps} 片空叶`);
+      }
+    });
+
+    /* 版本号连点 7 次：萤火之夜（致敬 Android 开发者选项） */
+    let verTaps = 0, verTimer;
+    function toggleNight() {
+      const night = phone.classList.toggle('night');
+      paintSky();
+      fx.querySelectorAll('.firefly').forEach(el => el.remove());
+      if (night) {
+        for (let i = 0; i < 12; i++) {
+          const dot = document.createElement('i');
+          dot.className = 'firefly';
+          dot.style.left = (6 + Math.random() * 86) + '%';
+          dot.style.top = (6 + Math.random() * 88) + '%';
+          dot.style.animationDelay = (Math.random() * 3) + 's';
+          fx.appendChild(dot);
+        }
+        toast('萤火之夜');
+      } else {
+        toast('天亮了');
+      }
+    }
+    $('ver').addEventListener('click', () => {
+      clearTimeout(verTimer);
+      verTimer = setTimeout(() => { verTaps = 0; }, 1500);
+      verTaps++;
+      if (verTaps >= 7) {
+        verTaps = 0;
+        toggleNight();
+      } else if (verTaps >= 3) {
+        toast(`再点 ${7 - verTaps} 次`);
+      }
+    });
+
+    $('back').addEventListener('click', () => location.href='https://about.kongye.local/back');
+
+    setStage(stage);
+  </script>
+</body>
+</html>

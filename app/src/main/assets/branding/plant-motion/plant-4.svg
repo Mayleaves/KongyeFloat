@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" fill="none" style="cursor:pointer">
+  <style>
+    .s4-energy { animation: s4-up 3.8s ease-in infinite; }
+    .s4-bud    { transform-origin: 32px 29px; animation: s4-blush 3.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite; }
+    .s4-star-l { transform-origin: 22px 14px; animation: s4-spark 3.8s ease-out infinite; }
+    .s4-star-r { transform-origin: 42px 14px; animation: s4-spark 3.8s ease-out 0.15s infinite; }
+    @keyframes s4-up {
+      0%       { transform: translateY(16px) scale(0.5); opacity: 0; }
+      15%      { transform: translateY(13px) scale(1.1); opacity: 1; }
+      38%      { transform: translateY(0px) scale(0.9); opacity: 1; }
+      42%,100% { transform: translateY(-2px) scale(0); opacity: 0; }
+    }
+    @keyframes s4-blush {
+      0%, 38%  { transform: scale(1) rotate(0deg); }
+      46%      { transform: scale(1.18, 1.12) rotate(-9deg); }
+      54%      { transform: scale(1.15, 1.1) rotate(9deg); }
+      62%      { transform: scale(1.12) rotate(-6deg); }
+      70%      { transform: scale(1.06) rotate(4deg); }
+      82%,100% { transform: scale(1) rotate(0deg); }
+    }
+    @keyframes s4-spark {
+      0%, 42%  { transform: scale(0) rotate(-30deg); opacity: 0; }
+      52%      { transform: scale(1.2) rotate(0deg); opacity: 1; }
+      75%,100% { transform: scale(0) rotate(30deg); opacity: 0; }
+    }
+  </style>
+  <g>
+      <animateTransform attributeName="transform" type="translate"
+        values="0,0; 0,2; 0,-11; 0,-8; 0,1; 0,-2; 0,0"
+        keyTimes="0; 0.15; 0.42; 0.6; 0.78; 0.9; 1"
+        dur="0.62s" begin="click" restart="whenNotActive" calcMode="spline"
+        keySplines="0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.6 1; 0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.2 1"/>
+    <path d="M31 38C22 36 18 28 20 22C26 23 30 30 31 38Z" fill="#88B399"/>
+    <path d="M32 39C35 37 44 32 45 22C39 22 33 29 32 39Z" stroke="#28664B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 39V28" stroke="#28664B" stroke-width="1.8" stroke-linecap="round"/>
+    <circle class="s4-energy" cx="32" cy="23" r="2.1" fill="#E6A940"/>
+    <g class="s4-bud">
+      <path d="M32 29C27 29 26 20 32 13C38 20 37 29 32 29Z" fill="#F4F6F0" stroke="#28664B" stroke-width="1.8" stroke-linejoin="round"/>
+      <circle cx="32" cy="22" r="1.8" fill="#E6A940"/>
+    </g>
+    <path class="s4-star-l" d="M22 11.5V16.5M19.5 14H24.5" stroke="#E6A940" stroke-width="1.5" stroke-linecap="round"/>
+    <path class="s4-star-r" d="M42 11.5V16.5M39.5 14H44.5" stroke="#28664B" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M18 39H46M21 39L24 51C24.3 52.2 25.3 53 26.5 53H37.5C38.7 53 39.7 52.2 40 51L43 39" fill="#F4F7F2" stroke="#28664B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

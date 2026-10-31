@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" fill="none" style="cursor:pointer">
+  <style>
+    .s5-stem   { transform-origin: 32px 39px; animation: s5-sway 5.2s ease-in-out infinite; }
+    .s5-leaf-l { transform-origin: 32px 38px; animation: s5-wave-l 2.6s ease-in-out infinite; }
+    .s5-leaf-r { transform-origin: 32px 38px; animation: s5-wave-r 2.6s ease-in-out -1.3s infinite; }
+    .s5-wheel  { transform-origin: 32px 19px; animation: s5-spin 5.8s cubic-bezier(0.45, 0.05, 0.2, 1) infinite; }
+    .s5-core   { transform-origin: 32px 19px; animation: s5-pulse 2.2s ease-in-out infinite; }
+    .s5-p1     { animation: s5-float1 3.4s ease-in-out infinite; }
+    .s5-p2     { animation: s5-float2 3.8s ease-in-out -1.7s infinite; }
+    @keyframes s5-sway {
+      0%, 100% { transform: rotate(-3.5deg); }
+      50%      { transform: rotate(3.5deg); }
+    }
+    @keyframes s5-wave-l {
+      0%, 100% { transform: rotate(0deg); }
+      50%      { transform: rotate(-11deg) scaleY(1.05); }
+    }
+    @keyframes s5-wave-r {
+      0%, 100% { transform: rotate(0deg); }
+      50%      { transform: rotate(11deg) scaleY(1.05); }
+    }
+    @keyframes s5-spin {
+      0%   { transform: rotate(0deg) scale(1); }
+      18%  { transform: rotate(-15deg) scale(0.95); }
+      52%  { transform: rotate(372deg) scale(1.08); }
+      66%  { transform: rotate(356deg) scale(1); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    @keyframes s5-pulse {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.25); }
+    }
+    @keyframes s5-float1 {
+      0%   { transform: translate(0, 6px) scale(0.2); opacity: 0; }
+      35%  { transform: translate(-4px, 0) scale(1.2); opacity: 1; }
+      100% { transform: translate(3px, -12px) scale(0.1); opacity: 0; }
+    }
+    @keyframes s5-float2 {
+      0%   { transform: translate(0, 5px) scale(0.2); opacity: 0; }
+      35%  { transform: translate(4px, -1px) scale(1.2); opacity: 1; }
+      100% { transform: translate(-3px, -13px) scale(0.1); opacity: 0; }
+    }
+  </style>
+  <g>
+      <animateTransform attributeName="transform" type="translate"
+        values="0,0; 0,2; 0,-11; 0,-8; 0,1; 0,-2; 0,0"
+        keyTimes="0; 0.15; 0.42; 0.6; 0.78; 0.9; 1"
+        dur="0.62s" begin="click" restart="whenNotActive" calcMode="spline"
+        keySplines="0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.6 1; 0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.2 1"/>
+    <circle class="s5-p1" cx="19" cy="18" r="1.4" fill="#E6A940"/>
+    <circle class="s5-p2" cx="45" cy="16" r="1.3" fill="#28664B"/>
+    <g class="s5-stem">
+      <path class="s5-leaf-l" d="M32 38C22 37 19 29 21 24C26 24 31 30 32 38Z" fill="#88B399"/>
+      <path class="s5-leaf-r" d="M32 38C42 37 45 29 43 24C38 24 33 30 32 38Z" fill="#88B399"/>
+      <path d="M32 39V25" stroke="#28664B" stroke-width="1.8" stroke-linecap="round"/>
+      <g class="s5-wheel">
+        <circle cx="32" cy="14" r="4.5" fill="#F4F6F0" stroke="#28664B" stroke-width="1.5"/>
+        <circle cx="32" cy="24" r="4.5" fill="#F4F6F0" stroke="#28664B" stroke-width="1.5"/>
+        <circle cx="27" cy="19" r="4.5" fill="#F4F6F0" stroke="#28664B" stroke-width="1.5"/>
+        <circle cx="37" cy="19" r="4.5" fill="#F4F6F0" stroke="#28664B" stroke-width="1.5"/>
+      </g>
+      <circle class="s5-core" cx="32" cy="19" r="2.6" fill="#E6A940"/>
+    </g>
+    <path d="M18 39H46M21 39L24 51C24.3 52.2 25.3 53 26.5 53H37.5C38.7 53 39.7 52.2 40 51L43 39" fill="#F4F7F2" stroke="#28664B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

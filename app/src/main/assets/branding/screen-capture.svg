@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- 空叶工具栏浅绿圆角背景 -->
+  <rect width="100" height="100" rx="28" fill="#E5EDE0" />
+
+  <g transform="translate(13, 13) scale(0.74)">
+    <!-- 修长手机机身 -->
+    <path fill="#294233" d="
+      M 42 29 L 42 17 A 8 8 0 0 1 50 9 L 78 9 A 8 8 0 0 1 86 17 L 86 83 A 8 8 0 0 1 78 91 L 50 91 A 8 8 0 0 1 42 83 L 42 71 A 3.5 3.5 0 0 1 49 71 L 49 79 L 79 79 L 79 21 L 49 21 L 49 29 A 3.5 3.5 0 0 1 42 29 Z" />
+
+    <!-- 剪刀手柄与实心交叉刀片 -->
+    <circle cx="24" cy="36" r="7.5" fill="none" stroke="#294233" stroke-width="6.5" />
+    <circle cx="24" cy="64" r="7.5" fill="none" stroke="#294233" stroke-width="6.5" />
+    <line x1="29.5" y1="41.5" x2="56" y2="66" stroke="#294233" stroke-width="7" stroke-linecap="round" />
+    <line x1="29.5" y1="58.5" x2="56" y2="34" stroke="#294233" stroke-width="7" stroke-linecap="round" />
+  </g>
+</svg>

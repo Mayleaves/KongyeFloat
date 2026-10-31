@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 2400" width="100%" height="100%">
+  <style>
+    .bg { fill: #F4F7F0; }
+    
+    /* 悬浮球从右侧边缘滑入中心并回弹 */
+    .orb-slide {
+      animation: slideFromEdge 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    /* 叶片旋转舒展 */
+    .leaf-spin {
+      transform-origin: 540px 1050px;
+      animation: spinLeaf 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    /* 几何背景块交错浮现 */
+    .geo-card {
+      transform-origin: 540px 1050px;
+      opacity: 0;
+      animation: cardReveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.6s;
+    }
+    .title-group {
+      opacity: 0;
+      animation: fadeUp 0.7s ease-out forwards 0.9s;
+    }
+
+    @keyframes slideFromEdge {
+      0% { transform: translateX(600px) scale(0.4); opacity: 0.5; }
+      60% { transform: translateX(-30px) scale(1.05); opacity: 1; }
+      80% { transform: translateX(10px) scale(0.98); }
+      100% { transform: translateX(0px) scale(1); opacity: 1; }
+    }
+    @keyframes spinLeaf {
+      0% { transform: rotate(-140deg) scale(0.5); }
+      60% { transform: rotate(50deg) scale(1.05); }
+      100% { transform: rotate(40deg) scale(1); }
+    }
+    @keyframes cardReveal {
+      from { transform: scale(0.7) rotate(-8deg); opacity: 0; }
+      to { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes fadeUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+
+  <rect class="bg" width="1080" height="2400" />
+
+  <!-- 几何装饰底板（呼应首页插画） -->
+  <g class="geo-card">
+    <rect x="360" y="870" width="180" height="180" rx="40" fill="#D5E3B8" />
+    <rect x="540" y="1050" width="180" height="180" rx="40" fill="#DCE8C6" />
+    <circle cx="430" cy="940" r="45" fill="#F5D042" />
+  </g>
+
+  <!-- 滑入的悬浮球组件 -->
+  <g class="orb-slide">
+    <!-- 悬浮球外圈半透明环 -->
+    <circle cx="540" cy="1050" r="145" fill="#85A867" fill-opacity="0.35" />
+    <!-- 悬浮球内圈实心体 -->
+    <circle cx="540" cy="1050" r="115" fill="#85A867" />
+    
+    <!-- 旋转的叶片 -->
+    <g class="leaf-spin">
+      <path d="M 540 970 C 595 970 610 1050 540 1120 C 470 1050 485 970 540 970 Z" fill="none" stroke="#F4F7F0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 540 1140 L 540 1015" fill="none" stroke="#F4F7F0" stroke-width="14" stroke-linecap="round" />
+    </g>
+  </g>
+
+  <!-- 底部文字信息 -->
+  <g class="title-group" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif">
+    <rect x="420" y="1320" width="240" height="56" rx="28" fill="#E1ECD6" />
+    <text x="540" y="1357" font-size="26" font-weight="600" fill="#294233" letter-spacing="2">✓ 随时待命</text>
+    
+    <text x="540" y="2020" font-size="44" font-weight="700" fill="#294233" letter-spacing="6">空叶悬浮球</text>
+    <text x="540" y="2070" font-size="22" fill="#7F9686" letter-spacing="4">LIGHTWEIGHT FLOATING ASSISTANT</text>
+  </g>
+</svg>

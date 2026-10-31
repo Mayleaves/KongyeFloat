@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" fill="none" style="cursor:pointer">
+  <style>
+    .s2-sun   { animation: s2-sun-move 4.8s ease-in-out infinite; }
+    .s2-main  { transform-origin: 30px 39px; animation: s2-track 4.8s ease-in-out infinite; }
+    .s2-sub   { transform-origin: 30px 36px; animation: s2-sub-wave 2.4s ease-in-out infinite; }
+    @keyframes s2-sun-move {
+      0%, 100% { transform: translate(-10px, 2px) scale(0.9); opacity: 0.75; }
+      50%      { transform: translate(12px, -3px) scale(1.25); opacity: 1; }
+    }
+    @keyframes s2-track {
+      0%, 100% { transform: rotate(-12deg) scaleY(0.96); }
+      50%      { transform: rotate(9deg) scaleY(1.06); }
+    }
+    @keyframes s2-sub-wave {
+      0%, 100% { transform: rotate(-6deg); }
+      50%      { transform: rotate(8deg) scale(1.05); }
+    }
+  </style>
+  <g>
+      <animateTransform attributeName="transform" type="translate"
+        values="0,0; 0,2; 0,-11; 0,-8; 0,1; 0,-2; 0,0"
+        keyTimes="0; 0.15; 0.42; 0.6; 0.78; 0.9; 1"
+        dur="0.62s" begin="click" restart="whenNotActive" calcMode="spline"
+        keySplines="0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.6 1; 0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.2 1"/>
+    <g class="s2-sun">
+      <circle cx="28" cy="11" r="2.8" fill="#F6C945"/>
+      <circle cx="28" cy="11" r="4.8" fill="#F6C945" opacity="0.25"/>
+    </g>
+    <path class="s2-sub" d="M30 36C23 34 20 27 22 21C27 22 31 28 30 36Z" fill="#88B399"/>
+    <g class="s2-main">
+      <path d="M30 39C30 27 36 17 45 16C46 25 40 35 30 39Z" fill="#F4F6F0" stroke="#28664B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M30 39L39 23" stroke="#28664B" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+    <path d="M18 39H46M21 39L24 51C24.3 52.2 25.3 53 26.5 53H37.5C38.7 53 39.7 52.2 40 51L43 39" fill="#F4F7F2" stroke="#28664B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

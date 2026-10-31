@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" fill="none" style="cursor:pointer">
+  <style>
+    .s6-droop  { transform-origin: 32px 39px; animation: s6-snore 4.6s ease-in-out infinite; }
+    .s6-bubble { transform-origin: 15px 34px; animation: s6-bub 4.6s ease-in-out infinite; }
+    .s6-z1     { animation: s6-z-float 3.6s ease-out infinite; }
+    .s6-z2     { animation: s6-z-float 3.6s ease-out -1.8s infinite; }
+    @keyframes s6-snore {
+      0%, 100% { transform: rotate(0deg) scaleY(1); }
+      50%      { transform: rotate(-6deg) scaleY(0.93); }
+    }
+    @keyframes s6-bub {
+      0%, 12%  { transform: scale(0.1); opacity: 0; }
+      55%      { transform: scale(1.25); opacity: 0.9; }
+      72%      { transform: scale(1.45); opacity: 0.95; }
+      76%,100% { transform: scale(1.8); opacity: 0; }
+    }
+    @keyframes s6-z-float {
+      0%   { transform: translate(0, 4px) scale(0.6); opacity: 0; }
+      35%  { transform: translate(3px, -2px) scale(1); opacity: 1; }
+      100% { transform: translate(8px, -11px) scale(0.8); opacity: 0; }
+    }
+  </style>
+  <g>
+      <animateTransform attributeName="transform" type="translate"
+        values="0,0; 0,2; 0,-11; 0,-8; 0,1; 0,-2; 0,0"
+        keyTimes="0; 0.15; 0.42; 0.6; 0.78; 0.9; 1"
+        dur="0.62s" begin="click" restart="whenNotActive" calcMode="spline"
+        keySplines="0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.6 1; 0.4 0 0.2 1; 0.2 0.8 0.3 1; 0.4 0 0.2 1"/>
+    <path class="s6-z1" d="M37 22H42L37 27H42" stroke="#858A83" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path class="s6-z2" d="M42 15H46L42 19H46" stroke="#858A83" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 39C35 32 42 32 44 39Z" fill="#B5B9B3"/>
+    <g class="s6-droop">
+      <path d="M32 39C31 30 25 25 20 27C17 28 16 32 17 35" stroke="#858A83" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M17 35C14 33 14 29 18 28C21 30 20 34 17 35Z" fill="#F4F6F0" stroke="#858A83" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+    <circle class="s6-bubble" cx="13.5" cy="34" r="3.2" fill="#E3EEF2" stroke="#858A83" stroke-width="1.2"/>
+    <path d="M18 39H46M21 39L24 51C24.3 52.2 25.3 53 26.5 53H37.5C38.7 53 39.7 52.2 40 51L43 39" fill="#F4F7F2" stroke="#858A83" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

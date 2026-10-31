@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared 1.7/24 side and scissors stroke; phone top/bottom bezels thicken inward. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="100" android:viewportHeight="100">
+    <path android:pathData="M41.5,29V17A4.5,4.5 0,0 1,46 12.5H82A4.5,4.5 0,0 1,86.5 17V83A4.5,4.5 0,0 1,82 87.5H46A4.5,4.5 0,0 1,41.5 83V71"
+        android:fillColor="#00000000" android:strokeColor="#294233"
+        android:strokeWidth="7.083333" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M45.041667,12.5H82.958333V19.5H45.041667ZM45.041667,80.5H82.958333V87.5H45.041667Z"
+        android:fillColor="#294233" />
+    <path android:pathData="M16.5,36a7.5,7.5 0,1 0,15 0a7.5,7.5 0,1 0,-15 0M16.5,64a7.5,7.5 0,1 0,15 0a7.5,7.5 0,1 0,-15 0M29.5,41.5L56,66M29.5,58.5L56,34"
+        android:fillColor="#00000000" android:strokeColor="#294233"
+        android:strokeWidth="7.083333" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

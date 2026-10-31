@@ -25,7 +25,7 @@ final class QuickDock {
         ArrayList<String> entries=QuickActions.load(context);entries.addAll(QuickActions.recent(context));
         for(int i=0;i<entries.size();i++){
             String id=entries.get(i);if(id.isEmpty()&&i==12)id="recent_apps";String target=id.isEmpty()?"edit_slot:"+i:id;
-            FrameLayout bubble=QuickBubble.create(context,id,bubbleDp,i<12?(id.isEmpty()?Color.WHITE:QuickBubble.COLORS[i%6]):Ui.MUTED);
+            FrameLayout bubble=QuickBubble.create(context,id,bubbleDp,i<12?(id.isEmpty()?Color.WHITE:QuickBubble.COLORS[i%6]):Ui.MUTED,i>=12);
             bubble.setContentDescription(i<12?(id.isEmpty()?"空白快捷位置"+(i+1):"快捷："+Prefs.label(context,id)):"最近："+Prefs.label(context,id));
             FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(diameter,diameter);p.leftMargin=Math.round(points[i][0])-diameter/2;p.topMargin=Math.round(points[i][1])-diameter/2;
             root.addView(bubble,p);targets.put(bubble,target);
