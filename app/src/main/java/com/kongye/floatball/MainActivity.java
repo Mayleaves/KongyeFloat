@@ -27,8 +27,8 @@ public class MainActivity extends Activity {
     private UpdateCheckSession updateCheck;
     private FrameLayout updateCapsule,powerControl;private LinearLayout updateRow;
     private TextView readyText,restText;private View stateDot,playGlyph,pauseGlyph;private BotanicalPanel botanical;
-    private android.animation.ValueAnimator powerTint,navMotion;private boolean animateTab;private int tabDirection=1;private float navPosition;
-    private Preview preview;private LaunchIntroView intro;private PlantStageView perchedPlant;
+    private android.animation.ValueAnimator powerTint,navMotion,tabMotion;private boolean animateTab;private int tabDirection=1;private float navPosition;
+    private Preview preview;private LaunchIntroView intro;private PlantStageView perchedPlant;private View plantEntrance;
     private int tab=0, renderedTab=-1;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private boolean renderedDark,renderedRunning,skipFileResume;
@@ -47,11 +47,11 @@ public class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putInt("tab",tab);}
     @Override protected void onResume(){super.onResume();AppMotion.resume(this);if(!gestureEntrance){motionContent().setTranslationY(0);motionContent().setAlpha(1);motionContent().setScaleX(1);motionContent().setScaleY(1);}visible=new java.lang.ref.WeakReference<>(this);boolean keep=(intro!=null||gestureEntrance)||(skipFileResume&&renderedDark==ThemePolicy.isDark(this)&&renderedRunning==FloatService.running);skipFileResume=false;if(!keep)render();animateGestureEntrance();updateCheck.attach((result,error)->{if(isFinishing()||isDestroyed())return;updateCheckingVisual();startActivity(UpdateActivity.checkedIntent(this,result,error));});handler.removeCallbacks(themeTicker);handler.postDelayed(themeTicker,60000-System.currentTimeMillis()%60000);}
     @Override protected void onPause(){AppMotion.pause(this);updateCheck.detach();if(visible.get()==this)visible.clear();handler.removeCallbacks(themeTicker);super.onPause();}
-    @Override protected void onDestroy(){AppMotion.destroy(this);if(!isChangingConfigurations())updateCheck.close();handler.removeCallbacksAndMessages(null);if(powerTint!=null)powerTint.cancel();if(navMotion!=null)navMotion.cancel();super.onDestroy();}
+    @Override protected void onDestroy(){AppMotion.destroy(this);if(!isChangingConfigurations())updateCheck.close();handler.removeCallbacksAndMessages(null);if(powerTint!=null)powerTint.cancel();if(navMotion!=null)navMotion.cancel();if(tabMotion!=null)tabMotion.cancel();super.onDestroy();}
     private int dp(float v){return Ui.dp(this,v);}
     private void render() {
         if(intro!=null)return;
-        boolean enter=animateTab;int direction=tabDirection;animateTab=false;if(navMotion!=null)navMotion.cancel();if(!enter)navPosition=tab;
+        boolean enter=animateTab;int direction=tabDirection;animateTab=false;if(navMotion!=null)navMotion.cancel();if(tabMotion!=null)tabMotion.cancel();if(!enter)navPosition=tab;
         ThemePolicy.apply(this);renderedDark=Ui.dark;renderedRunning=FloatService.running;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);
         getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().getDecorView().setBackgroundColor(Color.TRANSPARENT);getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.TRANSPARENT);getWindow().getDecorView().setSystemUiVisibility(Ui.dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         int keepScroll=scroll!=null&&renderedTab==tab?scroll.getScrollY():0;renderedTab=tab;
@@ -59,7 +59,11 @@ public class MainActivity extends Activity {
         shell.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets.consumeSystemWindowInsets();});
         setContentView(shell);
         LinearLayout header=Ui.row(this);Ui.pad(header,24,8,20,8);header.setMinimumHeight(dp(64));header.setClipToPadding(false);header.setClipChildren(false);
-        TextView headerTitle=Ui.text(this,TABS[tab],16,Ui.INK,true);header.addView(headerTitle,new LinearLayout.LayoutParams(0,-2,1));perchedPlant=null;if(tab==0){perchedPlant=new PlantStageView(this,true);perchedPlant.setTranslationY(dp(8));LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(58),dp(58));at.rightMargin=dp(8);header.addView(perchedPlant,at);PlantStageView plant=perchedPlant;header.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->plant.setTranslationY(header.getHeight()-plant.getBottom()));}FrameLayout headerLayer=new FrameLayout(this);headerLayer.setClipChildren(false);headerLayer.addView(header,new FrameLayout.LayoutParams(-1,-2));if(perchedPlant!=null){PlantGreeting greeting=new PlantGreeting(this,perchedPlant);FrameLayout.LayoutParams where=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);where.setMargins(dp(70),dp(10),dp(86),0);headerLayer.addView(greeting,where);greeting.maybeGreet();}shell.addView(headerLayer);
+        TextView headerTitle=Ui.text(this,TABS[tab],16,Ui.INK,true);header.addView(headerTitle,new LinearLayout.LayoutParams(0,-2,1));perchedPlant=null;plantEntrance=null;if(tab==0){perchedPlant=new PlantStageView(this,true);perchedPlant.setTranslationY(dp(8));LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(58),dp(58));at.rightMargin=dp(8);View plantSpace=new View(this);header.addView(plantSpace,at);}FrameLayout headerLayer=new FrameLayout(this);headerLayer.setClipChildren(false);headerLayer.setClipToPadding(false);headerLayer.setElevation(dp(1));headerLayer.addView(header,new FrameLayout.LayoutParams(-1,-2));if(perchedPlant!=null){
+            // Keep the whole plant inside its animated layer; the header draws above the moving card.
+            FrameLayout plantGroup=new FrameLayout(this);plantGroup.setClipChildren(false);plantGroup.setClipToPadding(false);
+            FrameLayout.LayoutParams plantAt=new FrameLayout.LayoutParams(dp(58),dp(58),Gravity.BOTTOM|Gravity.RIGHT);plantAt.rightMargin=dp(28);perchedPlant.setTranslationY(0);plantGroup.addView(perchedPlant,plantAt);plantEntrance=plantGroup;headerLayer.addView(plantGroup,new FrameLayout.LayoutParams(-1,-1));
+            PlantGreeting greeting=new PlantGreeting(this,perchedPlant);FrameLayout.LayoutParams where=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);where.setMargins(dp(70),dp(10),dp(86),0);headerLayer.addView(greeting,where);greeting.maybeGreet();}shell.addView(headerLayer);
         FrameLayout body=new FrameLayout(this);body.setClipChildren(false);shell.addView(body,new LinearLayout.LayoutParams(-1,0,1));
         scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false);
         content=Ui.column(this);Ui.pad(content,16,tab==0?0:6,16,100);scroll.addView(content);body.addView(scroll,new FrameLayout.LayoutParams(-1,-1));
@@ -82,8 +86,22 @@ public class MainActivity extends Activity {
     }
     private void animateTabContent(View title,int direction){
         if(!android.animation.ValueAnimator.areAnimatorsEnabled())return;android.view.animation.PathInterpolator pageEase=new android.view.animation.PathInterpolator(.22f,1,.36f,1),itemEase=new android.view.animation.PathInterpolator(.2f,.9f,.25f,1);
-        LinearLayout page=content;page.setAlpha(0);page.setTranslationX(dp(18)*direction);page.setTranslationY(dp(4));page.setScaleX(.985f);page.setScaleY(.985f);page.post(()->{page.setPivotX(page.getWidth()/2f);page.animate().alpha(1).translationX(0).translationY(0).scaleX(1).scaleY(1).setDuration(440).setInterpolator(pageEase).start();});
-        for(int i=0,order=0;i<page.getChildCount()&&order<7;i++){View child=page.getChildAt(i);if(child.getClass()==View.class)continue;child.setAlpha(0);child.setTranslationY(dp(14));child.animate().alpha(1).translationY(0).setStartDelay(10+35L*order++).setDuration(480).setInterpolator(itemEase).start();}
+        LinearLayout page=content;View plant=plantEntrance;java.util.ArrayList<View> modules=new java.util.ArrayList<>();
+        for(int i=0;i<page.getChildCount();i++){View child=page.getChildAt(i);if(child.getClass()==View.class)continue;child.setAlpha(0);child.setTranslationY(dp(14));modules.add(child);}
+        page.setAlpha(0);page.setTranslationX(dp(18)*direction);page.setTranslationY(dp(4));page.setScaleX(.985f);page.setScaleY(.985f);
+        if(plant!=null){plant.setAlpha(0);plant.setTranslationX(0);plant.setTranslationY(dp(24));}
+        page.post(()->{if(page!=content)return;page.setPivotX(page.getWidth()/2f);
+            if(plant!=null){plant.setPivotY(plant.getHeight());plant.setPivotX(perchedPlant.getLeft()+perchedPlant.getWidth()/2f);}
+            long duration=Math.max(440,490+35L*Math.max(0,modules.size()-1));tabMotion=android.animation.ValueAnimator.ofFloat(0,duration);tabMotion.setDuration(duration);tabMotion.setInterpolator(new android.view.animation.LinearInterpolator());
+            tabMotion.addUpdateListener(a->{float elapsed=(float)a.getAnimatedValue(),progress=pageEase.getInterpolation(Math.min(1,elapsed/440f)),scale=.985f+.015f*progress;
+                page.setAlpha(progress);page.setTranslationX(dp(18)*direction*(1-progress));page.setTranslationY(dp(4)*(1-progress));page.setScaleX(scale);page.setScaleY(scale);
+                for(int i=0;i<modules.size();i++){View child=modules.get(i);float entrance=itemEase.getInterpolation(Math.max(0,Math.min(1,(elapsed-10-35*i)/480f)));child.setAlpha(entrance);child.setTranslationY(dp(14)*(1-entrance));}
+                if(plant!=null&&!modules.isEmpty()){
+                    View card=modules.get(0);float lift=page.getTranslationY()+page.getPivotY()*(1-scale)+card.getTop()*(scale-1)+card.getTranslationY()*scale;
+                    plant.setAlpha(progress*card.getAlpha());plant.setTranslationX(0);plant.setTranslationY(lift);plant.setScaleX(scale);plant.setScaleY(scale);
+                }
+            });tabMotion.start();
+        });
         title.setAlpha(0);title.setTranslationX(dp(10)*direction);title.setTranslationY(dp(4));title.animate().alpha(1).translationX(0).translationY(0).setDuration(350).setInterpolator(pageEase).start();
     }
     private void home() {
@@ -126,7 +144,7 @@ public class MainActivity extends Activity {
     // A permanently denied request returns at once without a dialog; send the user to the system page instead.
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(request==12&&!notificationsAllowed()&&Build.VERSION.SDK_INT>=33&&!shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS))notificationSettings();render();}
     private void gestures() {
-        ballAppearance();
+        label("外观与位置");ballAppearance();
         label("手势操作");
         LinearLayout card=group();card.setContentDescription("手势操作设置组");
         String[] icons={"gesture_tap","gesture_double","gesture_hold","up","down"};
@@ -143,7 +161,7 @@ public class MainActivity extends Activity {
     private void ballAppearance() {
         SharedPreferences prefs=Prefs.of(this);boolean custom=prefs.getBoolean("custom_art",false)&&BallArt.file(this).isFile();
         LinearLayout look=group();look.setContentDescription("外观与位置设置组");
-        Ui.pad(look,18,18,18,10);TextView heading=Ui.text(this,"外观与位置",14.5f,Ui.INK,true);look.addView(heading);Ui.gap(look,12);
+        Ui.pad(look,18,18,18,10);
         preview=new Preview(this,0);android.graphics.drawable.GradientDrawable stage=Ui.bg(Ui.dark?0xFF152019:0xFFF4F6F0,18,this);stage.setStroke(dp(.7f),Ui.LINE);preview.setBackground(stage);preview.setClipToOutline(true);look.addView(preview,new LinearLayout.LayoutParams(-1,dp(124)));
         LinearLayout style=Ui.row(this);Ui.pad(style,0,15,0,15);
         if(!custom){LinearLayout colors=Ui.row(this);int[] palette={0xFF28664B,0xFF68A67D,0xFF567AAB,0xFF8D70A6,0xFFD19251};String[] names={"深叶绿","浅叶绿","雾蓝","藤紫","秋杏"};int selected=BallArt.color(this);
@@ -153,14 +171,14 @@ public class MainActivity extends Activity {
             style.addView(colors,new LinearLayout.LayoutParams(0,-2,1));
         }else{TextView restore=Ui.text(this,"恢复叶片",12,Ui.GREEN,true);Ui.pad(restore,0,8,0,8);restore.setOnClickListener(v->{Prefs.of(this).edit().putBoolean("custom_art",false).apply();refreshBall();render();});style.addView(restore,new LinearLayout.LayoutParams(0,-2,1));}
         TextView image=Ui.centeredText(this,custom?"更换图片 / GIF":"自定义图片 / GIF",11,Ui.GREEN,true);image.setContentDescription("自定义图片 / GIF");image.setBackground(Ui.ripple(this,Ui.PALE,11));Ui.pad(image,11,7,11,7);image.setOnClickListener(v->chooseArt());LinearLayout.LayoutParams imageAt=new LinearLayout.LayoutParams(-2,-2);imageAt.leftMargin=dp(10);style.addView(image,imageAt);look.addView(style);
-        LinearLayout controls=Ui.column(this);View separator=new View(this);separator.setBackgroundColor(Ui.LINE);controls.addView(separator,new LinearLayout.LayoutParams(-1,1));slider(controls,"大小","size_percent",100,100,500,"%");
+        LinearLayout controls=Ui.column(this);View separator=new View(this);separator.setBackgroundColor(Ui.LINE);controls.addView(separator,new LinearLayout.LayoutParams(-1,1));slider(controls,"大小","size_percent",100,30,500,"%");
         LinearLayout opacity=slider(controls,"不透明度","opacity",90,30,100,"%");relatedToggle(opacity,"空闲时淡化",null,"fade",true);
-        LinearLayout position=slider(controls,"边框距离","edge_percent",100,30,100,"%");position.setPadding(position.getPaddingLeft(),position.getPaddingTop(),position.getPaddingRight(),0);relatedToggle(position,"自动吸边",null,"snap",true);
+        LinearLayout position=slider(controls,"边框距离","edge_percent",100,30,150,"%");position.setPadding(position.getPaddingLeft(),position.getPaddingTop(),position.getPaddingRight(),0);relatedToggle(position,"自动吸边",null,"snap",true);
         look.addView(controls);content.addView(look);
     }
     private void appearance() {
         SharedPreferences prefs=Prefs.of(this);
-        LinearLayout display=group();
+        label("悬浮基础");LinearLayout display=group();
         LinearLayout enhanced=settingItem(display,"layers","增强悬浮层",null,null);addSwitch(enhanced,"enhanced_overlay",true);
         settingLink(display,"app_ball","应用内悬浮球",null,null,()->startActivity(new Intent(this,AppBehaviorActivity.class)));content.addView(display);
         label("界面主题");LinearLayout theme=group();
