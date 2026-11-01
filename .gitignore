@@ -21,3 +21,6 @@ docs/screenshots/
 
 # Generated local prototype review images
 prototype/*-preview.jpg
+
+# APK copies prepared at the project root for local sharing
+/*.apk

@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
     private void render() {
         if(intro!=null)return;
         boolean enter=animateTab;int direction=tabDirection;animateTab=false;if(navMotion!=null)navMotion.cancel();if(tabMotion!=null)tabMotion.cancel();if(!enter)navPosition=tab;
-        ThemePolicy.apply(this);renderedDark=Ui.dark;renderedRunning=FloatService.running;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);
+        ThemePolicy.apply(this);renderedDark=Ui.dark;renderedRunning=FloatService.running;setTheme(Ui.dark?R.style.AppMotionThemeDark:R.style.AppMotionTheme);
         getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().getDecorView().setBackgroundColor(Color.TRANSPARENT);getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.TRANSPARENT);getWindow().getDecorView().setSystemUiVisibility(Ui.dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         int keepScroll=scroll!=null&&renderedTab==tab?scroll.getScrollY():0;renderedTab=tab;
         shell=Ui.column(this);shell.setBackgroundColor(Ui.BG);
@@ -98,7 +98,9 @@ public class MainActivity extends Activity {
                 for(int i=0;i<modules.size();i++){View child=modules.get(i);float entrance=itemEase.getInterpolation(Math.max(0,Math.min(1,(elapsed-10-35*i)/480f)));child.setAlpha(entrance);child.setTranslationY(dp(14)*(1-entrance));}
                 if(plant!=null&&!modules.isEmpty()){
                     View card=modules.get(0);float lift=page.getTranslationY()+page.getPivotY()*(1-scale)+card.getTop()*(scale-1)+card.getTranslationY()*scale;
-                    plant.setAlpha(progress*card.getAlpha());plant.setTranslationX(0);plant.setTranslationY(lift);plant.setScaleX(scale);plant.setScaleY(scale);
+                    // Use the page transform at the plant anchor, including the offset caused by scaling.
+                    float drift=page.getTranslationX()+(plant.getPivotX()-page.getPivotX())*(scale-1);
+                    plant.setAlpha(progress*card.getAlpha());plant.setTranslationX(drift);plant.setTranslationY(lift);plant.setScaleX(scale);plant.setScaleY(scale);
                 }
             });tabMotion.start();
         });

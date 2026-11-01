@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
 public final class AboutActivity extends Activity {
     private WebView web;
     @Override public void onCreate(Bundle state){
-        super.onCreate(state);ThemePolicy.apply(this);setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);
+        super.onCreate(state);ThemePolicy.apply(this);setTheme(Ui.dark?R.style.AppMotionThemeDark:R.style.AppMotionTheme);
         getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().getDecorView().setBackgroundColor(android.graphics.Color.TRANSPARENT);getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);getWindow().getDecorView().setSystemUiVisibility(Ui.dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         FrameLayout root=new FrameLayout(this);root.setBackgroundColor(Ui.BG);root.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i.consumeSystemWindowInsets();});
         web=new WebView(this);web.setContentDescription("关于空叶：小叶的一天");web.setBackgroundColor(Ui.BG);WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setBlockNetworkLoads(true);settings.setTextZoom(100);
