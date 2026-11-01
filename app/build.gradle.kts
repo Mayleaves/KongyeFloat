@@ -12,8 +12,8 @@ android {
         applicationId = "com.kongye.floatball"
         minSdk = 26
         targetSdk = 36
-        versionCode = 42
-        versionName = "1.25.1"
+        versionCode = 48
+        versionName = "1.29.2"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -42,4 +42,5 @@ dependencies {
     // Bundled model: screenshot pixels are recognized on the phone, no cloud OCR.
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
     implementation("com.google.mlkit:translate:17.0.3")
+    implementation("com.google.mlkit:language-id:17.0.6")
 }

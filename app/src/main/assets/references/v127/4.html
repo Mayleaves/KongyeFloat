@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>空叶悬浮窗贴边收起 · 19工具图标与完整文字交互测试台</title>
+  <style>
+    :root {
+      --bg: #edf2eb;
+      --phone-bg: #f4f7f2;
+      --ink: #1e3327;
+      --muted: #687d6c;
+      --green: #23533d;
+      --pale: #ebf1e8;
+      --line: #dfeae0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px 14px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      user-select: none;
+    }
+    button { font: inherit; border: 0; background: none; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+    .workspace {
+      max-width: 1080px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 396px 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    /* ================= 左侧 1:1 手机实机测试舞台 ================= */
+    .phone {
+      width: 396px;
+      height: 810px;
+      background: #fbfcfa;
+      border: 8px solid #23382b;
+      border-radius: 44px;
+      box-shadow: 0 24px 60px rgba(28, 54, 36, 0.16);
+      position: sticky;
+      top: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .statusbar {
+      height: 40px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: #2b3830;
+      border-bottom: 1px solid #f0f4ee;
+      flex-shrink: 0;
+    }
+    .mock-bg {
+      flex: 1;
+      padding: 26px;
+      position: relative;
+    }
+    .todo-list { display: flex; flex-direction: column; gap: 22px; margin-top: 14px; }
+    .todo-item { display: flex; align-items: center; gap: 16px; font-size: 20px; color: #262626; }
+    .todo-box { width: 23px; height: 23px; border: 2.2px solid #b5b9b6; border-radius: 6px; }
+    .mock-footer-title { margin-top: 36px; font-size: 25px; font-weight: 800; color: #222; }
+
+    /* 屏幕 1/2 触发基准线 */
+    .half-line {
+      position: absolute;
+      top: 40px; bottom: 0; right: 0; width: 50%;
+      border-left: 1.5px dashed rgba(133, 168, 103, 0.65);
+      background: linear-gradient(90deg, rgba(133, 168, 103, 0.04), rgba(133, 168, 103, 0.13));
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+      z-index: 5;
+    }
+    .half-line span {
+      position: absolute; top: 14px; left: 10px;
+      font-size: 10.5px; font-weight: 700; color: #2d5e40;
+      background: #e6f0e3; padding: 3px 8px; border-radius: 8px;
+    }
+    .phone.show-line .half-line { opacity: 1; }
+
+    /* ===================================================================== */
+    /* 核心变形悬浮窗（支持平滑从宽悬浮窗 -> 贴边完整标题/图标胶囊）                */
+    /* ===================================================================== */
+    .morph-window {
+      position: absolute;
+      top: 225px;
+      left: 23px;
+      width: 334px;
+      height: 62px;
+      border-radius: 20px;
+      background: rgba(246, 248, 243, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1.2px solid rgba(255, 255, 255, 0.96);
+      box-shadow: 0 12px 32px rgba(31, 56, 40, 0.12), 0 0 0 1px rgba(132, 156, 142, 0.2);
+      z-index: 20;
+      cursor: grab;
+      touch-action: none;
+      overflow: hidden;
+      transition:
+        left 0.5s cubic-bezier(0.22, 1.12, 0.36, 1),
+        top 0.5s cubic-bezier(0.22, 1.12, 0.36, 1),
+        width 0.46s cubic-bezier(0.22, 1.08, 0.36, 1),
+        height 0.46s cubic-bezier(0.22, 1.08, 0.36, 1),
+        border-radius 0.42s ease,
+        background 0.36s ease,
+        box-shadow 0.36s ease,
+        transform 0.22s ease;
+    }
+    .morph-window.dragging {
+      cursor: grabbing;
+      transition: width 0.25s ease, height 0.25s ease, border-radius 0.25s ease, background 0.25s ease;
+    }
+    .morph-window.past-half:not(.docked) {
+      transform: scale(0.94);
+      background: rgba(225, 238, 222, 0.96);
+    }
+
+    /* 图1 展开态内部结构 */
+    .exp-view {
+      width: 334px;
+      height: 62px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      opacity: 1;
+      transform: translateX(0) scale(1);
+      transition: opacity 0.2s ease, transform 0.3s ease;
+    }
+    .exp-left { display: flex; align-items: center; gap: 11px; }
+    .exp-bar { width: 5px; height: 24px; border-radius: 4px; background: #849c8e; flex-shrink: 0; }
+    .exp-tool-icon {
+      width: 28px; height: 28px; border-radius: 9px;
+      background: #e9f0e6; color: #23533d;
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .exp-tool-icon svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .exp-title { font-size: 16.5px; font-weight: 600; color: #5f7266; letter-spacing: 0.3px; }
+    .exp-icons { display: flex; align-items: center; gap: 20px; color: #84968b; }
+    .exp-icons svg { width: 19px; height: 19px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* 图2 贴边收起态内部结构 */
+    .dock-view {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(12px) scale(0.82);
+      transition: opacity 0.25s ease 0.08s, transform 0.36s cubic-bezier(0.22, 1.15, 0.36, 1);
+    }
+    .morph-window.docked { cursor: pointer; }
+    .morph-window.docked .exp-view {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-25px) scale(0.85);
+    }
+    .morph-window.docked .dock-view {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0) scale(1);
+    }
+
+    /* 两种底色主题：1.森林深绿 (theme-forest)  2.图1同款温润米白 (theme-cream) */
+    .morph-window.docked.theme-forest {
+      background: linear-gradient(165deg, rgba(38, 86, 62, 0.95), rgba(28, 66, 47, 0.97));
+      border: 1.5px solid rgba(220, 235, 212, 0.55);
+      border-right: 0;
+      box-shadow: -6px 10px 24px rgba(25, 58, 40, 0.22);
+      color: #f4f7f0;
+    }
+    .morph-window.docked.theme-cream {
+      background: rgba(244, 247, 240, 0.96);
+      border: 1.5px solid #cbd9c8;
+      border-right: 0;
+      box-shadow: -6px 10px 24px rgba(31, 56, 40, 0.13);
+      color: #23533d;
+    }
+
+    /* 延续图1左侧的标志性小竖条 */
+    .side-indicator {
+      position: absolute;
+      left: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3.2px;
+      height: 26px;
+      border-radius: 3px;
+      background: #b5d68e;
+    }
+    .theme-cream .side-indicator { background: #849c8e; }
+
+    /* 竖排完整文字公共排版（支持中文竖排 & GIF 等英文横向居中） */
+    .dock-full-text {
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* 版本 1：只有文字（完整显示悬浮窗标题，如“区域截图”） */
+    .morph-window.docked.ver-text {
+      left: calc(100% - 36px) !important;
+      top: 200px !important;
+      width: 36px;
+      height: var(--dock-h-text, 108px);
+      border-radius: 18px 0 0 18px;
+    }
+    .ver-text-wrap {
+      margin-left: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 版本 2：只有图标（采用您图片上的专属工具图标） */
+    .morph-window.docked.ver-icon {
+      left: calc(100% - 42px) !important;
+      top: 228px !important;
+      width: 42px;
+      height: 56px;
+      border-radius: 20px 0 0 20px;
+    }
+    .morph-window.docked.ver-icon .side-indicator { height: 18px; }
+    .ver-icon-wrap {
+      margin-left: 5px;
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+    }
+    .ver-icon-wrap svg {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* 版本 3：图标 + 文字（上方工具图标 + 下方完整悬浮窗文字） */
+    .morph-window.docked.ver-both {
+      left: calc(100% - 42px) !important;
+      top: 185px !important;
+      width: 42px;
+      height: var(--dock-h-both, 138px);
+      border-radius: 20px 0 0 20px;
+    }
+    .morph-window.docked.ver-both .side-indicator { height: 34px; }
+    .ver-both-wrap {
+      margin-left: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+    }
+    .both-icon-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.15);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .theme-cream .both-icon-badge { background: #e5eee2; }
+    .both-icon-badge svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .stage-tip {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30, 51, 39, 0.92);
+      color: #fff;
+      font-size: 11.5px;
+      padding: 8px 15px;
+      border-radius: 20px;
+      white-space: nowrap;
+      z-index: 30;
+    }
+
+    /* ================= 右侧控制台：3版切换 + 19个真实工具网格 ================= */
+    .panel {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: 0 14px 36px rgba(32, 58, 38, 0.05);
+    }
+    .panel h1 { font-size: 19px; margin: 0 0 6px; }
+    .panel-sub { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; line-height: 1.5; }
+
+    /* 顶部快捷操作栏 */
+    .ctrl-row {
+      display: flex;
+      gap: 9px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .ctrl-btn {
+      flex: 1;
+      padding: 11px 12px;
+      border-radius: 13px;
+      background: var(--green);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 700;
+      transition: transform 0.12s, opacity 0.2s;
+    }
+    .ctrl-btn:active { transform: scale(0.97); }
+    .ctrl-btn.alt {
+      background: #eaf2e7;
+      color: var(--green);
+    }
+
+    /* 3 版样式切换选项卡 */
+    .ver-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .ver-tab {
+      border: 1.5px solid #e1ece0;
+      border-radius: 16px;
+      background: #f8faf7;
+      padding: 11px 10px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .ver-tab.active {
+      background: #e6f0e4;
+      border-color: var(--green);
+      box-shadow: 0 4px 12px rgba(35, 83, 61, 0.08);
+    }
+    .ver-tab strong { display: block; font-size: 13px; color: var(--ink); margin-bottom: 2px; }
+    .ver-tab span { font-size: 11px; color: var(--muted); }
+
+    /* 还原您截图中的 19 个工具图标点选网格 */
+    .sec-label {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .tools-grid {
+      background: #f7faf6;
+      border: 1px solid #e4ede2;
+      border-radius: 22px;
+      padding: 16px 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      row-gap: 14px;
+      column-gap: 6px;
+    }
+    .tool-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 4px;
+      border-radius: 14px;
+      transition: all 0.18s;
+    }
+    .tool-cell:hover { background: #eaf2e7; }
+    .tool-cell.active .tool-box {
+      background: var(--green);
+      color: #ffffff;
+      box-shadow: 0 6px 14px rgba(35, 83, 61, 0.22);
+      transform: translateY(-2px);
+    }
+    .tool-cell.active .tool-name {
+      color: var(--green);
+      font-weight: 700;
+    }
+    .tool-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background: var(--pale);
+      color: var(--green);
+      display: grid;
+      place-items: center;
+      transition: all 0.2s;
+    }
+    .tool-box svg {
+      width: 23px;
+      height: 23px;
+      stroke: currentColor;
+      stroke-width: 1.85;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .tool-name {
+      font-size: 11.5px;
+      color: var(--ink);
+    }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; justify-items: center; }
+      .phone { position: relative; top: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="workspace">
+    <!-- 左侧：1:1 手机实机测试舞台 -->
+    <section class="phone" id="phone">
+      <div class="statusbar">
+        <span>12:25</span>
+        <span>5G · 73%</span>
+      </div>
+
+      <div class="mock-bg">
+        <div class="todo-list">
+          <div class="todo-item"><span class="todo-box"></span><span>牧场背景多几个</span></div>
+          <div class="todo-item"><span class="todo-box"></span><span>门牌可改</span></div>
+          <div class="todo-item"><span class="todo-box"></span><span>解锁动物、饰品</span></div>
+          <div class="todo-item"><span class="todo-box"></span><span>更换看板猫</span></div>
+          <div class="todo-item"><span class="todo-box"></span><span>成就</span></div>
+        </div>
+        <div class="mock-footer-title">空叶键盘</div>
+      </div>
+
+      <div class="half-line">
+        <span>超出屏幕 1/2 触发收起变形</span>
+      </div>
+
+      <!-- 核心变形悬浮窗 -->
+      <div class="morph-window ver-both theme-forest" id="morph-win">
+        <!-- 展开态：显示当前选中工具的图标与完整名称 -->
+        <div class="exp-view">
+          <div class="exp-left">
+            <i class="exp-bar"></i>
+            <span class="exp-tool-icon" id="exp-icon"></span>
+            <span class="exp-title" id="exp-title">区域截图</span>
+          </div>
+          <div class="exp-icons">
+            <span><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            <span><svg viewBox="0 0 24 24"><path d="m15 4 5 5-3.5 3.5-2-2L11 14l2 2-1.5 1.5-3.5-3.5L4 18l4-4-3.5-3.5L6 9l2 2 3.5-3.5-2-2L15 4Z"/></svg></span>
+            <span><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+          </div>
+        </div>
+
+        <!-- 收起贴边态：动态渲染「只有文字 / 只有图标 / 图标+文字」 -->
+        <div class="dock-view" id="dock-view" title="点击弹回屏幕中间"></div>
+      </div>
+
+      <div class="stage-tip" id="stage-tip">
+        👆 往右拖动悬浮窗过半，或点击右侧工具与按钮直接测试
+      </div>
+    </section>
+
+    <!-- 右侧：3版切换 + 截图内 19 个工具图标点选测试台 -->
+    <aside class="panel">
+      <h1>悬浮窗贴边收起 · 完整文字 & 19工具图标测试台</h1>
+      <p class="panel-sub">点击下方任意工具（如「区域截图」「长截图」「录制 GIF」），左侧悬浮窗与收起后的贴边条会<strong>实时同步为您截图中的同款图标与完整悬浮窗标题文字</strong>。</p>
+
+      <div class="ctrl-row">
+        <button class="ctrl-btn" id="btn-toggle-dock">▶ 点击切换：收起贴边 ↔ 弹回中间</button>
+        <button class="ctrl-btn alt" id="btn-toggle-theme">🎨 切换底色：森林深绿 / 图1米白</button>
+      </div>
+
+      <!-- 3 版收起形态切换 -->
+      <div class="ver-tabs">
+        <button class="ver-tab" data-ver="ver-text">
+          <strong>1. 只有文字</strong>
+          <span>显示完整标题（如：区域截图）</span>
+        </button>
+        <button class="ver-tab" data-ver="ver-icon">
+          <strong>2. 只有图标</strong>
+          <span>仅显示下方图片同款图标</span>
+        </button>
+        <button class="ver-tab active" data-ver="ver-both">
+          <strong>3. 图标 + 文字</strong>
+          <span>图片同款图标 + 完整标题文字</span>
+        </button>
+      </div>
+
+      <div class="sec-label">
+        <span>点击切换悬浮窗当前工具（1:1 还原您图片中的 19 个图标）：</span>
+        <span id="cur-tool-tag" style="color:var(--green)">当前：区域截图</span>
+      </div>
+
+      <!-- 19 个工具网格 -->
+      <div class="tools-grid" id="tools-grid"></div>
+    </aside>
+  </main>
+
+  <script>
+    // 1:1 矢量化还原您截图中的全部 19 个工具图标与名称
+    const toolsData = [
+      {
+        name: '区域截图',
+        svg: `<svg viewBox="0 0 24 24"><path d="M11 19H6a2.5 2.5 0 0 1-2.5-2.5V6A2.5 2.5 0 0 1 6 3.5h10A2.5 2.5 0 0 1 18.5 6v4"/><circle cx="15.2" cy="18.8" r="1.7"/><circle cx="19.8" cy="18.8" r="1.7"/><path d="m14.8 14 4.2 4.2m1.2-4.2-4.2 4.2"/></svg>`
+      },
+      {
+        name: '长截图',
+        svg: `<svg viewBox="0 0 24 24"><path d="M5 8V4h14v4M5 11.5v1.5m14-1.5v1.5"/><circle cx="8.5" cy="19" r="1.8"/><circle cx="15.5" cy="19" r="1.8"/><path d="m9.5 12.5 5 5m0-5-5 5"/></svg>`
+      },
+      {
+        name: '录屏',
+        svg: `<svg viewBox="0 0 24 24"><rect x="3" y="6" width="12.5" height="12" rx="3"/><path d="m15.5 10.2 5-2.7v9l-5-2.7"/></svg>`
+      },
+      {
+        name: '录制 GIF',
+        svg: `<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="3"/><path d="m15.5 10.2 5.5-2.7v9l-5.5-2.7"/><text x="9" y="13.8" text-anchor="middle" fill="currentColor" stroke="none" font-size="5.5" font-weight="800">GIF</text></svg>`
+      },
+      {
+        name: '最近软件',
+        svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>`
+      },
+      {
+        name: '便签',
+        svg: `<svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="3"/><path d="M8.5 8.5h7m-7 3.8h7m-7 3.8h4.5"/></svg>`
+      },
+      {
+        name: '浏览器',
+        svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="3.8" ry="8.5"/><path d="M3.5 12h17"/></svg>`
+      },
+      {
+        name: '滚动截图',
+        svg: `<svg viewBox="0 0 24 24"><path d="M4.5 9V4.5h11V8"/><circle cx="7.2" cy="18.5" r="1.6"/><circle cx="12.5" cy="18.5" r="1.6"/><path d="m8 13 4 4m0-4-4 4M19 9v10m-2.5-2.5L19 19l2.5-2.5"/></svg>`
+      },
+      {
+        name: '返回',
+        svg: `<svg viewBox="0 0 24 24"><path d="m14.5 6.5-5.5 5.5 5.5 5.5"/></svg>`
+      },
+      {
+        name: '主页',
+        svg: `<svg viewBox="0 0 24 24"><path d="m4 11 8-7 8 7M6.5 9.5V19a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5V9.5"/><path d="M10 20.5v-5h4v5"/></svg>`
+      },
+      {
+        name: '最近任务',
+        svg: `<svg viewBox="0 0 24 24"><rect x="5" y="5" width="5.5" height="5.5" rx="1.3"/><rect x="13.5" y="5" width="5.5" height="5.5" rx="1.3"/><rect x="5" y="13.5" width="5.5" height="5.5" rx="1.3"/><rect x="13.5" y="13.5" width="5.5" height="5.5" rx="1.3"/></svg>`
+      },
+      {
+        name: '通知栏',
+        svg: `<svg viewBox="0 0 24 24"><path d="M17.5 9.5a5.5 5.5 0 0 0-11 0c0 5.5-2.5 6.5-2.5 8h16c0-1.5-2.5-2.5-2.5-8"/><path d="M10.2 20a2 2 0 0 0 3.6 0"/></svg>`
+      },
+      {
+        name: '快捷设置',
+        svg: `<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="#ebf1e8"/><circle cx="15" cy="12" r="2" fill="#ebf1e8"/><circle cx="10" cy="17" r="2" fill="#ebf1e8"/></svg>`
+      },
+      {
+        name: '锁屏',
+        svg: `<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.2"/><path d="M12 16.2v1.8"/></svg>`
+      },
+      {
+        name: '整屏截图',
+        svg: `<svg viewBox="0 0 24 24"><path d="M12 4.5h5.5A1.5 1.5 0 0 1 19 6v12a1.5 1.5 0 0 1-1.5 1.5H12"/><circle cx="6.2" cy="9.5" r="1.7"/><circle cx="6.2" cy="14.5" r="1.7"/><path d="m7.6 10.5 5.4 3.5m-5.4 0 5.4-3.5"/></svg>`
+      },
+      {
+        name: '常用软件',
+        svg: `<svg viewBox="0 0 24 24"><path d="m12 4 2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8Z"/></svg>`
+      },
+      {
+        name: '应用启动',
+        svg: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="7" cy="7" r="1.8"/><circle cx="12" cy="7" r="1.8"/><circle cx="17" cy="7" r="1.8"/><circle cx="7" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="17" cy="12" r="1.8"/><circle cx="7" cy="17" r="1.8"/><circle cx="12" cy="17" r="1.8"/><circle cx="17" cy="17" r="1.8"/></svg>`
+      },
+      {
+        name: '打开文件',
+        svg: `<svg viewBox="0 0 24 24"><path d="M3.5 7A2 2 0 0 1 5.5 5h4l2 2.2h7A1.8 1.8 0 0 1 20.3 9l-1.5 9.5a1.8 1.8 0 0 1-1.8 1.5H5.5a2 2 0 0 1-2-2Z"/><path d="M3.5 10h16.5"/></svg>`
+      },
+      {
+        name: '打开空叶',
+        svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>`
+      }
+    ];
+
+    const phone = document.getElementById('phone');
+    const win = document.getElementById('morph-win');
+    const expIcon = document.getElementById('exp-icon');
+    const expTitle = document.getElementById('exp-title');
+    const dockView = document.getElementById('dock-view');
+    const stageTip = document.getElementById('stage-tip');
+    const toolsGrid = document.getElementById('tools-grid');
+    const curToolTag = document.getElementById('cur-tool-tag');
+
+    let activeToolIdx = 0;
+    let currentVer = 'ver-both';
+    let isDocked = false;
+    let isForestTheme = true;
+
+    // 渲染右侧 19 个工具按钮网格
+    function renderToolsGrid() {
+      toolsGrid.innerHTML = toolsData.map((t, idx) => `
+        <button class="tool-cell ${idx === activeToolIdx ? 'active' : ''}" data-idx="${idx}">
+          <span class="tool-box">${t.svg}</span>
+          <span class="tool-name">${t.name}</span>
+        </button>
+      `).join('');
+    }
+
+    // 同步当前工具的图标与完整文字到悬浮窗与贴边条
+    function updateWindowContent() {
+      const tool = toolsData[activeToolIdx];
+      expIcon.innerHTML = tool.svg;
+      expTitle.textContent = tool.name;
+      curToolTag.textContent = `当前：${tool.name}`;
+
+      // 根据字数自适应计算贴边胶囊高度（2个字紧凑，4个字如“区域截图”舒展）
+      const charLen = tool.name.replace(/\s+/g, '').length;
+      const textOnlyHeight = Math.max(76, charLen * 19 + 30);
+      const bothHeight = Math.max(106, charLen * 18 + 64);
+      win.style.setProperty('--dock-h-text', textOnlyHeight + 'px');
+      win.style.setProperty('--dock-h-both', bothHeight + 'px');
+
+      if (currentVer === 'ver-text') {
+        dockView.innerHTML = `
+          <i class="side-indicator"></i>
+          <div class="ver-text-wrap">
+            <span class="dock-full-text">${tool.name}</span>
+          </div>
+        `;
+      } else if (currentVer === 'ver-icon') {
+        dockView.innerHTML = `
+          <i class="side-indicator"></i>
+          <div class="ver-icon-wrap">${tool.svg}</div>
+        `;
+      } else {
+        dockView.innerHTML = `
+          <i class="side-indicator"></i>
+          <div class="ver-both-wrap">
+            <div class="both-icon-badge">${tool.svg}</div>
+            <span class="dock-full-text">${tool.name}</span>
+          </div>
+        `;
+      }
+    }
+
+    function setDocked(dock) {
+      isDocked = dock;
+      win.classList.remove('past-half');
+      if (dock) {
+        win.classList.add('docked');
+        stageTip.textContent = `✨ 已收起为「${toolsData[activeToolIdx].name}」贴边条 · 点击它即可弹回屏幕中间`;
+      } else {
+        win.classList.remove('docked');
+        win.style.left = '23px';
+        win.style.top = '225px';
+        stageTip.textContent = `🎯 展开态：「${toolsData[activeToolIdx].name}」 · 可向右拖过半测试贴边`;
+      }
+    }
+
+    // 点击贴边胶囊 -> 弹回屏幕中间
+    win.addEventListener('click', (e) => {
+      if (isDocked) {
+        e.stopPropagation();
+        setDocked(false);
+      }
+    });
+
+    // 点击右侧 19 个工具切换当前悬浮窗内容
+    toolsGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-idx]');
+      if (!btn) return;
+      activeToolIdx = +btn.dataset.idx;
+      renderToolsGrid();
+      updateWindowContent();
+      stageTip.textContent = `已切换为「${toolsData[activeToolIdx].name}」`;
+    });
+
+    // 切换 3 版（只有文字 / 只有图标 / 图标+文字）
+    document.querySelectorAll('.ver-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.ver-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        win.classList.remove('ver-text', 'ver-icon', 'ver-both');
+        currentVer = tab.dataset.ver;
+        win.classList.add(currentVer);
+        updateWindowContent();
+        if (!isDocked) setDocked(true);
+      });
+    });
+
+    // 顶部按钮：一键演示收起/弹回过渡动画
+    document.getElementById('btn-toggle-dock').addEventListener('click', () => {
+      if (!isDocked) {
+        phone.classList.add('show-line');
+        win.style.left = '195px';
+        win.classList.add('past-half');
+        setTimeout(() => {
+          phone.classList.remove('show-line');
+          setDocked(true);
+        }, 300);
+      } else {
+        setDocked(false);
+      }
+    });
+
+    // 切换森林深绿 / 图1同款米白底色
+    document.getElementById('btn-toggle-theme').addEventListener('click', () => {
+      isForestTheme = !isForestTheme;
+      win.classList.toggle('theme-forest', isForestTheme);
+      win.classList.toggle('theme-cream', !isForestTheme);
+      if (!isDocked) setDocked(true);
+    });
+
+    // 支持直接拖拽悬浮窗过半测试
+    let dragging = false, sx = 0, sy = 0, il = 23, it = 225;
+    win.addEventListener('pointerdown', (e) => {
+      if (isDocked) return;
+      dragging = true;
+      sx = e.clientX; sy = e.clientY;
+      il = win.offsetLeft; it = win.offsetTop;
+      win.classList.add('dragging');
+      phone.classList.add('show-line');
+      win.setPointerCapture(e.pointerId);
+    });
+    win.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const nl = il + (e.clientX - sx);
+      const nt = Math.max(55, Math.min(640, it + (e.clientY - sy)));
+      win.style.left = nl + 'px';
+      win.style.top = nt + 'px';
+      win.classList.toggle('past-half', nl > 165);
+    });
+    win.addEventListener('pointerup', () => {
+      if (!dragging) return;
+      dragging = false;
+      win.classList.remove('dragging');
+      phone.classList.remove('show-line');
+      setDocked(win.classList.contains('past-half'));
+    });
+
+    renderToolsGrid();
+    updateWindowContent();
+  </script>
+</body>
+</html>

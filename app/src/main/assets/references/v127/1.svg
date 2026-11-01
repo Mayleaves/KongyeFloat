@@ -1,0 +1,257 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 440" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- 手机屏幕内部裁切区域 -->
+    <clipPath id="screen-clip">
+      <rect x="86" y="38" width="188" height="364" rx="28" />
+    </clipPath>
+
+    <!-- 右侧悬浮球上划手指轨迹渐变 -->
+    <linearGradient id="orb-swipe-trail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F6C945" stop-opacity="0.95" />
+      <stop offset="55%" stop-color="#85A867" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#85A867" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- 上下边框触发高光渐变 -->
+    <radialGradient id="edge-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F6C945" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#85A867" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 停靠在右侧红框位置的「空叶悬浮球」本体 -->
+    <g id="docked-kongye-orb">
+      <circle cx="0" cy="0" r="16" fill="#7FA362" fill-opacity="0.88" stroke="#FFFFFF" stroke-width="2" />
+      <g transform="translate(-9, -9) scale(0.76)" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 4C11.5 4 6 8 6 15.5c0 2 1 3.5 1 3.5s1.5 1 3.5 1C18 20 22 14.5 22 9c0-2.5-2-5-5-5ZM5 20l10-10" />
+      </g>
+    </g>
+  </defs>
+
+  <style>
+    /* 5.6秒双阶段循环：
+       0% ~ 48%   阶段1：在右侧红框位置上划悬浮球 -> 软件从手机下边框升入屏幕（打开软件）
+       50% ~ 100% 阶段2：再次上划右侧悬浮球 -> 软件从屏幕内向上滑出手机上边框（关闭软件） */
+
+    /* 1. 右侧红框位置悬浮球 (x=264, y=218) 的两次上划弹性位移 */
+    .right-edge-orb {
+      animation: orb-flick-up 5.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    }
+    @keyframes orb-flick-up {
+      /* 平时半隐停靠在右侧边缘红框位置 */
+      0%, 4%    { transform: translate(266px, 218px) scale(1); }
+      /* 第一次上划拨动：稍微探出并向上拉起 26px */
+      11%       { transform: translate(256px, 188px) scale(1.12); }
+      /* 弹性回落归位 */
+      20%, 50%  { transform: translate(266px, 218px) scale(1); }
+      /* 第二次上划拨动：再次向上拉起触发关闭 */
+      58%       { transform: translate(256px, 188px) scale(1.12); }
+      /* 弹性回落归位 */
+      68%, 100% { transform: translate(266px, 218px) scale(1); }
+    }
+
+    /* 2. 右侧悬浮球处的上划流光轨迹与小箭头 */
+    .orb-gesture-ray {
+      animation: ray-flick 5.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    }
+    @keyframes ray-flick {
+      0%, 3%    { transform: translate(256px, 232px) scaleY(0.2); opacity: 0; }
+      9%        { transform: translate(256px, 176px) scaleY(1); opacity: 1; }
+      19%, 50%  { transform: translate(256px, 162px) scaleY(0.3); opacity: 0; }
+      56%       { transform: translate(256px, 176px) scaleY(1); opacity: 1; }
+      67%, 100% { transform: translate(256px, 162px) scaleY(0.3); opacity: 0; }
+    }
+
+    /* 3. 右侧悬浮球触发时的扩散波纹 */
+    .orb-ripple {
+      animation: ripple-burst 5.6s ease-out infinite;
+    }
+    @keyframes ripple-burst {
+      0%, 8%    { transform: translate(256px, 192px) scale(0.5); opacity: 0; }
+      12%       { transform: translate(256px, 192px) scale(1); opacity: 0.85; }
+      24%, 55%  { transform: translate(256px, 192px) scale(2.1); opacity: 0; }
+      59%       { transform: translate(256px, 192px) scale(1); opacity: 0.85; }
+      72%, 100% { transform: translate(256px, 192px) scale(2.1); opacity: 0; }
+    }
+
+    /* 4. 空叶软件界面：从下边框升入屏幕（打开） -> 从屏幕升出上边框（关闭） */
+    .app-window {
+      transform-origin: 180px 220px;
+      animation: app-open-close 5.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    }
+    @keyframes app-open-close {
+      /* 初始隐藏在手机下边框下方 */
+      0%, 9% {
+        transform: translateY(368px) scale(0.92);
+        opacity: 0;
+      }
+      /* 阶段1：悬浮球上划后，软件从手机下边框滑入屏幕中央（打开软件） */
+      25%, 54% {
+        transform: translateY(0px) scale(1);
+        opacity: 1;
+      }
+      /* 阶段2：悬浮球再次上划，软件从屏幕内向上滑出手机上边框（关闭软件） */
+      73%, 100% {
+        transform: translateY(-368px) scale(0.92);
+        opacity: 0;
+      }
+    }
+
+    /* 5. 下边框与上边框感应光晕 */
+    .bottom-edge-pulse {
+      transform-origin: 180px 402px;
+      animation: bottom-glow 5.6s ease-out infinite;
+    }
+    @keyframes bottom-glow {
+      0%, 8%   { transform: scaleX(0.3); opacity: 0; }
+      14%      { transform: scaleX(1.25); opacity: 1; }
+      28%,100% { transform: scaleX(1.55); opacity: 0; }
+    }
+
+    .top-edge-pulse {
+      transform-origin: 180px 38px;
+      animation: top-glow 5.6s ease-out infinite;
+    }
+    @keyframes top-glow {
+      0%, 60%  { transform: scaleX(0.3); opacity: 0; }
+      68%      { transform: scaleX(1.25); opacity: 1; }
+      82%,100% { transform: scaleX(1.55); opacity: 0; }
+    }
+
+    /* 6. 顶部状态指示胶囊切换 */
+    .badge-open  { animation: show-open-badge 5.6s ease infinite; }
+    .badge-close { animation: show-close-badge 5.6s ease infinite; }
+    @keyframes show-open-badge {
+      0%, 4%   { opacity: 0; transform: translateY(6px); }
+      10%, 48% { opacity: 1; transform: translateY(0); }
+      52%,100% { opacity: 0; transform: translateY(-6px); }
+    }
+    @keyframes show-close-badge {
+      0%, 52%  { opacity: 0; transform: translateY(6px); }
+      58%, 92% { opacity: 1; transform: translateY(0); }
+      98%,100% { opacity: 0; transform: translateY(-6px); }
+    }
+  </style>
+
+  <!-- 背景柔光圆 -->
+  <circle cx="180" cy="225" r="158" fill="#E6EFE2" opacity="0.55" />
+
+  <!-- 顶部动作指示胶囊 -->
+  <g class="badge-open">
+    <rect x="68" y="4" width="224" height="24" rx="12" fill="#23533D" />
+    <circle cx="84" cy="16" r="4" fill="#F6C945" />
+    <text x="186" y="20" text-anchor="middle" fill="#F4F7F0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">上划右侧悬浮球 · 下边框滑入打开软件</text>
+  </g>
+  <g class="badge-close">
+    <rect x="68" y="4" width="224" height="24" rx="12" fill="#3D5A49" />
+    <circle cx="84" cy="16" r="4" fill="#B5CF83" />
+    <text x="186" y="20" text-anchor="middle" fill="#F4F7F0" font-size="11" font-weight="700" font-family="system-ui, sans-serif">再次上划悬浮球 · 屏幕上划至顶关闭软件</text>
+  </g>
+
+  <!-- 手机外壳 -->
+  <rect x="80" y="32" width="200" height="376" rx="34" fill="#233B2C" stroke="#DCE7C6" stroke-width="2" />
+  <!-- 手机桌面底层壁纸（完全还原您图中的桌面色块与布局） -->
+  <rect x="86" y="38" width="188" height="364" rx="28" fill="#DFEAE0" />
+
+  <g opacity="0.55">
+    <rect x="108" y="84" width="36" height="36" rx="10" fill="#C5D9A9" />
+    <rect x="162" y="84" width="36" height="36" rx="10" fill="#B4CA96" />
+    <rect x="216" y="84" width="36" height="36" rx="10" fill="#BFD3A4" />
+    <rect x="108" y="136" width="36" height="36" rx="10" fill="#C1D6A4" />
+    <rect x="162" y="136" width="36" height="36" rx="10" fill="#C7DBA9" />
+    <text x="180" y="295" text-anchor="middle" fill="#7D9182" font-size="11.5" font-weight="700" font-family="system-ui, sans-serif">手机桌面</text>
+  </g>
+
+  <!-- ==================== 手机屏幕内部裁切舞台 ==================== -->
+  <g clip-path="url(#screen-clip)">
+
+    <!-- 空叶软件界面（从下边框滑入屏幕打开，再向上滑出上边框关闭） -->
+    <g class="app-window">
+      <rect x="86" y="38" width="188" height="364" rx="28" fill="#F4F7F0" />
+
+      <!-- 顶栏：首页 + 右上角小盆栽 -->
+      <text x="102" y="72" fill="#1E3327" font-size="12" font-weight="700" font-family="system-ui, sans-serif">首页</text>
+      <g transform="translate(236, 56) scale(0.32)">
+        <path d="M30 37C21 35 18 26 20 19C26 20 31 28 30 37Z" fill="#88B399" />
+        <path d="M30 39C30 26 37 15 47 14C48 24 41 35 30 39Z" fill="#F4F6F0" stroke="#28664B" stroke-width="3" />
+        <path d="M18 39H46M21 39L24 51H40L43 39" stroke="#28664B" stroke-width="3" stroke-linecap="round" />
+      </g>
+
+      <!-- 4x2 植物几何插画卡 -->
+      <g transform="translate(96, 80)">
+        <rect width="168" height="74" rx="12" fill="#EEF5EC" />
+        <clipPath id="hero-mini-clip"><rect width="168" height="50" rx="10" /></clipPath>
+        <g clip-path="url(#hero-mini-clip)">
+          <rect x="0" y="0" width="42" height="25" fill="#DBE7B8" />
+          <circle cx="32" cy="6" r="10" fill="#F6C945" />
+          <rect x="42" y="0" width="42" height="25" fill="#284E33" />
+          <path d="M66 8C62 8 58 11 58 16C63 16 66 13 66 8Z" stroke="#DCE7C6" stroke-width="1.5" />
+          <rect x="84" y="0" width="42" height="25" fill="#B5CF83" />
+          <circle cx="105" cy="12" r="4" stroke="#284E33" stroke-width="1.4" />
+          <rect x="126" y="0" width="42" height="25" fill="#DCE7C6" />
+          <circle cx="168" cy="25" r="20" fill="#92BA53" />
+          <rect x="0" y="25" width="42" height="25" fill="#88AA50" />
+          <rect x="42" y="25" width="42" height="25" fill="#CFE0AD" />
+          <rect x="84" y="25" width="42" height="25" fill="#B2CF78" />
+          <circle cx="105" cy="37.5" r="8" fill="#F6C945" />
+          <rect x="126" y="25" width="42" height="25" fill="#284E33" />
+          <circle cx="164" cy="50" r="22" fill="#9EC459" />
+        </g>
+        <circle cx="12" cy="62" r="3" fill="#23533D" />
+        <text x="20" y="65" fill="#1E3327" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">随时待命。</text>
+        <circle cx="152" cy="62" r="9" fill="#23533D" />
+        <rect x="149" y="58.5" width="2" height="7" rx="1" fill="#FFF" />
+        <rect x="153" y="58.5" width="2" height="7" rx="1" fill="#FFF" />
+      </g>
+
+      <!-- 权限三胶囊栏 -->
+      <rect x="96" y="164" width="168" height="28" rx="10" fill="#FFFFFF" />
+      <rect x="101" y="170" width="50" height="16" rx="8" fill="#EBF1E8" />
+      <circle cx="109" cy="178" r="3.5" fill="#23533D" />
+      <rect x="155" y="170" width="50" height="16" rx="8" fill="#EBF1E8" />
+      <circle cx="163" cy="178" r="3.5" fill="#23533D" />
+      <rect x="209" y="170" width="50" height="16" rx="8" fill="#EBF1E8" />
+      <circle cx="217" cy="178" r="3.5" fill="#23533D" />
+
+      <!-- 工具 4x2 网格 -->
+      <rect x="96" y="202" width="168" height="114" rx="14" fill="#FFFFFF" />
+      <g fill="#EBF1E8">
+        <rect x="105" y="212" width="30" height="30" rx="9" />
+        <rect x="145" y="212" width="30" height="30" rx="9" />
+        <rect x="185" y="212" width="30" height="30" rx="9" />
+        <rect x="225" y="212" width="30" height="30" rx="9" />
+        <rect x="105" y="262" width="30" height="30" rx="9" />
+        <rect x="145" y="262" width="30" height="30" rx="9" />
+        <rect x="185" y="262" width="30" height="30" rx="9" />
+        <rect x="225" y="262" width="30" height="30" rx="9" />
+      </g>
+
+      <!-- 底部胶囊导航栏 -->
+      <rect x="96" y="356" width="168" height="32" rx="16" fill="#2C473E" />
+      <rect x="100" y="360" width="54" height="24" rx="12" fill="#E8F0E4" />
+    </g>
+
+    <!-- ==================== 右侧红框位置：悬浮球上划光轨与本体 ==================== -->
+    <!-- 上划流光尾迹 -->
+    <g class="orb-gesture-ray">
+      <rect x="-11" y="0" width="22" height="56" rx="11" fill="url(#orb-swipe-trail)" />
+      <path d="M-5 -8 L0 -14 L5 -8" stroke="#F6C945" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+
+    <!-- 悬浮球触发扩散波纹 -->
+    <circle class="orb-ripple" cx="0" cy="0" r="18" stroke="#F6C945" stroke-width="2" fill="none" />
+
+    <!-- 停靠在右侧红框位置 (x=266, y=218) 的空叶悬浮球 -->
+    <g class="right-edge-orb">
+      <use href="#docked-kongye-orb" />
+    </g>
+
+  </g>
+
+  <!-- 手机顶部听筒挖孔与上边框感应高光 -->
+  <rect x="156" y="44" width="48" height="5" rx="2.5" fill="#1E3327" opacity="0.35" />
+  <ellipse class="top-edge-pulse" cx="180" cy="38" rx="68" ry="8" fill="url(#edge-glow)" />
+
+  <!-- 手机底部 Home 横条与下边框感应高光 -->
+  <rect x="148" y="392" width="64" height="4" rx="2" fill="#23533D" opacity="0.55" />
+  <ellipse class="bottom-edge-pulse" cx="180" cy="402" rx="68" ry="8" fill="url(#edge-glow)" />
+</svg>

@@ -16,9 +16,10 @@ final class AutoCaptureController {
     private View overlay;private boolean active,automatic,working,finishRequested;private int generation,operation;
     private Rect area;private final ArrayList<Bitmap> frames=new ArrayList<>();private final ArrayList<Integer> shifts=new ArrayList<>();
     private Bitmap pending;private int outputHeight;private TextView status;private boolean alive=true;
-    private Bitmap selectionImage;
+    private Bitmap selectionImage;private RegionResult result;
     AutoCaptureController(Context c,Consumer<Boolean> showBall){context=c;wm=OverlayWindows.get(c);this.showBall=showBall;}
-    boolean isActive(){return active;}
+    boolean isActive(){return active||result!=null;}
+    boolean allowsBall(){return result!=null&&result.isPinned();}
     private int dp(float n){return Ui.dp(context,n);}
     private LinearLayout.LayoutParams half(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),0,dp(3),0);return p;}
     private void toast(String value){if(alive)Feedback.show(context,value);}
@@ -66,17 +67,17 @@ final class AutoCaptureController {
         if(finishRequested&&!working){finishRequested=false;finishLong();return;}
         LinearLayout controls=Ui.column(context);Ui.pad(controls,10,12,10,10);controls.setBackground(Ui.bg(Ui.SURFACE,24,context));controls.setElevation(dp(8));status=Ui.text(context,message,13,Ui.INK,false);Ui.pad(status,6,0,6,0);status.setLineSpacing(dp(2),1);status.setMinLines(2);status.setMaxLines(2);status.setEllipsize(android.text.TextUtils.TruncateAt.END);controls.addView(status);Ui.gap(controls,8);
         LinearLayout row=Ui.row(context);
-        row.addView(Ui.button(context,pending==null?"继续一屏":"整屏追加",false,()->{automatic=false;if(pending!=null){if((long)(outputHeight+pending.getHeight())*pending.getWidth()>12000000){pending.recycle();pending=null;showControls("已达长度上限，请完成保存");return;}append(pending,pending.getHeight());pending=null;showControls("已按整屏追加；可继续或完成");}else next();}),half());
-        row.addView(Ui.button(context,automatic?"停止自动":"自动拼接",false,()->{automatic=!automatic;if(automatic)next();else showControls("自动已停止，可完成保存");}),half());
-        controls.addView(row);Ui.gap(controls,8);LinearLayout second=Ui.row(context);TextView finish=Ui.button(context,"完成保存",true,this::finishLong);finish.setOnTouchListener((view,event)->{if(event.getActionMasked()==MotionEvent.ACTION_DOWN)view.performClick();return true;});second.addView(finish,half());TextView cancel=Ui.button(context,"取消",false,this::cancel);cancel.setOnTouchListener((view,event)->{if(event.getActionMasked()==MotionEvent.ACTION_DOWN)view.performClick();return true;});second.addView(cancel,half());controls.addView(second);addOverlay(controls,false);
+        row.addView(Ui.button(context,pending==null?"继续一屏":"整屏追加",false,()->{automatic=false;if(pending!=null){if((long)(outputHeight+pending.getHeight())*pending.getWidth()>12000000){pending.recycle();pending=null;showControls("已达长度上限，请完成预览");return;}append(pending,pending.getHeight());pending=null;showControls("已按整屏追加；可继续或完成");}else next();}),half());
+        row.addView(Ui.button(context,automatic?"停止自动":"自动拼接",false,()->{automatic=!automatic;if(automatic)next();else showControls("自动已停止，可完成预览");}),half());
+        controls.addView(row);Ui.gap(controls,8);LinearLayout second=Ui.row(context);TextView finish=Ui.button(context,"完成预览",true,this::finishLong);finish.setOnTouchListener((view,event)->{if(event.getActionMasked()==MotionEvent.ACTION_DOWN)view.performClick();return true;});second.addView(finish,half());TextView cancel=Ui.button(context,"取消",false,this::cancel);cancel.setOnTouchListener((view,event)->{if(event.getActionMasked()==MotionEvent.ACTION_DOWN)view.performClick();return true;});second.addView(cancel,half());controls.addView(second);addOverlay(controls,false);
     }
     private void next(){
-        if(working||!active)return;if(pending!=null){toast("请先整屏追加或完成保存");automatic=false;return;}
-        if(frames.size()>=10){automatic=false;showControls("已达到 10 屏上限，请完成保存");return;}
+        if(working||!active)return;if(pending!=null){toast("请先整屏追加或完成预览");automatic=false;return;}
+        if(frames.size()>=10){automatic=false;showControls("已达到 10 屏上限，请完成预览");return;}
         AssistService service=AssistService.instance;if(service==null){automatic=false;showControls("无障碍已断开，可保存已截部分");return;}
         working=true;int token=generation;int step=++operation;main.postDelayed(()->{if(token==generation&&step==operation&&working){operation++;working=false;automatic=false;showControls("滚动或截图超时，可保存已截部分或继续");}},6000);if(status!=null)status.setText("正在滚动，可随时完成或取消");
         service.scrollPage(area,()->main.postDelayed(()->{
-            if(token!=generation||step!=operation)return;AssistService current=AssistService.instance;if(current==null){working=false;automatic=false;showControls("无障碍已断开，可完成保存");return;}
+            if(token!=generation||step!=operation)return;AssistService current=AssistService.instance;if(current==null){working=false;automatic=false;showControls("无障碍已断开，可完成预览");return;}
             if(overlay!=null)overlay.setVisibility(View.INVISIBLE);
             main.postDelayed(()->{
             if(token!=generation||step!=operation)return;
@@ -86,8 +87,8 @@ final class AutoCaptureController {
                 if(image==null){working=false;automatic=false;showControls(error+"；可保存已截部分");return;}
                 if(area.right>image.getWidth()||area.bottom>image.getHeight()){image.recycle();working=false;automatic=false;showControls("屏幕方向变化，请保存并重新截图");return;}
                 Bitmap frame;
-                try{frame=crop(image,area,true);image.recycle();Bitmap previous=frames.get(frames.size()-1);int w=frame.getWidth(),h=frame.getHeight();if(w!=previous.getWidth()||h!=previous.getHeight()){frame.recycle();working=false;automatic=false;showControls("画面尺寸变化，请完成保存");return;}int[] oldPixels=new int[w*h],newPixels=new int[w*h];previous.getPixels(oldPixels,0,w,0,0,w,h);frame.getPixels(newPixels,0,w,0,0,w,h);
-                    worker.execute(()->{int shift=FrameStitcher.findShift(oldPixels,newPixels,w,h);main.post(()->{if(token!=generation||step!=operation){frame.recycle();return;}working=false;if(shift==0){frame.recycle();automatic=false;showControls("已到页面底部或画面未变化，请完成保存");}else if(shift<0){pending=frame;automatic=false;showControls("无法可靠对齐：可整屏追加或完成保存");}else if((long)(outputHeight+shift)*w>12000000){frame.recycle();automatic=false;showControls("已达图片长度上限，请完成保存");}else{append(frame,shift);showControls("已拼接 "+frames.size()+" 屏");if(automatic)main.postDelayed(this::next,500);}});});
+                try{frame=crop(image,area,true);image.recycle();Bitmap previous=frames.get(frames.size()-1);int w=frame.getWidth(),h=frame.getHeight();if(w!=previous.getWidth()||h!=previous.getHeight()){frame.recycle();working=false;automatic=false;showControls("画面尺寸变化，请完成预览");return;}int[] oldPixels=new int[w*h],newPixels=new int[w*h];previous.getPixels(oldPixels,0,w,0,0,w,h);frame.getPixels(newPixels,0,w,0,0,w,h);
+                    worker.execute(()->{int shift=FrameStitcher.findShift(oldPixels,newPixels,w,h);main.post(()->{if(token!=generation||step!=operation){frame.recycle();return;}working=false;if(shift==0){frame.recycle();automatic=false;showControls("已到页面底部或画面未变化，请完成预览");}else if(shift<0){pending=frame;automatic=false;showControls("无法可靠对齐：可整屏追加或完成预览");}else if((long)(outputHeight+shift)*w>12000000){frame.recycle();automatic=false;showControls("已达图片长度上限，请完成预览");}else{append(frame,shift);showControls("已拼接 "+frames.size()+" 屏");if(automatic)main.postDelayed(this::next,500);}});});
                 }catch(RuntimeException|OutOfMemoryError e){if(!image.isRecycled())image.recycle();working=false;automatic=false;showControls("内存不足，请保存已截部分");}
             });
             },220);
@@ -95,12 +96,13 @@ final class AutoCaptureController {
     }
     private void append(Bitmap frame,int shift){Prefs.of(context).edit().putInt("last_long_frame_count",frames.size()+1).putInt("last_long_shift",shift).putInt("last_long_source_width",area.width()).putInt("last_long_output_width",frame.getWidth()).apply();frames.add(frame);shifts.add(shift);outputHeight+=shift;}
     private void finishLong(){
-        if(working){finishRequested=true;automatic=false;if(status!=null)status.setText("本屏处理完后立即保存");return;}if(frames.isEmpty()){cancel();return;}
-        ArrayList<Bitmap> owned=new ArrayList<>(frames);ArrayList<Integer> offsets=new ArrayList<>(shifts);int height=outputHeight,width=owned.get(0).getWidth();frames.clear();shifts.clear();if(pending!=null){pending.recycle();pending=null;}removeOverlay();active=false;automatic=false;++generation;showBall.accept(true);
-        worker.execute(()->{Bitmap result=null;String message;try{result=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(result);int y=0;for(int i=0;i<owned.size();i++){Bitmap part=owned.get(i);int amount=i==0?part.getHeight():offsets.get(i);canvas.drawBitmap(part,new Rect(0,part.getHeight()-amount,width,part.getHeight()),new Rect(0,y,width,y+amount),null);y+=amount;}MediaFiles.saveBitmap(context,result,"Long");message="长截图已保存到相册 Pictures/Kongye";}catch(Exception|OutOfMemoryError e){message="长截图保存失败，请检查剩余空间";}finally{for(Bitmap part:owned)part.recycle();if(result!=null)result.recycle();}String value=message;main.post(()->toast(value));});
+        if(working){finishRequested=true;automatic=false;if(status!=null)status.setText("本屏处理完后进入预览");return;}if(frames.isEmpty()){cancel();return;}
+        ArrayList<Bitmap> owned=new ArrayList<>(frames);ArrayList<Integer> offsets=new ArrayList<>(shifts);int height=outputHeight,width=owned.get(0).getWidth();frames.clear();shifts.clear();if(pending!=null){pending.recycle();pending=null;}removeOverlay();active=true;working=true;automatic=false;int token=++generation;showBall.accept(false);
+        worker.execute(()->{Bitmap result=null;String message;try{result=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(result);int y=0;for(int i=0;i<owned.size();i++){Bitmap part=owned.get(i);int amount=i==0?part.getHeight():offsets.get(i);canvas.drawBitmap(part,new Rect(0,part.getHeight()-amount,width,part.getHeight()),new Rect(0,y,width,y+amount),null);y+=amount;}message=null;}catch(Exception|OutOfMemoryError e){if(result!=null){result.recycle();result=null;}message="长截图合成失败，请检查可用内存";}finally{for(Bitmap part:owned)part.recycle();}Bitmap ready=result;String value=message;main.post(()->{if(!alive||token!=generation){if(ready!=null)ready.recycle();return;}working=false;if(ready!=null){active=true;showBall.accept(false);this.result=new RegionResult(context,ready,worker,()->{this.result=null;active=false;showBall.accept(true);},showBall,"Long");}else{active=false;showBall.accept(true);toast(value);}});});
     }
-    private void finishBitmap(Bitmap image,String prefix){removeOverlay();active=false;++generation;showBall.accept(true);worker.execute(()->{String message;try{MediaFiles.saveBitmap(context,image,prefix);message="区域截图已保存到相册 Pictures/Kongye";}catch(Exception e){message="保存失败，请检查剩余空间";}finally{image.recycle();}String value=message;main.post(()->toast(value));});}
-    void cancel(){++generation;main.removeCallbacksAndMessages(null);removeOverlay();if(selectionImage!=null&&!selectionImage.isRecycled())selectionImage.recycle();selectionImage=null;for(Bitmap bitmap:frames)bitmap.recycle();frames.clear();shifts.clear();if(pending!=null){pending.recycle();pending=null;}active=false;working=false;automatic=false;finishRequested=false;showBall.accept(true);}
+    private void finishBitmap(Bitmap image,String prefix){removeOverlay();active=true;++generation;showBall.accept(false);result=new RegionResult(context,image,worker,()->{result=null;active=false;showBall.accept(true);},showBall,prefix);}
+
+    void cancel(){if(result!=null){RegionResult old=result;result=null;old.close();}++generation;main.removeCallbacksAndMessages(null);removeOverlay();if(selectionImage!=null&&!selectionImage.isRecycled())selectionImage.recycle();selectionImage=null;for(Bitmap bitmap:frames)bitmap.recycle();frames.clear();shifts.clear();if(pending!=null){pending.recycle();pending=null;}active=false;working=false;automatic=false;finishRequested=false;showBall.accept(true);}
     void destroy(){alive=false;cancel();worker.shutdown();}
     private static class Selection extends View {
         final Bitmap image;final Paint paint=new Paint(3);final RectF chosen=new RectF();float downX,downY;

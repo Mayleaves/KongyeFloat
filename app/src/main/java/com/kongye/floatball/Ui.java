@@ -31,6 +31,9 @@ final class Ui {
         pad(t,16,14,16,14); t.setBackground(ripple(c,primary?GREEN:PALE,16)); t.setOnClickListener(v->action.run());
         t.setFocusable(true); return t;
     }
+    /** 4.html: white 1.2dp rim, muted outer hairline and broad forest shadow at 12% opacity. */
+    static android.graphics.drawable.Drawable floatingFrame(Context c,float radius){GradientDrawable outer=bg(Ui.dark?0xF01B231F:0xF0F6F8F3,radius,c);outer.setStroke(dp(c,1),Ui.dark?0x557D9687:0x33849C8E);GradientDrawable rim=bg(Color.TRANSPARENT,radius,c);rim.setStroke(Math.max(1,dp(c,1.2f)),Ui.dark?0x339EB7A7:0xF5FFFFFF);android.graphics.drawable.LayerDrawable layers=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{outer,rim});int inset=Math.max(1,dp(c,.7f));layers.setLayerInset(1,inset,inset,inset,inset);return layers;}
+    static void softShadow(View view){view.setElevation(dp(view.getContext(),24));if(android.os.Build.VERSION.SDK_INT>=28){view.setOutlineAmbientShadowColor(0x1F1F3828);view.setOutlineSpotShadowColor(0x1F1F3828);}view.setBackground(floatingFrame(view.getContext(),20));}
     static LinearLayout card(Context c) { LinearLayout v=column(c); pad(v,20,20,20,20); v.setBackground(bg(SURFACE,24,c)); return v; }
     static View icon(Context c,String name,int color,int size) { Icon v=new Icon(c,name,color); v.setLayoutParams(new LinearLayout.LayoutParams(dp(c,size),dp(c,size))); v.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO); return v; }
     static FrameLayout symbol(Context c,String icon,String description,Runnable action){FrameLayout v=new FrameLayout(c);v.setContentDescription(description);v.setFocusable(true);v.setBackground(new android.graphics.drawable.InsetDrawable(ripple(c,PALE,14),dp(c,3),0,dp(c,3),0));v.addView(new Icon(c,icon,GREEN),new FrameLayout.LayoutParams(dp(c,22),dp(c,22),Gravity.CENTER));v.setOnClickListener(w->action.run());v.setMinimumWidth(dp(c,42));v.setMinimumHeight(dp(c,42));return v;}
@@ -75,6 +78,7 @@ final class Ui {
                     for(int i=0;i<6;i++){double angle=i*Math.PI/3;path.addCircle(12+6.7f*(float)Math.cos(angle),12+6.7f*(float)Math.sin(angle),4.1f,Path.Direction.CW);}
                     Path center=new Path();center.addCircle(12,12,3.8f,Path.Direction.CW);path.op(center,Path.Op.DIFFERENCE);canvas.drawPath(path,p);
                 }
+                case "record_settings" -> {for(int i=0;i<24;i++){double angle=-Math.PI/2+i*Math.PI/12;float radius=(i%4==1||i%4==2)?10:8;float x=12+(float)Math.cos(angle)*radius,y=12+(float)Math.sin(angle)*radius;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();canvas.drawPath(path,p);canvas.drawCircle(12,12,3.8f,p);}
                 case "settings" -> {
                     canvas.save();canvas.rotate(15,12,12);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(1.8f);
                     for(int i=0;i<32;i++){double a=-Math.PI/2+i*Math.PI/16;float radius=(i%4==1||i%4==2)?9.5f:7.8f;float x=12+(float)Math.cos(a)*radius,y=12+(float)Math.sin(a)*radius;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();canvas.drawPath(path,p);canvas.drawCircle(12,12,3.2f,p);canvas.restore();
@@ -128,7 +132,7 @@ final class Ui {
                 case "stop" -> {p.setStyle(Paint.Style.FILL);canvas.drawRoundRect(6,6,18,18,2,2,p);}
                 case "full_screen" -> {p.setStrokeWidth(2.6f);path.moveTo(4,9);path.lineTo(4,4);path.lineTo(9,4);path.moveTo(15,4);path.lineTo(20,4);path.lineTo(20,9);path.moveTo(20,15);path.lineTo(20,20);path.lineTo(15,20);path.moveTo(9,20);path.lineTo(4,20);path.lineTo(4,15);canvas.drawPath(path,p);}
                 case "move_area" -> {canvas.drawLine(3,12,21,12,p);canvas.drawLine(12,3,12,21,p);for(int angle=0;angle<360;angle+=90){canvas.save();canvas.rotate(angle,12,12);canvas.drawLine(9,6,12,3,p);canvas.drawLine(12,3,15,6,p);canvas.restore();}p.setStyle(Paint.Style.FILL);canvas.drawCircle(12,12,1.5f,p);}
-                case "resolution" -> {p.setStrokeWidth(2);canvas.drawRect(2,5,22,19,p);canvas.save();canvas.clipRect(4,8,20,16);for(int x=-8;x<26;x+=4)canvas.drawLine(x,17,x+10,7,p);canvas.restore();}
+                case "resolution" -> {p.setStrokeWidth(1.7f);canvas.drawRect(2,5,22,19,p);canvas.save();canvas.clipRect(4,8,20,16);for(int x=-8;x<26;x+=4)canvas.drawLine(x,17,x+10,7,p);canvas.restore();}
                 case "watermark" -> {canvas.drawRoundRect(3,4,21,20,2.5f,2.5f,p);canvas.drawLine(8,9,16,9,p);canvas.drawLine(12,9,12,16,p);}
                 case "audio" -> {canvas.drawRoundRect(9,3,15,14,3,3,p);canvas.drawArc(6,7,18,18,0,180,false,p);canvas.drawLine(12,18,12,22,p);}
                 case "hide" -> {canvas.drawOval(2,6,22,18,p);canvas.drawCircle(12,12,3,p);canvas.drawLine(3,3,21,21,p);}
@@ -138,7 +142,14 @@ final class Ui {
                 case "recent_apps" -> {canvas.drawCircle(12,12,9,p);canvas.drawLine(12,6,12,12,p);canvas.drawLine(12,12,18,12,p);}
                 case "favorite_apps", "star_on" -> {canvas.save();canvas.translate(2,2);canvas.scale(.833333f,.833333f);for(int i=0;i<10;i++){double angle=-Math.PI/2+i*Math.PI/5;float radius=i%2==0?10:5.5f;float x=12+(float)Math.cos(angle)*radius,y=12+(float)Math.sin(angle)*radius;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();if(name.equals("star_on"))p.setStyle(Paint.Style.FILL_AND_STROKE);canvas.drawPath(path,p);canvas.restore();}
                 case "text" -> {canvas.drawLine(4,5,20,5,p);canvas.drawLine(12,5,12,20,p);canvas.drawLine(8,20,16,20,p);canvas.drawLine(4,5,4,8,p);canvas.drawLine(20,5,20,8,p);}
-                case "translate" -> {p.setStyle(Paint.Style.FILL);p.setTextSize(10);p.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));canvas.drawText("A",2,11,p);canvas.drawText("文",12,21,p);p.setStyle(Paint.Style.STROKE);canvas.drawLine(10,4,21,4,p);canvas.drawLine(18,2,21,4,p);canvas.drawLine(21,4,18,6,p);}
+                case "translate" -> {canvas.drawRoundRect(10,10,22,23,1.4f,1.4f,p);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(8);p.setTypeface(Typeface.create("sans-serif",Typeface.NORMAL));p.setStyle(Paint.Style.FILL);canvas.drawText("A",16,20,p);int ink=p.getColor();p.setColor(Ui.PALE);canvas.drawRoundRect(1.5f,1.5f,14,14.5f,1.4f,1.4f,p);p.setColor(ink);p.setStyle(Paint.Style.STROKE);canvas.drawRoundRect(1.5f,1.5f,14,14.5f,1.4f,1.4f,p);p.setStyle(Paint.Style.FILL);canvas.drawText("中",7.8f,11,p);p.setStyle(Paint.Style.STROKE);canvas.drawArc(16,2,22,9,-90,90,false,p);canvas.drawArc(2,16,9,23,90,90,false,p);p.setTextAlign(Paint.Align.LEFT);}
+                case "translation_swap" -> {p.setStrokeWidth(2.1f);canvas.drawLine(6,9,18,9,p);canvas.drawLine(18,9,14.5f,5.5f,p);int ink=p.getColor();p.setColor(Ui.dark?Ui.MUTED:0xFF759682);canvas.drawLine(18,15,6,15,p);canvas.drawLine(6,15,9.5f,18.5f,p);p.setColor(ink);}
+                case "down_chevron" -> {canvas.drawLine(4,8,12,16,p);canvas.drawLine(12,16,20,8,p);}
+                case "menu_manage" -> {canvas.drawLine(4,8,20,8,p);canvas.drawLine(8,5.5f,8,10.5f,p);canvas.drawLine(4,16,20,16,p);canvas.drawLine(16,13.5f,16,18.5f,p);}
+                case "open_leaf" -> {path.moveTo(12,13.5f);path.lineTo(12,7);path.moveTo(12,10.5f);path.cubicTo(8,10.5f,7,7.2f,7,5.2f);path.cubicTo(10.2f,5.2f,12,7.5f,12,10.5f);path.close();path.moveTo(12,9);path.cubicTo(15.5f,9,17,6.2f,17,4.2f);path.cubicTo(13.8f,4.2f,12,6.5f,12,9);path.close();path.moveTo(6.5f,13.5f);path.lineTo(17.5f,13.5f);path.moveTo(8,13.5f);path.lineTo(9.4f,19.5f);path.quadTo(9.6f,20.4f,10.6f,20.4f);path.lineTo(13.4f,20.4f);path.quadTo(14.4f,20.4f,14.6f,19.5f);path.lineTo(16,13.5f);canvas.drawPath(path,p);}
+                case "swap" -> {canvas.drawLine(4,8,20,8,p);canvas.drawLine(15,3,20,8,p);canvas.drawLine(20,8,15,13,p);canvas.drawLine(4,16,20,16,p);canvas.drawLine(4,16,9,21,p);canvas.drawLine(4,16,9,11,p);}
+                case "fps" -> {path.moveTo(2,6);path.lineTo(2,2);path.lineTo(22,2);path.lineTo(22,6);path.moveTo(2,18);path.lineTo(2,22);path.lineTo(22,22);path.lineTo(22,18);canvas.drawPath(path,p);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(10);p.setStyle(Paint.Style.FILL);p.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));canvas.drawText("FPS",12,16,p);p.setTextAlign(Paint.Align.LEFT);}
+                case "bitrate" -> {canvas.drawRect(2,2,22,22,p);p.setStyle(Paint.Style.FILL);canvas.drawRect(6,13,8,19,p);canvas.drawRect(11,9,13,19,p);canvas.drawRect(16,5,18,19,p);}
                 case "notes" -> {canvas.drawRoundRect(4,3,20,21,3,3,p);canvas.drawLine(8,8,16,8,p);canvas.drawLine(8,12,16,12,p);canvas.drawLine(8,16,13,16,p);}
                 case "browser" -> {canvas.drawCircle(12,12,9,p);canvas.drawOval(8,3,16,21,p);canvas.drawLine(3,12,21,12,p);}
                 case "notifications" -> {path.moveTo(18,8);path.cubicTo(18,4.5f,15.5f,2,12,2);path.cubicTo(8.5f,2,6,4.5f,6,8);path.cubicTo(6,15,3,15,3,17);path.lineTo(21,17);path.cubicTo(21,15,18,15,18,8);canvas.drawPath(path,p);canvas.drawArc(10,20,14,23,0,180,false,p);}
@@ -146,16 +157,16 @@ final class Ui {
                 case "lock" -> {canvas.drawRoundRect(4,10,20,23,2,2,p);path.moveTo(7,10);path.lineTo(7,6);path.cubicTo(7,-.5f,17,-.5f,17,6);path.lineTo(17,10);canvas.drawPath(path,p);p.setStyle(Paint.Style.FILL);canvas.drawCircle(12,16,1.6f,p);canvas.drawRoundRect(11.3f,16,12.7f,20,.6f,.6f,p);}
                 case "opacity" -> {canvas.drawCircle(12,12,9,p);p.setStyle(Paint.Style.FILL);canvas.drawArc(3,3,21,21,90,180,true,p);}
                 case "pen", "edit" -> {path.moveTo(4,15);path.lineTo(4,21);path.lineTo(10,21);path.lineTo(22,9);path.lineTo(16,3);path.close();canvas.drawPath(path,p);canvas.drawLine(13,6,19,12,p);}
-                case "highlight" -> {canvas.drawArc(5,3,19,17,145,250,false,p);path.moveTo(8,15);path.lineTo(9,20);path.quadTo(12,24,15,20);path.lineTo(16,15);canvas.drawPath(path,p);canvas.drawLine(9,18,15,18,p);canvas.drawLine(2,6,1,5,p);canvas.drawLine(2,11,1,11,p);canvas.drawLine(22,6,23,5,p);canvas.drawLine(22,11,23,11,p);}
+                case "highlight" -> {path.moveTo(8,15);path.cubicTo(2,10,5,3,12,3);path.cubicTo(19,3,22,10,16,15);path.lineTo(15,20);path.quadTo(12,23,9,20);path.close();canvas.drawPath(path,p);canvas.drawLine(9,18,15,18,p);canvas.drawLine(2,6,1,5,p);canvas.drawLine(2,11,1,11,p);canvas.drawLine(22,6,23,5,p);canvas.drawLine(22,11,23,11,p);}
                 case "rect" -> canvas.drawRect(4,5,20,19,p);
-                case "crop" -> {path.moveTo(5,2);path.lineTo(5,19);path.lineTo(22,19);path.moveTo(2,5);path.lineTo(17,5);path.moveTo(19,8);path.lineTo(19,22);canvas.drawPath(path,p);canvas.drawLine(5,19,22,2,p);}
+                case "crop" -> {path.moveTo(5,2);path.lineTo(5,19);path.lineTo(22,19);path.moveTo(2,5);path.lineTo(19,5);path.lineTo(19,22);canvas.drawPath(path,p);canvas.drawLine(5,19,22,2,p);}
                 case "line" -> canvas.drawLine(4,20,20,4,p);
                 case "arrow" -> {canvas.drawLine(4,20,20,4,p);canvas.drawLine(11,4,20,4,p);canvas.drawLine(20,4,20,13,p);}
-                case "number" -> {canvas.drawCircle(12,12,9,p);p.setStyle(Paint.Style.FILL);p.setTextSize(13);canvas.drawText("1",8,17,p);}
+                case "number" -> {canvas.drawCircle(12,12,9,p);p.setStyle(Paint.Style.FILL);p.setTextSize(13);p.setTextAlign(Paint.Align.CENTER);Paint.FontMetrics fm=p.getFontMetrics();canvas.drawText("1",12,12-(fm.ascent+fm.descent)/2,p);p.setTextAlign(Paint.Align.LEFT);}
                 case "mosaic" -> {for(int i=0;i<3;i++)for(int j=0;j<3;j++){p.setStyle((i+j)%2==0?Paint.Style.FILL:Paint.Style.STROKE);canvas.drawRect(3+i*6,3+j*6,9+i*6,9+j*6,p);}}
-                case "rotate" -> {canvas.drawArc(4,4,20,20,0,285,false,p);canvas.drawLine(13,2,18,5,p);canvas.drawLine(18,5,14,9,p);}
+                case "rotate" -> {path.moveTo(5,20);path.lineTo(5,11);path.cubicTo(5,7.7f,7.7f,5,11,5);path.lineTo(21,5);path.moveTo(17,1);path.lineTo(21,5);path.lineTo(17,9);canvas.drawPath(path,p);}
                 case "mirror_h", "mirror_v" -> {if(name.equals("mirror_v"))canvas.rotate(90,12,12);canvas.drawLine(12,2,12,22,p);path.moveTo(9,5);path.lineTo(3,19);path.lineTo(9,19);path.close();canvas.drawPath(path,p);path.reset();path.moveTo(15,5);path.lineTo(21,19);path.lineTo(15,19);path.close();canvas.drawPath(path,p);}
-                case "reset" -> {canvas.drawArc(3,3,21,21,-90,160,false,p);canvas.drawArc(3,3,21,21,90,160,false,p);path.moveTo(21,15);path.lineTo(21,21);path.lineTo(15,21);path.moveTo(9,3);path.lineTo(3,3);path.lineTo(3,9);canvas.drawPath(path,p);}
+                case "reset" -> {path.moveTo(3,10);path.cubicTo(4,5.5f,7.3f,3,12,3);path.cubicTo(17,3,21,7,21,12);path.cubicTo(21,17,17,21,12,21);path.cubicTo(9,21,6.5f,19.7f,4.8f,17.6f);path.moveTo(3,4);path.lineTo(3,10);path.lineTo(9,10);canvas.drawPath(path,p);}
                 case "select_all" -> {canvas.drawRect(3,3,21,21,p);canvas.drawLine(6,8,18,8,p);canvas.drawLine(12,8,12,18,p);}
                 case "vertical" -> {canvas.drawRoundRect(5,2,19,22,2,2,p);canvas.drawLine(5,9,19,9,p);canvas.drawLine(5,15,19,15,p);}
                 case "horizontal" -> {canvas.drawRoundRect(2,5,22,19,2,2,p);canvas.drawLine(9,5,9,19,p);canvas.drawLine(15,5,15,19,p);}
@@ -170,7 +181,7 @@ final class Ui {
                 case "collapse" -> {canvas.drawLine(5,15,12,8,p);canvas.drawLine(12,8,19,15,p);}
                 case "expand" -> {canvas.drawLine(5,8,12,15,p);canvas.drawLine(12,15,19,8,p);}
                 case "share" -> {canvas.drawCircle(5,12,2.5f,p);canvas.drawCircle(19,5,2.5f,p);canvas.drawCircle(19,19,2.5f,p);canvas.drawLine(7,11,17,6,p);canvas.drawLine(7,13,17,18,p);}
-                case "undo" -> {p.setStrokeWidth(2.2f);path.moveTo(8,4);path.lineTo(3,9);path.lineTo(8,14);path.moveTo(3,9);path.lineTo(14,9);path.cubicTo(24,9,24,21,14,21);path.lineTo(5,21);canvas.drawPath(path,p);}
+                case "undo" -> {p.setStrokeWidth(1.7f);path.moveTo(8,4);path.lineTo(3,9);path.lineTo(8,14);path.moveTo(3,9);path.lineTo(14,9);path.cubicTo(24,9,24,21,14,21);path.lineTo(5,21);canvas.drawPath(path,p);}
                 case "check" -> {canvas.drawLine(5,12,10,17,p);canvas.drawLine(10,17,20,6,p);}
                 case "up", "down" -> {float d=name.equals("up")?1:-1;canvas.save();canvas.rotate(d<0?180:0,12,12);canvas.drawLine(12,21,12,4,p);canvas.drawLine(5,11,12,4,p);canvas.drawLine(19,11,12,4,p);canvas.restore();}
                 case "appearance" -> {canvas.drawCircle(12,12,8,p);p.setStyle(Paint.Style.FILL);canvas.drawCircle(12,12,3,p);}

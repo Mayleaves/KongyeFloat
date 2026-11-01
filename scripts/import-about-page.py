@@ -17,6 +17,17 @@ css='''
     .topbar{justify-content:space-between;height:56px}
     .suspended *,.suspended *::before,.suspended *::after{animation-play-state:paused!important}
 '''
+css+='''
+    .tap-lv{opacity:0;pointer-events:none;transition:opacity .45s ease,transform .3s ease}.tap-lv.show{opacity:1}
+    .ff,.fx .firefly,.win.is-night .ff{opacity:0;animation:none!important;transition:opacity 1.5s ease-in-out}
+'''.replace('\n+','\n')
+html=html.replace('    function showTaps() {','    let clickedThisVisit=false,tapHideTimer;\n    function showTaps() {').replace("toggle('show', logoTaps > 0)","toggle('show', clickedThisVisit && logoTaps > 0)").replace('      logoTaps++;','      clickedThisVisit=true;logoTaps++;')
+html=html.replace('    setStage(stage);', '''
+    const twinkling=new WeakSet();
+    function randomFireflies(){if(document.hidden)return;document.querySelectorAll('.ff,.fx .firefly').forEach(dot=>{if(twinkling.has(dot)||Math.random()>.32)return;twinkling.add(dot);dot.style.opacity='0';dot.style.left=(6+Math.random()*88)+'%';dot.style.top=(10+Math.random()*62)+'%';const glow=dot.animate([{opacity:0},{opacity:.35+Math.random()*.5,offset:.4},{opacity:0}],{duration:2600,easing:'ease-in-out'});glow.onfinish=()=>{dot.style.opacity='0';twinkling.delete(dot);};});}
+    setInterval(randomFireflies,1300);setTimeout(randomFireflies,1500);
+    setStage(stage);''')
+html=html.replace("      clickedThisVisit=true;logoTaps++;","      clickedThisVisit=true;logoTaps++;clearTimeout(tapHideTimer);tapHideTimer=setTimeout(()=>{clickedThisVisit=false;showTaps();},2000);")
 html=html.replace('</style>',css+'  </style>')
 html=html.replace('<meta charset="utf-8">','<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; media-src blob:; connect-src \'none\'">')
 dest=pathlib.Path(__file__).resolve().parents[1]/'app/src/main/assets/about.html'

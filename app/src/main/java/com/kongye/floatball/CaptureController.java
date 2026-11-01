@@ -14,7 +14,7 @@ final class CaptureController {
     private boolean active,destroyed;private int generation;private Bitmap frozen;private RegionResult result;private StitchSession stitching;
     CaptureController(Context c,Consumer<Boolean> ball){context=c;this.ball=ball;window=new CaptureWindow(c);automatic=new AutoCaptureController(c,ball);}
     boolean isActive(){return active||automatic.isActive();}
-    boolean allowsBall(){return result!=null&&result.isPinned();}
+    boolean allowsBall(){return (result!=null&&result.isPinned())||automatic.allowsBall();}
     void startWhole(){start(false,new Rect(-1,-1,-1,-1));}
     void startRegion(Rect selected){start(false,new Rect(selected));}
     void start(boolean longShot){start(longShot,null);}
@@ -40,7 +40,7 @@ final class CaptureController {
     private void showResult(Bitmap image,Rect area){showResult(image,area,"Region");}
     private void showResult(Bitmap image,Rect area,String kind){
         Bitmap selected;try{selected=Bitmap.createBitmap(image,area.left,area.top,area.width(),area.height());if(selected==image)selected=image.copy(Bitmap.Config.ARGB_8888,false);}catch(RuntimeException|OutOfMemoryError e){toast("截图内存不足，请缩小区域");if(frozen!=null)showRegion(image);return;}
-        window.remove();image.recycle();frozen=null;try{result=new RegionResult(context,selected,worker,this::done,pinned->ball.accept(pinned),kind);}catch(RuntimeException|OutOfMemoryError e){selected.recycle();cancel();toast("无法打开截图结果，请重试");}
+        String original="";if(kind.equals("Region")&&AssistService.instance!=null)original=AssistService.instance.textInRegion(area);window.remove();image.recycle();frozen=null;try{result=new RegionResult(context,selected,worker,this::done,pinned->ball.accept(pinned),kind,original);}catch(RuntimeException|OutOfMemoryError e){selected.recycle();cancel();toast("无法打开截图结果，请重试");}
     }
     private void adopt(Bitmap image,String kind,boolean edit){active=true;stitching=null;ball.accept(false);try{result=new RegionResult(context,image,worker,this::done,pinned->ball.accept(pinned),kind);if(edit)result.openEditor();}catch(RuntimeException|OutOfMemoryError error){image.recycle();cancel();toast("无法显示拼接结果，请重试");}}
     private void done(){active=false;result=null;stitching=null;++generation;ball.accept(true);}

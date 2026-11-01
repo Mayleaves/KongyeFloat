@@ -1,0 +1,2 @@
+# Keep supplied reference assets byte-for-byte.
+app/src/main/assets/references/** -text

@@ -1,1 +1,1 @@
-<resources><item name="app_search" type="id"/><item name="dialog_layout_guard" type="id"/></resources>
+<resources><item name="app_search" type="id"/><item name="dialog_layout_guard" type="id"/><item type="id" name="dock_morph_running"/></resources>

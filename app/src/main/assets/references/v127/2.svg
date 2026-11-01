@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 64" width="100%" height="100%" fill="none">
+  <!-- 左侧：英文 + 下拉箭头 -->
+  <g>
+    <text x="82" y="38" text-anchor="middle" fill="#1E3327" font-size="20" font-weight="600" font-family="&#39;PingFang SC&#39;, &#39;Noto Sans SC&#39;, &#39;Microsoft YaHei&#39;, sans-serif" letter-spacing="0.5">英文</text>
+    <path d="M110 30L114.5 34.5L119 30" stroke="#88A08E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- 中间：鼠尾草浅绿胶囊 + 森林绿互换箭头 -->
+  <g>
+    <rect x="162" y="18" width="38" height="28" rx="14" fill="#E6EFE4" />
+    <path d="M175 29H187L183.5 25.5" stroke="#28664B" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M187 35H175L178.5 38.5" stroke="#759682" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- 右侧：中文 + 下拉箭头 -->
+  <g>
+    <text x="258" y="38" text-anchor="middle" fill="#1E3327" font-size="20" font-weight="600" font-family="&#39;PingFang SC&#39;, &#39;Noto Sans SC&#39;, &#39;Microsoft YaHei&#39;, sans-serif" letter-spacing="0.5">中文</text>
+    <path d="M286 30L290.5 34.5L295 30" stroke="#88A08E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>
