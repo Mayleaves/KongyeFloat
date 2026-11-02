@@ -179,10 +179,11 @@ public class FloatService extends Service {
     @Override public void onConfigurationChanged(Configuration c){super.onConfigurationChanged(c);closePanel();int rotation=windows.getDefaultDisplay().getRotation();boolean rotated=rotation!=displayRotation;displayRotation=rotation;if(rotated&&captures!=null&&captures.isActive()){Prefs.of(this).edit().putString("last_capture_cancel_reason","rotation").apply();captures.cancel();toast("屏幕方向已改变，请重新开始截图");}hideCaptureTarget();if(ball!=null){ballParams.x=GestureRules.edgeWithInset(ballParams.x,screenWidth(),ballParams.width,edgeGap());ballParams.y=GestureRules.clamp(ballParams.y,edgeGapY(),screenHeight()-ballParams.height-edgeGapY());updateBall();savePosition();}}
     private void toast(String msg){Feedback.show(this,msg);}
     private void launch(Intent i){if(i.getComponent()!=null&&i.getComponent().getClassName().equals(QuickSettingsActivity.class.getName()))i.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);try{startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));}catch(RuntimeException e){toast("无法打开，请在主界面重试");}}
+    static int[] ballCenter(){FloatService service=instance;if(service==null||service.ball==null||!service.ball.isAttachedToWindow())return null;int[] at=new int[2];service.ball.getLocationOnScreen(at);at[0]+=service.ball.getWidth()/2;at[1]+=service.ball.getHeight()/2;return at;}
     void perform(String action){
         if(action==null||!running||captureInFlight)return;action=Prefs.canonicalAction(action);if("none".equals(action))return;
         if(captures!=null&&captures.isActive()&&!captures.allowsBall()){toast("请先完成或取消当前截图");return;}
-        if("quick".equals(action)){if(touch==null||!touch.pressed)return;closePanel();quickDock.show(ballParams.x+ballParams.width/2,ballParams.y+ballParams.height/2);return;}
+        if("quick".equals(action)){if(touch==null||!touch.pressed)return;closePanel();int[] center=ballCenter();if(center!=null)quickDock.show(center[0],center[1]);return;}
         if("menu".equals(action)){if(panel!=null||browser!=null)closePanel();else showMenu();return;}
         closePanel();vibrate();if(action.startsWith("edit_slot:")){try{launch(new Intent(this,QuickSettingsActivity.class).putExtra("edit_slot",Integer.parseInt(action.substring(10))));}catch(NumberFormatException ignored){}return;}if(action.startsWith("app:")){launchApp(action.substring(4));return;}
         switch(action){

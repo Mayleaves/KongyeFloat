@@ -14,9 +14,15 @@ public class OrbitInteractionCheck {
         check(QuickOrbitLayout.diameter(510,953,1)==44,"reference icon diameter");
         for(int i=0;i<left.length;i++){check(Math.abs(left[i][0]+right[i][0]-1080)<.01,"mirrored slot "+i);check(left[i][1]==right[i][1],"same vertical anchor "+i);}
         for(float[][] positions:new float[][][]{left,QuickOrbitLayout.positions(1080,2520,63,100,2.625f),QuickOrbitLayout.positions(1080,2520,1017,2400,2.625f)}){
-            boolean fits=true,separate=true;for(int i=0;i<positions.length;i++){fits&=positions[i][0]>0&&positions[i][0]<1080&&positions[i][1]>0&&positions[i][1]<2520;for(int j=0;j<i;j++)separate&=Math.hypot(positions[i][0]-positions[j][0],positions[i][1]-positions[j][1])>=QuickOrbitLayout.diameter(1080,2520,2.625f);}
+            float diameter=(positions[11][1]-positions[0][1])*44/286;
+            boolean fits=true,separate=true;for(int i=0;i<positions.length;i++){fits&=positions[i][0]>=diameter/2-.01&&positions[i][0]<=1080-diameter/2+.01&&positions[i][1]>=diameter/2-.01&&positions[i][1]<=2520-diameter/2+.01;for(int j=0;j<i;j++)separate&=Math.hypot(positions[i][0]-positions[j][0],positions[i][1]-positions[j][1])>=diameter-.01;}
             check(fits,"fan stays within display");check(separate,"circles do not overlap");
         }
+        for(float[] anchor:new float[][]{{63,874},{400,874},{1017,100},{1017,2400},{1190,296}}){int width=anchor[0]>1080?1240:1080;float[][] p=QuickOrbitLayout.positions(width,2520,anchor[0],anchor[1],2.625f);float factor=(p[11][1]-p[0][1])/286;float direction=anchor[0]<width/2f?1:-1;
+            check(Math.abs(p[6][0]-direction*97*factor-anchor[0])<.01,"horizontal fan origin is actual ball center");
+            check(Math.abs(p[0][1]+142*factor-anchor[1])<.01,"top fan origin is actual ball center");
+            check(Math.abs(p[11][1]-144*factor-anchor[1])<.01,"bottom fan origin is actual ball center");}
+        float[][] shifted=QuickOrbitLayout.positions(1080,2520,163,874,2.625f);for(int i=0;i<13;i++)check(Math.abs(shifted[i][0]-left[i][0]-100)<.01,"moving ball inward translates slot "+i);
         check(GestureRules.followOffset(100,64)==45,"downwards proportional follow");check(GestureRules.followOffset(-100,64)==-45,"upwards proportional follow");check(GestureRules.followOffset(400,64)==64,"follow distance bounded");check(GestureRules.followOffset(0,64)==0,"stationary ball has no offset");
         System.out.println(checks+" orbit and follow-animation checks passed.");
     }

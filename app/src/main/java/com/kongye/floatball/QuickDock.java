@@ -19,7 +19,7 @@ final class QuickDock {
     private int dp(float value){return Ui.dp(context,value);}
     void show(int anchorX,int anchorY){
         close();DisplayMetrics m=new DisplayMetrics();wm.getDefaultDisplay().getRealMetrics(m);
-        int w=m.widthPixels,h=m.heightPixels;boolean left=anchorX<w/2;int diameter=Math.round(QuickOrbitLayout.diameter(w,h,m.density)),bubbleDp=Math.round(diameter/m.density);
+        int w=m.widthPixels,h=m.heightPixels;boolean left=anchorX<w/2;int diameter=Math.max(1,Math.round(QuickOrbitLayout.diameter(w,h,anchorX,anchorY,m.density))),bubbleDp=Math.max(1,Math.round(diameter/m.density));
         root=new FrameLayout(context);root.setContentDescription("按住显示的环形快捷菜单");root.setBackgroundColor(0x66304134);
         float[][] points=QuickOrbitLayout.positions(w,h,anchorX,anchorY,m.density);
         ArrayList<String> entries=QuickActions.load(context);entries.addAll(QuickActions.recent(context));
@@ -37,6 +37,17 @@ final class QuickDock {
         previewName=Ui.centeredText(context,"",17,Color.WHITE,true);preview.addView(previewName,new LinearLayout.LayoutParams(-1,-2));
         FrameLayout.LayoutParams pp=new FrameLayout.LayoutParams(dp(210),dp(150),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);pp.bottomMargin=dp(100);root.addView(preview,pp);preview.setVisibility(View.INVISIBLE);
         WindowManager.LayoutParams p=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);
+        if(Build.VERSION.SDK_INT>=28)p.layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        root.addOnLayoutChangeListener((view,l,t,r,b,ol,ot,or,ob)->{
+            if(view!=root)return;
+            int[] origin=new int[2];view.getLocationOnScreen(origin);int width=view.getWidth(),height=view.getHeight();if(width<=0||height<=0)return;
+            float x=anchorX-origin[0],y=anchorY-origin[1];float[][] centers=QuickOrbitLayout.positions(width,height,x,y,m.density);int size=Math.max(1,Math.round(QuickOrbitLayout.diameter(width,height,x,y,m.density)));
+            for(int i=0;i<entries.size();i++){View bubble=root.getChildAt(i);FrameLayout.LayoutParams bp=(FrameLayout.LayoutParams)bubble.getLayoutParams();int bx=Math.round(centers[i][0])-size/2,by=Math.round(centers[i][1])-size/2;
+                if(bp.leftMargin!=bx||bp.topMargin!=by||bp.width!=size||bp.height!=size){bp.leftMargin=bx;bp.topMargin=by;bp.width=bp.height=size;bubble.setLayoutParams(bp);}
+                View icon=((FrameLayout)bubble).getChildAt(0);if(icon!=null){int iconSize=entries.get(i).startsWith("app:")?size:Math.round(size*.57f);FrameLayout.LayoutParams ip=(FrameLayout.LayoutParams)icon.getLayoutParams();if(ip.width!=iconSize){ip.width=ip.height=iconSize;icon.setLayoutParams(ip);}}
+            }
+            FrameLayout.LayoutParams manageAt=(FrameLayout.LayoutParams)manage.getLayoutParams();int mx=x<width/2f?width-dp(58):dp(14),my=Math.max(0,Math.min(height-dp(44),Math.round(y)-dp(22)));if(manageAt.leftMargin!=mx||manageAt.topMargin!=my){manageAt.leftMargin=mx;manageAt.topMargin=my;manage.setLayoutParams(manageAt);}
+        });
         p.gravity=Gravity.TOP|Gravity.LEFT;p.alpha=Math.max(.2f,Prefs.of(context).getInt("quick_opacity",90)/100f);if(Build.VERSION.SDK_INT>=30)p.setFitInsetsTypes(0);p.setTitle("空叶按住快捷");wm.addView(root,p);Prefs.of(context).edit().putBoolean("quick_visible",true).putString("last_quick_hover","").apply();
     }
     void hover(float x,float y){
