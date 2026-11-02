@@ -30,14 +30,15 @@ public class AssistService extends AccessibilityService {
     private void publishForeground(String pkg){if(pkg.equals("com.android.systemui"))return;foregroundPackage=pkg;if(FloatService.instance!=null)FloatService.instance.foregroundChanged(pkg);}
     @Override public void onInterrupt(){}
     static String captureError(int error){if(error==ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT)return "截图太快，请稍后重试";if(Build.VERSION.SDK_INT>=34&&error==ERROR_TAKE_SCREENSHOT_SECURE_WINDOW)return "当前页面禁止截图，增强悬浮层不能解除截图保护";return "当前界面受保护或无法截图";}
-    /** Explicit region-capture request only: text must be fully inside the selected rectangle. */
-    String textInRegion(android.graphics.Rect selected){
-        ArrayList<String> text=new ArrayList<>();ArrayList<android.graphics.Rect> bounds=new ArrayList<>();AccessibilityNodeInfo chosen=null;int layer=Integer.MIN_VALUE;
+    /** Explicit region capture only: retain geometry and never read password nodes. */
+    java.util.List<TextRegion> textRegionsInRegion(android.graphics.Rect selected){
+        ArrayList<TextRegion> spans=new ArrayList<>();AccessibilityNodeInfo chosen=null;int layer=Integer.MIN_VALUE;
         for(AccessibilityWindowInfo window:getWindows()){if(window.getType()!=AccessibilityWindowInfo.TYPE_APPLICATION||window.getLayer()<layer)continue;AccessibilityNodeInfo root=window.getRoot();if(root==null)continue;if(chosen!=null)chosen.recycle();chosen=root;layer=window.getLayer();}
-        if(chosen==null)return "";ArrayDeque<AccessibilityNodeInfo> queue=new ArrayDeque<>();queue.add(chosen);int visited=0,total=0;
-        while(!queue.isEmpty()){AccessibilityNodeInfo node=queue.removeFirst();if(++visited<5000&&!node.isPassword()&&node.isVisibleToUser()){android.graphics.Rect rect=new android.graphics.Rect();node.getBoundsInScreen(rect);CharSequence value=node.getText();if(value!=null&&selected.contains(rect)&&!rect.isEmpty()){String line=value.toString().trim();int capacity=Math.max(16,rect.width()*rect.height()/Math.max(1,(int)(getResources().getDisplayMetrics().density*getResources().getDisplayMetrics().density*48)));if(!line.isEmpty()&&line.length()<=capacity&&!text.contains(line)&&total+line.length()<=10000){text.add(line);bounds.add(rect);total+=line.length();}}for(int i=0;i<node.getChildCount();i++){AccessibilityNodeInfo child=node.getChild(i);if(child!=null)queue.add(child);}}node.recycle();}
-        ArrayList<Integer> order=new ArrayList<>();for(int i=0;i<text.size();i++)order.add(i);order.sort(java.util.Comparator.comparingInt((Integer i)->bounds.get(i).top/8).thenComparingInt(i->bounds.get(i).left));ArrayList<String> lines=new ArrayList<>();for(int i:order)lines.add(text.get(i));return String.join("\n",lines);
+        if(chosen==null)return spans;ArrayDeque<AccessibilityNodeInfo> queue=new ArrayDeque<>();queue.add(chosen);int visited=0,total=0;
+        while(!queue.isEmpty()){AccessibilityNodeInfo node=queue.removeFirst();try{if(++visited<5000&&!node.isPassword()&&node.isVisibleToUser()){android.graphics.Rect rect=new android.graphics.Rect();node.getBoundsInScreen(rect);if(selected.contains(rect)&&!rect.isEmpty()){CharSequence value=node.getText();String line=value==null?"":value.toString().trim();int capacity=Math.max(16,(int)Math.min(Integer.MAX_VALUE,(long)rect.width()*rect.height()/Math.max(1,(int)(getResources().getDisplayMetrics().density*getResources().getDisplayMetrics().density*48))));if(!line.isEmpty()&&line.length()<=capacity&&total+line.length()<=10000){spans.add(new TextRegion(line,rect.left,rect.top,rect.right,rect.bottom));total+=line.length();}}for(int i=0;i<node.getChildCount();i++){AccessibilityNodeInfo child=node.getChild(i);if(child!=null)queue.add(child);}}}finally{node.recycle();}}
+        return RegionTextFusion.originals(spans);
     }
+    String textInRegion(android.graphics.Rect selected){return RegionTextFusion.text(textRegionsInRegion(selected));}
     void captureBitmap(java.util.function.BiConsumer<Bitmap,String> callback){
         if((getApplicationInfo().flags&android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putInt("qa_bitmap_requests",Prefs.of(this).getInt("qa_bitmap_requests",0)+1).apply();
         if(Build.VERSION.SDK_INT<30){callback.accept(null,"区域截图和长截图需要 Android 11 或以上");return;}

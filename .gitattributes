@@ -1,2 +1,5 @@
 # Keep supplied reference assets byte-for-byte.
 app/src/main/assets/references/** -text
+
+# Preserve the exact upstream model/config bytes recorded in MODELS.json.
+paddle-ocr/src/main/assets/models/** -text

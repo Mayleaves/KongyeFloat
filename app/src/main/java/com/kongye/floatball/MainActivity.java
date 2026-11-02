@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
     private boolean renderedDark,renderedRunning,skipFileResume;
     private final Runnable themeTicker=new Runnable(){public void run(){if(ThemePolicy.isDark(MainActivity.this)!=renderedDark)render();handler.postDelayed(this,60000-System.currentTimeMillis()%60000);}};
     @Override public void onCreate(Bundle state) {
-        super.onCreate(state);updateCheck=getLastNonConfigurationInstance() instanceof UpdateCheckSession retained?retained:new UpdateCheckSession();QuickActions.migrate(this);BallSettings.migrate(this);AppCatalog.prefetch(this);
+        super.onCreate(state);UpdateCacheCleanup.schedule(this);updateCheck=getLastNonConfigurationInstance() instanceof UpdateCheckSession retained?retained:new UpdateCheckSession();QuickActions.migrate(this);BallSettings.migrate(this);AppCatalog.prefetch(this);
         if(state!=null)tab=state.getInt("tab",0);
         boolean launcher=(state==null||!createdUi)&&Intent.ACTION_MAIN.equals(getIntent().getAction())&&getIntent().hasCategory(Intent.CATEGORY_LAUNCHER);createdUi=true;
         if(Build.VERSION.SDK_INT>=31)getSplashScreen().setOnExitAnimationListener(view->view.remove());

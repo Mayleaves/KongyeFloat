@@ -1,0 +1,17 @@
+{
+  "common_payload_identical": true,
+  "arm64_native_libraries_identical": true,
+  "native_libraries": [
+    "lib/arm64-v8a/libc++_shared.so",
+    "lib/arm64-v8a/liblanguage_id_l2c_jni.so",
+    "lib/arm64-v8a/libmlkit_google_ocr_pipeline.so",
+    "lib/arm64-v8a/libonnxruntime.so",
+    "lib/arm64-v8a/libonnxruntime4j_jni.so",
+    "lib/arm64-v8a/libopencv_java4.so",
+    "lib/arm64-v8a/libtranslate_jni.so"
+  ],
+  "ocr_model_hashes_unchanged": true,
+  "old_apk_bytes": 157605995,
+  "arm64_apk_bytes": 52951341,
+  "universal_apk_bytes": 157607143
+}

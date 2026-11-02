@@ -1,0 +1,26 @@
+[
+  {
+    "file": "paddle-ocr\\src\\main\\assets\\models\\det\\inference.onnx",
+    "size": 4826518,
+    "sha256": "a431985659dc921974177a95adcfbb90fd9e51989a5e04d70d0b75f597b6e61d",
+    "source": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv5_mobile_det_onnx_infer.tar"
+  },
+  {
+    "file": "paddle-ocr\\src\\main\\assets\\models\\det\\inference.yml",
+    "size": 903,
+    "sha256": "98069072e1b6b37d727fd9d9f11725faa46d6ea0de012f2ed26caea011c37699",
+    "source": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv5_mobile_det_onnx_infer.tar"
+  },
+  {
+    "file": "paddle-ocr\\src\\main\\assets\\models\\rec\\inference.onnx",
+    "size": 16534782,
+    "sha256": "da72dc72ca4dc220df0dfde68c1dedc31c58d3e76a25871122e5056227d50092",
+    "source": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv5_mobile_rec_onnx_infer.tar"
+  },
+  {
+    "file": "paddle-ocr\\src\\main\\assets\\models\\rec\\inference.yml",
+    "size": 148345,
+    "sha256": "5dfeb2777f6d0db8177d8128a8acfcf6e6276dc4ac73ea3bf0dc06d6a5e85d8e",
+    "source": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv5_mobile_rec_onnx_infer.tar"
+  }
+]

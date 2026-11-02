@@ -1,4 +1,4 @@
-param([switch]$DebugBuild)
+param([switch]$DebugBuild, [switch]$UniversalOnly)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
@@ -21,15 +21,30 @@ if (-not $DebugBuild -and -not (Test-Path -LiteralPath 'signing.properties')) {
     } finally { Remove-Item Env:KONGYE_LOCAL_KEY_PASSWORD -ErrorAction SilentlyContinue }
 }
 $variant = if ($DebugBuild) { 'Debug' } else { 'Release' }
-& '.\gradlew.bat' ":app:assemble$variant" ":app:lint$variant" --console=plain
+$splitAbis = -not $DebugBuild -and -not $UniversalOnly
+$splitOption = if ($splitAbis) { '-PkongyeSplitAbis=true' } else { '-PkongyeSplitAbis=false' }
+& '.\gradlew.bat' ":app:assemble$variant" ":app:lint$variant" $splitOption --console=plain
 if ($LASTEXITCODE -ne 0) { throw 'Android build or Lint failed.' }
 New-Item -ItemType Directory -Force -Path 'dist' | Out-Null
 $versionMatch = [regex]::Match((Get-Content -LiteralPath 'app\build.gradle.kts' -Raw), 'versionName\s*=\s*"([^"]+)"')
 if (-not $versionMatch.Success) { throw 'Cannot read application version.' }
 $appVersion = $versionMatch.Groups[1].Value
 $name = if ($DebugBuild) { "空叶悬浮球-$appVersion-debug.apk" } else { "空叶悬浮球-$appVersion.apk" }
-$apkSource = "app\build\outputs\apk\$($variant.ToLowerInvariant())\app-$($variant.ToLowerInvariant()).apk"
-Copy-Item -LiteralPath $apkSource -Destination (Join-Path 'dist' $name) -Force
+$outputs = @{}
+if ($splitAbis) {
+    foreach ($abi in @('arm64-v8a','armeabi-v7a','x86','x86_64','universal')) {
+        $outputs["空叶悬浮球-$appVersion-$abi.apk"] = "app\build\outputs\apk\release\app-$abi-release.apk"
+    }
+    # The ordinary filename is the ARM64 build for modern Android phones.
+    $outputs[$name] = 'app\build\outputs\apk\release\app-arm64-v8a-release.apk'
+} else {
+    $outputs[$name] = "app\build\outputs\apk\$($variant.ToLowerInvariant())\app-$($variant.ToLowerInvariant()).apk"
+}
+foreach ($entry in $outputs.GetEnumerator()) {
+    & (Join-Path $env:JAVA_HOME 'bin\java.exe') -jar 'D:\Program\Android\Sdk\build-tools\36.0.0\lib\apksigner.jar' verify $entry.Value
+    if ($LASTEXITCODE -ne 0) { throw "APK signature verification failed: $($entry.Key)" }
+    Copy-Item -LiteralPath $entry.Value -Destination (Join-Path 'dist' $entry.Key) -Force
+}
 & (Join-Path $env:JAVA_HOME 'bin\java.exe') -jar 'D:\Program\Android\Sdk\build-tools\36.0.0\lib\apksigner.jar' verify --verbose (Join-Path 'dist' $name)
 if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed.' }
 Get-FileHash -LiteralPath (Join-Path 'dist' $name) -Algorithm SHA256 | Format-List

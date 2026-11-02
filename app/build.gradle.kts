@@ -12,9 +12,19 @@ android {
         applicationId = "com.kongye.floatball"
         minSdk = 26
         targetSdk = 36
-        versionCode = 56
-        versionName = "1.30.6"
+        versionCode = 59
+        versionName = "1.30.9"
     }
+    // Keep a universal build and emit smaller, functionally identical device builds.
+    splits {
+        abi {
+            isEnable = providers.gradleProperty("kongyeSplitAbis").orNull == "true"
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
+    packaging { jniLibs { useLegacyPackaging = true } }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -39,6 +49,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":paddle-ocr"))
     // Bundled model: screenshot pixels are recognized on the phone, no cloud OCR.
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
     implementation("com.google.mlkit:translate:17.0.3")
