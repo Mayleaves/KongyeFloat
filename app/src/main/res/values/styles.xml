@@ -18,12 +18,14 @@
     <style name="MainWindowTheme" parent="LauncherTheme"><item name="android:windowIsTranslucent">true</item><item name="android:windowBackground">@android:color/transparent</item><item name="android:backgroundDimEnabled">false</item><item name="android:windowDisablePreview">true</item></style>
     <style name="PickerTheme" parent="TransparentTheme"><item name="android:windowDisablePreview">true</item><item name="android:windowAnimationStyle">@null</item><item name="android:windowIsFloating">true</item><item name="android:windowIsTranslucent">true</item><item name="android:backgroundDimAmount">0</item></style>
     <style name="AppMotionTheme" parent="AppTheme">
+        <item name="android:windowAnimationStyle">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowDisablePreview">true</item>
     </style>
     <style name="AppMotionThemeDark" parent="AppThemeDark">
+        <item name="android:windowAnimationStyle">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:backgroundDimEnabled">false</item>

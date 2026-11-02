@@ -200,7 +200,7 @@ public class FloatService extends Service {
             case "record", "gif_record" -> launch(new Intent(this,ScreenRecordingActivity.class).putExtra("gif",action.equals("gif_record")));
             case "record_stop" -> {if(ScreenRecordingService.running)startService(new Intent(this,ScreenRecordingService.class).setAction(ScreenRecordingService.STOP));else toast("当前没有正在进行的录屏");}
             case "files" -> FilePickerActivity.open(this);
-            case "settings" -> {if(!MainActivity.hideIfVisible())launch(AppMotion.openIntent(this));}
+            case "settings" -> {if(!MainActivity.hideIfVisible())try{AppMotion.open(this);}catch(RuntimeException e){toast("无法打开，请在主界面重试");}}
             case "text" -> {
                 AssistService a=AssistService.instance;
                 if(a==null){needAssist();return;}

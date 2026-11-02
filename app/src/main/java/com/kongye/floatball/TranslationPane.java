@@ -7,7 +7,7 @@ import java.util.*;
 final class TranslationPane extends LinearLayout implements AutoCloseable {
  private final String[] codes=new String[]{"en","zh","ja","ko"};
  private final ArrayList<String> names=new ArrayList<>();private final TextView from,to,status;private final EditText input,output;private final android.os.Handler main=new Handler(Looper.getMainLooper());
- private OverlayPicker picker;private boolean initialAuto=true,targetChosen;private String source="auto",target="zh",detected="";private int generation;private boolean closed;private Translator translator;private LanguageIdentifier identifier;private final java.util.function.Consumer<String> copy;
+ private OverlayPicker picker;private boolean initialAuto=true,targetChosen,retryModels;private String phase="idle",lastFailure="";private String source="auto",target="zh",detected="";private int generation;private boolean closed;private Translator translator;private LanguageIdentifier identifier;private final java.util.function.Consumer<String> copy;
  TranslationPane(Context c,String text,java.util.function.Consumer<String> copy){super(c);this.copy=copy;setOrientation(VERTICAL);names.addAll(Arrays.asList("英文","中文","日文","韩文"));LinearLayout row=Ui.row(c);row.setGravity(Gravity.CENTER_VERTICAL);from=Ui.centeredText(c,"自动检测语言",14,Ui.INK,true);to=Ui.centeredText(c,"中文",14,Ui.INK,true);row.addView(chip(from,"翻译源语言",()->choose(true)),new LayoutParams(0,Ui.dp(c,64),1));FrameLayout exchange=new FrameLayout(c);exchange.setContentDescription("交换翻译语言");exchange.setBackground(Ui.ripple(c,Ui.dark?Ui.PALE:0xFFE6EFE4,14));exchange.addView(Ui.icon(c,"translation_swap",Ui.GREEN,24),new FrameLayout.LayoutParams(Ui.dp(c,24),Ui.dp(c,24),Gravity.CENTER));exchange.setOnClickListener(v->swap());row.addView(exchange,new LayoutParams(Ui.dp(c,38),Ui.dp(c,28)));row.addView(chip(to,"翻译目标语言",()->choose(false)),new LayoutParams(0,Ui.dp(c,64),1));addView(row);input=multiline(c,"输入或编辑原文","翻译原文");input.setText(text);
  addView(textSection(c,"原文",input,false),new LayoutParams(-1,0,1));Ui.gap(this,10);
  output=multiline(c,"翻译结果将显示在这里","翻译结果");
@@ -38,9 +38,50 @@ final class TranslationPane extends LinearLayout implements AutoCloseable {
  private void swap(){initialAuto=false;targetChosen=true;String actual=source.equals("auto")?detected:source;if(!Arrays.asList(codes).contains(actual)){status.setText("请先选择源语言");return;}String old=target;target=actual;source=old;if(!output.getText().toString().isBlank()){String before=input.getText().toString();input.setText(output.getText());output.setText(before);}labels();run();}
  private void stopClients(){if(translator!=null){translator.close();translator=null;}if(identifier!=null){identifier.close();identifier=null;}}
  private boolean valid(int token){return !closed&&generation==token;}
- private void run(){if(closed)return;int token=++generation;stopClients();String text=input.getText().toString().trim();if(text.isEmpty()){status.setText("请输入原文");return;}output.setText("");main.removeCallbacksAndMessages(null);main.postDelayed(()->{if(valid(token))status.setText("模型准备较慢，请检查 Wi-Fi；可重新翻译");},60000);if(!source.equals("auto")){translate(source,text,token);return;}status.setText("正在自动检测语言…");identifier=LanguageIdentification.getClient();identifier.identifyLanguage(text).addOnSuccessListener(code->{if(!valid(token))return;String language=TranslateLanguage.fromLanguageTag(code);if(language==null||!Arrays.asList(codes).contains(language)){status.setText("未能可靠识别，请手动选择源语言");main.removeCallbacksAndMessages(null);return;}detected=language;if(initialAuto&&!targetChosen&&language.equals(target)){target=language.equals("zh")?"en":"zh";to.setText(name(target));}initialAuto=false;from.setText("自动检测语言");translate(language,text,token);}).addOnFailureListener(e->{if(valid(token)){main.removeCallbacksAndMessages(null);status.setText("语言检测失败，请选择源语言");}});}
- private void translate(String language,String text,int token){detected=language;if(language.equals(target)){output.setText(text);status.setText("翻译完成");main.removeCallbacksAndMessages(null);return;}
-  status.setText("正在翻译…");Translator client=Translation.getClient(new TranslatorOptions.Builder().setSourceLanguage(language).setTargetLanguage(target).build());translator=client;client.downloadModelIfNeeded(new com.google.mlkit.common.model.DownloadConditions.Builder().requireWifi().build()).continueWithTask(task->{if(!valid(token))throw new java.util.concurrent.CancellationException();if(!task.isSuccessful())throw task.getException();return client.translate(text);}).addOnSuccessListener(result->{if(valid(token)){output.setText(result);status.setText("翻译完成");}}).addOnFailureListener(error->{if(valid(token))status.setText("翻译失败，请检查 Wi-Fi 或语言模型后重试");}).addOnCompleteListener(task->{client.close();if(translator==client)translator=null;if(valid(token))main.removeCallbacksAndMessages(null);});
+ private void failed(int token,String message,Exception error){if(!valid(token))return;retryModels=phase.equals("models");phase="failed";lastFailure=error==null?"timeout":error.getClass().getSimpleName()+(error instanceof com.google.mlkit.common.MlKitException?":"+((com.google.mlkit.common.MlKitException)error).getErrorCode():"");main.removeCallbacksAndMessages(null);status.setText(message);++generation;stopClients();}
+ private void run(){
+  if(closed)return;retryModels|=phase.equals("models");int token=++generation;main.removeCallbacksAndMessages(null);stopClients();lastFailure="";String text=input.getText().toString().trim();
+  if(text.isEmpty()){phase="idle";status.setText("请输入原文");return;}output.setText("");
+  if(!source.equals("auto")){translate(source,text,token);return;}
+  phase="detecting";status.setText("正在自动检测语言…");
+  Runnable fallback=()->detected(TranslationPolicy.scriptLanguage(text),text,token);
+  main.postDelayed(()->{if(valid(token)&&phase.equals("detecting"))fallback.run();},4000);
+  try{identifier=LanguageIdentification.getClient(new LanguageIdentificationOptions.Builder().setConfidenceThreshold(.2f).build());
+   identifier.identifyLanguage(text).addOnSuccessListener(code->{if(!valid(token)||!phase.equals("detecting"))return;String language=TranslateLanguage.fromLanguageTag(code);detected(Arrays.asList(codes).contains(language)?language:TranslationPolicy.scriptLanguage(text),text,token);})
+    .addOnFailureListener(e->{if(valid(token)&&phase.equals("detecting"))fallback.run();});
+  }catch(RuntimeException e){fallback.run();}
+ }
+ private void detected(String language,String text,int token){
+  if(!valid(token)||!phase.equals("detecting"))return;main.removeCallbacksAndMessages(null);
+  if(language==null||language.isEmpty()){phase="idle";status.setText("未能可靠识别，请手动选择源语言");return;}
+  detected=language;if(initialAuto&&!targetChosen&&language.equals(target)){target=language.equals("zh")?"en":"zh";to.setText(name(target));}
+  initialAuto=false;from.setText("自动检测语言");if(identifier!=null){identifier.close();identifier=null;}translate(language,text,token);
+ }
+ private com.google.mlkit.common.model.DownloadConditions downloadConditions(){
+  // Some OEM download providers keep explicit Wi-Fi-only jobs queued even on Wi-Fi.
+  // On an active Wi-Fi network no additional transport filter is necessary.
+  android.net.ConnectivityManager network=getContext().getSystemService(android.net.ConnectivityManager.class);
+  android.net.NetworkCapabilities caps=network==null?null:network.getNetworkCapabilities(network.getActiveNetwork());
+  com.google.mlkit.common.model.DownloadConditions.Builder conditions=new com.google.mlkit.common.model.DownloadConditions.Builder();
+  if(caps==null||!caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI))conditions.requireWifi();
+  return conditions.build();
+ }
+ private void translate(String language,String text,int token){
+  if(!valid(token))return;detected=language;if(language.equals(target)){output.setText(text);phase="complete";status.setText("翻译完成");main.removeCallbacksAndMessages(null);return;}
+  phase="models";status.setText("正在准备翻译模型…");
+  main.postDelayed(()->{if(valid(token)&&phase.equals("models"))failed(token,"翻译模型下载超时，请确认网络可访问模型服务后重试",null);},45000);
+  try{
+   Translator client=Translation.getClient(new TranslatorOptions.Builder().setSourceLanguage(language).setTargetLanguage(target).build());translator=client;
+   com.google.mlkit.common.model.RemoteModelManager manager=com.google.mlkit.common.model.RemoteModelManager.getInstance();
+   boolean resetMissing=retryModels;retryModels=false;java.util.ArrayList<com.google.android.gms.tasks.Task<?>> checks=new java.util.ArrayList<>();
+   for(String code:new String[]{language,target})if(!code.equals("en")){TranslateRemoteModel model=new TranslateRemoteModel.Builder(code).build();checks.add(manager.isModelDownloaded(model).continueWithTask(task->{if(!valid(token))throw new java.util.concurrent.CancellationException();if(!task.isSuccessful())throw task.getException();if(task.getResult())return com.google.android.gms.tasks.Tasks.forResult(true);if(resetMissing)return manager.deleteDownloadedModel(model).continueWith(done->{if(!done.isSuccessful())throw done.getException();return false;});return com.google.android.gms.tasks.Tasks.forResult(false);}));}
+   com.google.android.gms.tasks.Tasks.whenAllSuccess(checks).continueWithTask(prepared->{if(!valid(token))throw new java.util.concurrent.CancellationException();if(!prepared.isSuccessful())throw prepared.getException();if(prepared.getResult().contains(Boolean.FALSE))status.setText("首次使用，正在下载翻译模型（需要 Wi-Fi）…");return client.downloadModelIfNeeded(downloadConditions());})
+    .addOnSuccessListener(unused->{if(!valid(token))return;main.removeCallbacksAndMessages(null);phase="translating";status.setText("正在翻译…");
+     main.postDelayed(()->{if(valid(token))failed(token,"翻译超时，请重试",null);},20000);
+     client.translate(text).addOnSuccessListener(result->{if(valid(token)){output.setText(result);phase="complete";status.setText("翻译完成");main.removeCallbacksAndMessages(null);}})
+      .addOnFailureListener(error->failed(token,"翻译失败，请重新翻译",error)).addOnCompleteListener(task->{client.close();if(translator==client)translator=null;});
+    }).addOnFailureListener(error->failed(token,"翻译模型下载失败，请检查 Wi-Fi 和模型服务连接后重试",error));
+  }catch(RuntimeException error){failed(token,"翻译初始化失败，请重试",error);}
  }
  @Override public void close(){closed=true;if(picker!=null)picker.close();generation++;main.removeCallbacksAndMessages(null);stopClients();}
  @Override protected void onDetachedFromWindow(){close();super.onDetachedFromWindow();}

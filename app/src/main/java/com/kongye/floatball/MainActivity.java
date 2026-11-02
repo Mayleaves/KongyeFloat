@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
         TextView image=Ui.centeredText(this,custom?"更换图片 / GIF":"自定义图片 / GIF",11,Ui.GREEN,true);image.setContentDescription("自定义图片 / GIF");image.setBackground(Ui.ripple(this,Ui.PALE,11));Ui.pad(image,11,7,11,7);image.setOnClickListener(v->chooseArt());LinearLayout.LayoutParams imageAt=new LinearLayout.LayoutParams(-2,-2);imageAt.leftMargin=dp(10);style.addView(image,imageAt);look.addView(style);
         LinearLayout controls=Ui.column(this);View separator=new View(this);separator.setBackgroundColor(Ui.LINE);controls.addView(separator,new LinearLayout.LayoutParams(-1,1));slider(controls,"大小","size_percent",100,30,500,"%");
         LinearLayout opacity=slider(controls,"不透明度","opacity",90,30,100,"%");relatedToggle(opacity,"空闲时淡化",null,"fade",true);
-        LinearLayout position=slider(controls,"边框距离","edge_percent",100,30,150,"%");position.setPadding(position.getPaddingLeft(),position.getPaddingTop(),position.getPaddingRight(),0);relatedToggle(position,"自动吸边",null,"snap",true);
+        LinearLayout position=slider(controls,"边框距离","edge_percent",100,30,200,"%");position.setPadding(position.getPaddingLeft(),position.getPaddingTop(),position.getPaddingRight(),0);relatedToggle(position,"自动吸边",null,"snap",true);
         look.addView(controls);content.addView(look);
     }
     private void appearance() {
