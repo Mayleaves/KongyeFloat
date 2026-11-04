@@ -2,7 +2,7 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [1.30.10 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v1.30.10) · [详细使用说明](docs/USER_GUIDE.md) · [最新验证记录](docs/VALIDATION-1.30.10.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [2.0 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v2.0) · [详细使用说明](docs/USER_GUIDE.md) · [1.30.10 验证记录](docs/VALIDATION-1.30.10.md)
 
 ## 功能
 
@@ -13,6 +13,7 @@
 - **个性化**：导入图片或透明 GIF 作为悬浮球，调整尺寸（30%–500%）、透明度和边距；支持深色、浅色、跟随系统和定时切换。
 - **植物主题界面**：首页时段盆栽、随机问候气泡、悬浮导航和动态关于页；控制项与结果窗口采用统一的绿色风格。
 - **文字翻译**：区域截图识别的文字可选择语言翻译，首次使用通过 Wi-Fi 下载语言模型，下载后在设备上翻译；支持自动检测语言、交换双方，提供英文、中文、日文、韩文。
+- **字幕翻译**：选定区域后连续识别并翻译屏幕字幕，可调整选区、对齐、位置和背景。中文译文自动换行并整理标点。可从首页工具、快捷菜单或手势启动，需要 Android 11 及以上和空叶无障碍服务。
 - **更新与项目主页**：在「设置 → 关于与更新」手动检查 GitHub 最新正式版本，或打开项目主页。检测到更新时在应用内下载 APK、显示进度并校验，然后由系统确认安装。
 - **其他工具**：常用应用、最近应用、便签、悬浮浏览器，以及针对特定应用的显示规则。首页工具与快捷菜单提供相同的完整工具目录，两者的选项和拖动顺序独立保存。
 
@@ -25,11 +26,11 @@
 
 「设置 → 增强悬浮层」可在无障碍服务连接时改善悬浮球的显示范围，无需 Root。Android 或目标应用仍可能限制安全页面上的悬浮窗、截图和录音。
 
-Ace2 等 ARM64 手机推荐 [ARM64 安装包（约 53 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v1.30.10/KongyeFloat-1.30.10-arm64-v8a.apk)。不确定架构时可选 [通用版（约 158 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v1.30.10/KongyeFloat-1.30.10-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
+Ace2 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0/KongyeFloat-2.0-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0/KongyeFloat-2.0-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 1.30.10。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 2.0。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 

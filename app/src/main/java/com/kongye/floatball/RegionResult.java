@@ -102,7 +102,26 @@ final class RegionResult {
         DragSelectTextView selectable=new DragSelectTextView(context,value);selectable.setPadding(dp(8),dp(8),dp(8),dp(8));ScrollView scroll=new ScrollView(context);Ui.frame(scroll,Ui.BG,14);scroll.addView(selectable);card.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));Ui.gap(card,12);
         LinearLayout actions=Ui.row(context);addAction(actions,"copy","复制","复制所选文字",()->{Prefs.of(context).edit().putInt("last_selection_range_count",selectable.rangeCount()).apply();copy(selectable.selectedText());});addAction(actions,"select_all","全选","全选文字",selectable::selectAll);addAction(actions,"close","清空","清空所选文字",selectable::clearSelection);card.addView(actions);present(card);
     }
-    private void zoom(){mode=2;FrameLayout root=window.frame(this::show);root.setBackgroundColor(0xED101A16);root.setContentDescription("图片预览暗色背景");root.setOnClickListener(v->show());PanZoomImageView large=new PanZoomImageView(context,image).outside(this::show);FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(-1,-1);ip.setMargins(dp(8),dp(44),dp(8),dp(44));root.addView(large,ip);FrameLayout pen=fab("edit","编辑图片",this::editImage);FrameLayout.LayoutParams pp=new FrameLayout.LayoutParams(dp(52),dp(52),Gravity.BOTTOM|Gravity.RIGHT);pp.setMargins(0,0,dp(22),dp(44));root.addView(pen,pp);window.show(root,true);}
+    private void zoom(){
+        mode=2;
+        FrameLayout root=window.frame(this::show);
+        root.setBackgroundColor(0xED101A16);
+        root.setContentDescription("图片预览暗色背景");
+        root.setOnClickListener(v->show());
+        PanZoomImageView large=new PanZoomImageView(context,image).outside(this::show);
+        FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(-1,-1);
+        ip.setMargins(dp(8),dp(44),dp(8),dp(44));
+        root.addView(large,ip);
+        FrameLayout back=fab("back","返回",this::show);
+        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(44),dp(44),Gravity.TOP|Gravity.LEFT);
+        bp.setMargins(dp(16),dp(42),0,0);
+        root.addView(back,bp);
+        FrameLayout pen=fab("edit","编辑图片",this::editImage);
+        FrameLayout.LayoutParams pp=new FrameLayout.LayoutParams(dp(52),dp(52),Gravity.BOTTOM|Gravity.RIGHT);
+        pp.setMargins(0,0,dp(22),dp(44));
+        root.addView(pen,pp);
+        window.show(root,true);
+    }
     private void finishInlineText(){if(editingCanvas!=null)editingCanvas.finishText();}
     private void cancelEdit(){if(editingCanvas!=null&&editingCanvas.isTyping()){finishInlineText();return;}if(editingCanvas!=null){editingCanvas.dispose();editingCanvas=null;}editorTools=null;zoom();}
     void openEditor(){editImage();}

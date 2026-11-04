@@ -14,6 +14,7 @@ import android.view.*;
 import android.widget.*;
 
 public class MainActivity extends Activity {
+    private static final String HIDE_FROM_RECENTS = "hide_from_recents";
     private static boolean createdUi;
     private boolean gestureEntrance;
     private static java.lang.ref.WeakReference<MainActivity> visible=new java.lang.ref.WeakReference<>(null);
@@ -35,6 +36,7 @@ public class MainActivity extends Activity {
     private final Runnable themeTicker=new Runnable(){public void run(){if(ThemePolicy.isDark(MainActivity.this)!=renderedDark)render();handler.postDelayed(this,60000-System.currentTimeMillis()%60000);}};
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);UpdateCacheCleanup.schedule(this);updateCheck=getLastNonConfigurationInstance() instanceof UpdateCheckSession retained?retained:new UpdateCheckSession();QuickActions.migrate(this);BallSettings.migrate(this);AppCatalog.prefetch(this);
+        updateRecentsVisibility(Prefs.of(this).getBoolean(HIDE_FROM_RECENTS, true));
         if(state!=null)tab=state.getInt("tab",0);
         boolean launcher=(state==null||!createdUi)&&Intent.ACTION_MAIN.equals(getIntent().getAction())&&getIntent().hasCategory(Intent.CATEGORY_LAUNCHER);createdUi=true;
         if(Build.VERSION.SDK_INT>=31)getSplashScreen().setOnExitAnimationListener(view->view.remove());
@@ -180,23 +182,31 @@ public class MainActivity extends Activity {
     }
     private void appearance() {
         SharedPreferences prefs=Prefs.of(this);
-        label("悬浮基础");LinearLayout display=group();
+        label("悬浮球设置");LinearLayout display=group();
         LinearLayout enhanced=settingItem(display,"layers","增强悬浮层",null,null);addSwitch(enhanced,"enhanced_overlay",true);
-        settingLink(display,"app_ball","应用内悬浮球",null,null,()->startActivity(new Intent(this,AppBehaviorActivity.class)));content.addView(display);
-        label("界面主题");LinearLayout theme=group();
+        settingLink(display,"app_ball","应用内悬浮球",null,null,()->startActivity(new Intent(this,AppBehaviorActivity.class)));
+        settingLink(display,"recover","找回悬浮球",null,null,()->startService(new Intent(this,FloatService.class).setAction(FloatService.RECOVER)));
+        settingLink(display,"position","重置位置",null,null,this::resetPosition);content.addView(display);
+        label("通用与显示");LinearLayout theme=group();
         settingLink(theme,ThemePolicy.icon(this),"深色模式",null,ThemePolicy.label(this),()->new UiDialog(this).setTitle("深色模式").setItems(ThemePolicy.LABELS,(d,which)->{Prefs.of(this).edit().putString("theme",ThemePolicy.MODES[which]).apply();refreshBall();render();}).show());
         boolean schedule="schedule".equals(prefs.getString("theme","system"));int start=prefs.getInt("dark_start",1320),end=prefs.getInt("dark_end",420);
-        if(schedule){link(theme,"开始时间",ThemePolicy.time(start),()->pickThemeTime("dark_start",1320));link(theme,"结束时间",ThemePolicy.time(end),()->pickThemeTime("dark_end",420));}content.addView(theme);
+        if(schedule){link(theme,"开始时间",ThemePolicy.time(start),()->pickThemeTime("dark_start",1320));link(theme,"结束时间",ThemePolicy.time(end),()->pickThemeTime("dark_end",420));}
+        LinearLayout hide=settingItem(theme,"eye_closed","后台隐藏",null,null);
+        addSwitch(hide,HIDE_FROM_RECENTS,true);
+        content.addView(theme);
         if(schedule){Ui.gap(content,10);hint(start==end?"起止时间相同：全天深色。":"按手机本地时间切换，可跨午夜。");}
-        label("悬浮球维护");LinearLayout maintenance=group();
-        settingLink(maintenance,"recover","找回悬浮球",null,null,()->startService(new Intent(this,FloatService.class).setAction(FloatService.RECOVER)));
-        settingLink(maintenance,"position","重置位置",null,null,()->new UiDialog(this).setTitle("重置悬浮球位置").setMessage("将悬浮球恢复到默认停靠位置。").setPositiveButton("重置位置",(d,w)->{Prefs.of(this).edit().remove("x").remove("y").apply();refreshBall();Feedback.show(this,"位置已重置");}).setNegativeButton("取消",null).show());content.addView(maintenance);
         label("关于与更新");LinearLayout other=group();
         LinearLayout update=settingItem(other,"update","检查更新",null,this::checkForUpdates);updateRow=update;TextView version=Ui.centeredText(this,"v"+appVersion(),12,Ui.GREEN,true);version.setContentDescription("当前版本 v"+appVersion());version.setBackground(Ui.bg(Ui.dark?Ui.PALE:0xFFE4EEE7,14,this));Ui.pad(version,9,4,9,4);LinearLayout.LayoutParams versionAt=new LinearLayout.LayoutParams(-2,-2);versionAt.leftMargin=dp(12);versionAt.rightMargin=dp(4);updateCapsule=new FrameLayout(this);updateCapsule.setMinimumWidth(dp(64));updateCapsule.addView(version,new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER));update.addView(updateCapsule,versionAt);chevron(update);updateCheckingVisual();
         settingLink(other,"github","GitHub",null,null,()->openWeb(GitHubUpdate.PROJECT));
         settingLink(other,"info","关于空叶",null,null,this::about);content.addView(other);
 
     }
+    private void resetPosition(){
+        Prefs.of(this).edit().remove("x").remove("y").apply();
+        refreshBall();
+        Feedback.show(this,"位置已重置");
+    }
+
     private LinearLayout settingItem(LinearLayout group,String icon,String title,String subtitle,Runnable action){
         if(group.getChildCount()>0)divider(group);LinearLayout row=Ui.row(this);Ui.pad(row,16,12,16,12);row.setMinimumHeight(dp(64));
         FrameLayout badge=new FrameLayout(this);badge.setBackground(Ui.bg(Ui.dark?Ui.PALE:0xFFEEF3E8,10,this));badge.addView(Ui.icon(this,icon,Ui.GREEN,17),new FrameLayout.LayoutParams(dp(17),dp(17),Gravity.CENTER));row.addView(badge,new LinearLayout.LayoutParams(dp(30),dp(30)));
@@ -249,7 +259,25 @@ public class MainActivity extends Activity {
     }
     private void relatedToggle(LinearLayout box,String title,String subtitle,String key,boolean def){LinearLayout row=Ui.row(this);Ui.pad(row,0,0,0,2);row.addView(Ui.text(this,title,11.5f,Ui.MUTED,false),new LinearLayout.LayoutParams(0,-2,1));addSwitch(row,key,def);View toggle=row.getChildAt(row.getChildCount()-1);toggle.getLayoutParams().height=dp(26);box.addView(row);}
     private void addSwitch(LinearLayout row,String key,boolean def){
-        LeafSwitch sw=new LeafSwitch(this);sw.setContentDescription(switch(key){case "snap"->"自动吸边";case "fade"->"空闲时淡化";case "haptic"->"触感反馈";default->"增强悬浮层";});sw.setChecked(Prefs.of(this).getBoolean(key,def));sw.setOnCheckedChangeListener((v,on)->{Prefs.of(this).edit().putBoolean(key,on).apply();if(key.equals("enhanced_overlay"))OverlayWindows.refreshAll();else refreshBall();});LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(38),dp(32));at.leftMargin=dp(8);row.addView(sw,at);touchable(row);row.setOnClickListener(v->sw.toggle());
+        LeafSwitch sw=new LeafSwitch(this);sw.setContentDescription(switch(key){case "snap"->"自动吸边";case "fade"->"空闲时淡化";case "haptic"->"触感反馈";case HIDE_FROM_RECENTS->"后台隐藏";default->"增强悬浮层";});sw.setChecked(Prefs.of(this).getBoolean(key,def));sw.setOnCheckedChangeListener((v,on)->{
+            Prefs.of(this).edit().putBoolean(key,on).apply();
+            switch(key){
+                case "enhanced_overlay" -> OverlayWindows.refreshAll();
+                case HIDE_FROM_RECENTS -> updateRecentsVisibility(on);
+                default -> refreshBall();
+            }
+        });LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(38),dp(32));at.leftMargin=dp(8);row.addView(sw,at);touchable(row);row.setOnClickListener(v->sw.toggle());
+    }
+    private void updateRecentsVisibility(boolean hidden) {
+        ComponentName main = new ComponentName(this, MainActivity.class);
+        for (ActivityManager.AppTask task : getSystemService(ActivityManager.class).getAppTasks()) {
+            try {
+                Intent root = task.getTaskInfo().baseIntent;
+                if (root != null && main.equals(root.getComponent())) task.setExcludeFromRecents(hidden);
+            } catch (IllegalArgumentException ignored) {
+                // A task may have been removed while the system was returning the list.
+            }
+        }
     }
     private void gestureBadge(LinearLayout row,String icon){FrameLayout badge=new FrameLayout(this);badge.setBackground(Ui.bg(Ui.PALE,11,this));badge.addView(Ui.icon(this,icon,Ui.GREEN,18),new FrameLayout.LayoutParams(dp(18),dp(18),Gravity.CENTER));LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(32),dp(32));at.rightMargin=dp(12);row.addView(badge,0,at);}
     private String[] gestureChoices(){String[] ids=Prefs.gestureActions(),choices=new String[ids.length];for(int i=0;i<ids.length;i++)choices[i]=Prefs.label(ids[i]);return choices;}

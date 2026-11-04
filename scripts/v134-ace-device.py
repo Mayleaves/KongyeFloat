@@ -56,7 +56,17 @@ try:
  def swipe_ball():
   receiver('qa_v123_snapshot');v=values();density=float(adb('shell','wm','density').split(':')[-1].strip())/160;side=round(36*density);x=int(v['qa_v123_ball_x'])+side//2;y=int(v['qa_v123_ball_y'])+side//2;adb('shell','input','swipe',str(x),str(y),str(x),str(y-round(85*density)),'120')
  swipe_ball();wait_page('MainActivity');time.sleep(.8);check(state()['window_focus'],'real upward ball swipe opens our app')
- swipe_ball();time.sleep(.2);active=layer();check(active.get('exists') and active.get('handoff'),'second real upward swipe starts the desktop-backed exit layer');time.sleep(1);check(home_active() and not layer()['exists'],'real gesture ends on live desktop with no remaining transition window')
+ receiver('qa_v134_arm');swipe_ball();time.sleep(1.2)
+ receipt=values()
+ frames=json.loads(receipt['qa_v134_frames'])
+ started=next(frame for frame in frames if frame['layer'])
+ first=next(frame for frame in frames if frame.get('image_y',0)<0 and not frame.get('finishing'))
+ released=int(receipt['qa_touch_time'])-int(receipt['qa_v134_start'])
+ preparation=started['ms']-released
+ latency=first['ms']-released
+ print(f'GESTURE_RELEASE_TO_PREPARATION_MS {preparation}, RELEASE_TO_MOTION_MS {latency}',flush=True)
+ check(0<=preparation<160 and first['handoff'],'real upward exit begins its window preparation during the ball return')
+ check(home_active() and not layer()['exists'],'real gesture ends on live desktop with no remaining transition window')
  pid=adb('shell','pidof','com.kongye.floatball').strip().split()[0];check('FATAL EXCEPTION' not in adb('logcat','-d','--pid='+pid,'-t','100'),'Ace2 current process has no fatal exception')
 finally:
  receiver('qa_v133_enter');time.sleep(.8);q['prefs'](saved)

@@ -3,6 +3,7 @@ package com.kongye.floatball;
 import android.accessibilityservice.AccessibilityService;
 import android.content.*;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.hardware.HardwareBuffer;
 import android.net.Uri;
 import android.os.*;
@@ -17,8 +18,8 @@ import java.util.function.Consumer;
 public class AssistService extends AccessibilityService {
     public static AssistService instance;static volatile String foregroundPackage="";
     @Override protected void onServiceConnected(){super.onServiceConnected();instance=this;OverlayWindows.refreshAll();}
-    @Override public boolean onUnbind(Intent intent){if(instance==this)instance=null;OverlayWindows.refreshAll();return super.onUnbind(intent);}
-    @Override public void onDestroy(){if(instance==this)instance=null;OverlayWindows.refreshAll();foregroundPackage="";if(FloatService.instance!=null)FloatService.instance.foregroundChanged("");super.onDestroy();}
+    @Override public boolean onUnbind(Intent intent){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();return super.onUnbind(intent);}
+    @Override public void onDestroy(){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();foregroundPackage="";if(FloatService.instance!=null)FloatService.instance.foregroundChanged("");super.onDestroy();}
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         if(event.getEventType()!=AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)return;
         CharSequence name=event.getPackageName(),clazz=event.getClassName();String pkg=name==null?null:name.toString();
@@ -46,6 +47,65 @@ public class AssistService extends AccessibilityService {
             public void onSuccess(ScreenshotResult result){HardwareBuffer buffer=result.getHardwareBuffer();Bitmap hardware=null;try{hardware=Bitmap.wrapHardwareBuffer(buffer,result.getColorSpace());Bitmap copy=hardware==null?null:hardware.copy(Bitmap.Config.ARGB_8888,false);callback.accept(copy,copy==null?"无法读取截图":null);}catch(RuntimeException|OutOfMemoryError e){callback.accept(null,"无法读取截图，请关闭其他工具后重试");}finally{if(hardware!=null)hardware.recycle();buffer.close();}}
             public void onFailure(int error){callback.accept(null,captureError(error));}
         });
+    }
+    boolean captureSubtitleWindow(Rect area, java.util.function.BiConsumer<Bitmap,String> callback) {
+        if (Build.VERSION.SDK_INT < 34) return false;
+        int windowId = -1;
+        int layer = Integer.MIN_VALUE;
+        Rect bounds = new Rect();
+        for (AccessibilityWindowInfo window : getWindows()) {
+            try {
+                if (window.getType() != AccessibilityWindowInfo.TYPE_APPLICATION || window.getLayer() <= layer) continue;
+                Rect frame = new Rect();
+                window.getBoundsInScreen(frame);
+                if (!frame.contains(area.centerX(), area.centerY())) continue;
+                layer = window.getLayer();
+                windowId = window.getId();
+                bounds.set(frame);
+            } finally {
+                window.recycle();
+            }
+        }
+        if (windowId < 0 || !bounds.contains(area)) return false;
+        Rect selected = new Rect(area);
+        try {
+            takeScreenshotOfWindow(windowId, getMainExecutor(), new TakeScreenshotCallback() {
+                @Override public void onSuccess(ScreenshotResult result) {
+                    Bitmap crop = null;
+                    Bitmap hardware = null;
+                    Bitmap copy = null;
+                    try (HardwareBuffer buffer = result.getHardwareBuffer()) {
+                        hardware = Bitmap.wrapHardwareBuffer(buffer, result.getColorSpace());
+                        if (hardware != null) {
+                            copy = hardware.copy(Bitmap.Config.ARGB_8888, false);
+                            if (copy != null) crop = cropSubtitle(copy, selected, bounds);
+                        }
+                    } catch (RuntimeException | OutOfMemoryError ignored) {
+                    } finally {
+                        if (hardware != null) hardware.recycle();
+                        if (copy != null && copy != crop) copy.recycle();
+                    }
+                    callback.accept(crop, crop == null ? "无法读取字幕区域" : null);
+                }
+                @Override public void onFailure(int error) { callback.accept(null, captureError(error)); }
+            });
+        } catch (RuntimeException error) {
+            callback.accept(null, "无法读取字幕区域");
+        }
+        return true;
+    }
+
+    static Bitmap cropSubtitle(Bitmap image, Rect area, Rect bounds) {
+        Rect clipped = new Rect(area);
+        if (bounds.isEmpty() || !clipped.intersect(bounds)) return null;
+        float sx = image.getWidth() / (float) bounds.width();
+        float sy = image.getHeight() / (float) bounds.height();
+        int left = (int) ((clipped.left - bounds.left) * sx);
+        int top = (int) ((clipped.top - bounds.top) * sy);
+        int right = Math.min(image.getWidth(), (int) Math.ceil((clipped.right - bounds.left) * sx));
+        int bottom = Math.min(image.getHeight(), (int) Math.ceil((clipped.bottom - bounds.top) * sy));
+        if (right <= left || bottom <= top) return null;
+        return Bitmap.createBitmap(image, left, top, right - left, bottom - top);
     }
     android.graphics.Rect scrollableBounds(){
         AccessibilityNodeInfo root=getRootInActiveWindow();if(root==null)return null;ArrayDeque<AccessibilityNodeInfo> queue=new ArrayDeque<>();queue.add(root);android.graphics.Rect best=null;int visited=0;

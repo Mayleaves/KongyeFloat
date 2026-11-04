@@ -11,13 +11,23 @@ final class ResizableCropView extends View {
     final RectF area=new RectF();private final Paint paint=new Paint(3);private final Path dash=new Path();
     private int handle=-1;private float downX,downY;private float[] original;private boolean creating;
     private Consumer<RectF> changed;
-    ResizableCropView(Context c,Bitmap background,boolean live){super(c);this.background=background;this.live=live;setContentDescription("截图选择框，可拖动四边和四角调整大小，拖动中心移动");}
+    private boolean subtitleFrame;
+    private final android.graphics.drawable.Drawable moveIcon;
+    ResizableCropView(Context c,Bitmap background,boolean live){super(c);this.background=background;this.live=live;moveIcon=c.getDrawable(R.drawable.ic_move_area).mutate();moveIcon.setTint(Color.WHITE);setContentDescription("截图选择框，可拖动四边和四角调整大小，拖动中心移动");}
     void setChanged(Consumer<RectF> callback){changed=callback;}
+    void useSubtitleFrame(){subtitleFrame=true;}
+    void resetSubtitleFrame(){
+        area.set(getWidth()*.1f,getHeight()*.35f,getWidth()*.9f,getHeight()*.58f);
+        notifyChange();
+    }
     void setInitial(Rect source,int sourceW,int sourceH){if(source!=null){area.set(source);initialW=sourceW;initialH=sourceH;}}
     private int initialW,initialH;
     private float d(float n){return Ui.dp(getContext(),n);}
     @Override protected void onSizeChanged(int w,int h,int oldW,int oldH){
-        if(area.isEmpty())area.set(w*.1f,h*.3f,w*.9f,h*.7f);
+        if(area.isEmpty()){
+            if(subtitleFrame)area.set(w*.1f,h*.35f,w*.9f,h*.58f);
+            else area.set(w*.1f,h*.3f,w*.9f,h*.7f);
+        }
         else if(oldW==0&&initialW>0){area.left*=w/(float)initialW;area.right*=w/(float)initialW;area.top*=h/(float)initialH;area.bottom*=h/(float)initialH;}
         else if(oldW>0&&oldH>0){area.left*=w/(float)oldW;area.right*=w/(float)oldW;area.top*=h/(float)oldH;area.bottom*=h/(float)oldH;}
         notifyChange();
@@ -35,7 +45,7 @@ final class ResizableCropView extends View {
     private int hit(float x,float y){float edge=d(25);boolean withinY=y>=area.top-edge&&y<=area.bottom+edge,withinX=x>=area.left-edge&&x<=area.right+edge;boolean left=withinY&&Math.abs(x-area.left)<edge,right=withinY&&Math.abs(x-area.right)<edge,top=withinX&&Math.abs(y-area.top)<edge,bottom=withinX&&Math.abs(y-area.bottom)<edge;int mode=0;if(left)mode|=CropGeometry.LEFT;else if(right)mode|=CropGeometry.RIGHT;if(top)mode|=CropGeometry.TOP;else if(bottom)mode|=CropGeometry.BOTTOM;if(mode!=0)return mode;if((!live&&area.contains(x,y))||Math.hypot(x-area.centerX(),y-area.centerY())<edge)return CropGeometry.MOVE;return -1;}
     @Override public boolean onTouchEvent(MotionEvent event){float x=clamp(event.getX(),0,getWidth()),y=clamp(event.getY(),0,getHeight());switch(event.getActionMasked()){
         case MotionEvent.ACTION_DOWN->{handle=hit(x,y);creating=handle<0&&!live;if(handle<0&&!creating)return false;downX=x;downY=y;original=new float[]{area.left,area.top,area.right,area.bottom};if(creating)area.set(x,y,x,y);return true;}
-        case MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP->{if(creating)area.set(Math.min(downX,x),Math.min(downY,y),Math.max(downX,x),Math.max(downY,y));else if(handle>=0){float[] r=CropGeometry.adjust(original,handle,x-downX,y-downY,getWidth(),getHeight(),d(36));area.set(r[0],r[1],r[2],r[3]);}if(event.getActionMasked()==MotionEvent.ACTION_UP){if(area.width()<d(20)||area.height()<d(20))area.set(getWidth()*.1f,getHeight()*.3f,getWidth()*.9f,getHeight()*.7f);performClick();handle=-1;}notifyChange();return true;}
+        case MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP->{if(creating)area.set(Math.min(downX,x),Math.min(downY,y),Math.max(downX,x),Math.max(downY,y));else if(handle>=0){float[] r=CropGeometry.adjust(original,handle,x-downX,y-downY,getWidth(),getHeight(),d(36));area.set(r[0],r[1],r[2],r[3]);}if(event.getActionMasked()==MotionEvent.ACTION_UP){if(area.width()<d(20)||area.height()<d(20)){if(subtitleFrame)area.set(original[0],original[1],original[2],original[3]);else area.set(getWidth()*.1f,getHeight()*.3f,getWidth()*.9f,getHeight()*.7f);}performClick();handle=-1;}notifyChange();return true;}
         case MotionEvent.ACTION_CANCEL->{handle=-1;return true;}
     }return false;}
     private static float clamp(float value,float min,float max){return Math.max(min,Math.min(max,value));}
@@ -47,10 +57,33 @@ final class ResizableCropView extends View {
     @Override protected void onDraw(Canvas canvas){
         if(background!=null&&!background.isRecycled())canvas.drawBitmap(background,null,new Rect(0,0,getWidth(),getHeight()),null);
         paint.setStyle(Paint.Style.FILL);paint.setColor(live?0xCC000000:0x88000000);canvas.drawRect(0,0,getWidth(),area.top,paint);canvas.drawRect(0,area.bottom,getWidth(),getHeight(),paint);canvas.drawRect(0,area.top,area.left,area.bottom,paint);canvas.drawRect(area.right,area.top,getWidth(),area.bottom,paint);
+        if(subtitleFrame){
+            paint.setColor(Ui.GREEN);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(d(1.5f));
+            canvas.drawRect(area,paint);
+            paint.setStrokeWidth(d(2.5f));
+            float inset=d(3), length=Math.min(d(10),Math.min(area.width(),area.height())/3);
+            dash.reset();
+            for(int i=0;i<4;i++){
+                boolean left=i%2==0, top=i<2;
+                float x=left?area.left+inset:area.right-inset;
+                float y=top?area.top+inset:area.bottom-inset;
+                dash.moveTo(x+(left?length:-length),y);
+                dash.lineTo(x,y);
+                dash.lineTo(x,y+(top?length:-length));
+            }
+            canvas.drawPath(dash,paint);
+            return;
+        }
         paint.setColor(Ui.GREEN);paint.setStrokeWidth(d(2));paint.setStyle(Paint.Style.STROKE);paint.setPathEffect(live?new DashPathEffect(new float[]{d(5),d(4)},0):null);canvas.drawRect(area,paint);paint.setPathEffect(null);paint.setStyle(Paint.Style.FILL);
         float[][] handles=points();
         if(live){paint.setStrokeWidth(d(1));canvas.drawLine(area.centerX(),area.top,handles[1][0],handles[1][1],paint);canvas.drawLine(area.right,area.centerY(),handles[3][0],handles[3][1],paint);canvas.drawLine(area.centerX(),area.bottom,handles[5][0],handles[5][1],paint);canvas.drawLine(area.left,area.centerY(),handles[7][0],handles[7][1],paint);}
                 for(int i=0;i<handles.length;i++){if(live&&i%2==0)continue;float[] point=handles[i];canvas.drawCircle(point[0],point[1],d(live?10:7),paint);if(live){paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(d(2));float cx=point[0],cy=point[1],r=d(3);if(i==1){canvas.drawLine(cx-r,cy-r,cx,cy+r,paint);canvas.drawLine(cx,cy+r,cx+r,cy-r,paint);}else if(i==5){canvas.drawLine(cx-r,cy+r,cx,cy-r,paint);canvas.drawLine(cx,cy-r,cx+r,cy+r,paint);}else if(i==3){canvas.drawLine(cx+r,cy-r,cx-r,cy,paint);canvas.drawLine(cx-r,cy,cx+r,cy+r,paint);}else{canvas.drawLine(cx-r,cy-r,cx+r,cy,paint);canvas.drawLine(cx+r,cy,cx-r,cy+r,paint);}paint.setStyle(Paint.Style.FILL);paint.setColor(Ui.GREEN);}}
-        paint.setColor(Ui.toolbar());canvas.drawCircle(area.centerX(),area.centerY(),d(19),paint);paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(d(1.7f));float cx=area.centerX(),cy=area.centerY(),r=d(10),a=d(3);canvas.drawLine(cx-r,cy,cx+r,cy,paint);canvas.drawLine(cx,cy-r,cx,cy+r,paint);for(int i=0;i<4;i++){canvas.save();canvas.rotate(i*90,cx,cy);canvas.drawLine(cx-a,cy-r+a,cx,cy-r,paint);canvas.drawLine(cx,cy-r,cx+a,cy-r+a,paint);canvas.restore();}paint.setStyle(Paint.Style.FILL);canvas.drawCircle(cx,cy,d(1.3f),paint);
+        float cx=area.centerX(),cy=area.centerY(),radius=d(13);
+        paint.setColor(Ui.toolbar());
+        canvas.drawCircle(cx,cy,d(19),paint);
+        moveIcon.setBounds(Math.round(cx-radius),Math.round(cy-radius),Math.round(cx+radius),Math.round(cy+radius));
+        moveIcon.draw(canvas);
     }
 }

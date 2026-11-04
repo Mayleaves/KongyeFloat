@@ -94,12 +94,57 @@ final class Ui {
                 case "back" -> {canvas.drawLine(15,6,9,12,p);canvas.drawLine(9,12,15,18,p);}
                 case "forward" -> {canvas.drawLine(8,5,16,12,p);canvas.drawLine(16,12,8,19,p);}
                 case "home" -> {path.moveTo(2,11);path.lineTo(12,2);path.lineTo(22,11);path.lineTo(19,11);path.lineTo(19,22);path.lineTo(5,22);path.lineTo(5,11);path.close();canvas.drawPath(path,p);canvas.drawRect(10,15,14,22,p);}
-                case "layers" -> {path.moveTo(2,8);path.lineTo(12,2);path.lineTo(22,8);path.lineTo(12,14);path.close();path.moveTo(2,13);path.lineTo(12,19);path.lineTo(22,13);path.moveTo(2,18);path.lineTo(12,24);path.lineTo(22,18);canvas.drawPath(path,p);}
+                case "layers" -> {
+                    path.moveTo(11.2f,2.8f);path.quadTo(12,2.4f,12.8f,2.8f);
+                    path.lineTo(20.8f,7.1f);path.quadTo(21.6f,7.5f,20.8f,7.9f);
+                    path.lineTo(12.8f,12.2f);path.quadTo(12,12.6f,11.2f,12.2f);
+                    path.lineTo(3.2f,7.9f);path.quadTo(2.4f,7.5f,3.2f,7.1f);path.close();
+                    for(float y:new float[]{12.3f,17.1f}){
+                        path.moveTo(3,y);path.lineTo(11.2f,y+4.4f);
+                        path.quadTo(12,y+4.8f,12.8f,y+4.4f);path.lineTo(21,y);
+                    }
+                    canvas.drawPath(path,p);
+                }
                 case "recover" -> {path.moveTo(4,9);path.cubicTo(6,3,15,2,19,7);path.cubicTo(26,16,16,26,8,20);path.lineTo(6,18);canvas.drawPath(path,p);path.reset();path.moveTo(4,3);path.lineTo(4,9);path.lineTo(10,9);canvas.drawPath(path,p);}
                 case "position" -> {canvas.drawCircle(12,12,7,p);canvas.drawCircle(12,12,2,p);canvas.drawLine(12,1,12,6,p);canvas.drawLine(12,18,12,23,p);canvas.drawLine(1,12,6,12,p);canvas.drawLine(18,12,23,12,p);}
                 case "update" -> {canvas.drawLine(12,2,12,16,p);canvas.drawLine(7,11,12,16,p);canvas.drawLine(12,16,17,11,p);path.moveTo(4,17);path.lineTo(4,21);path.lineTo(20,21);path.lineTo(20,17);canvas.drawPath(path,p);}
                 case "info" -> {p.setStrokeWidth(1.7f);canvas.drawCircle(12,12,9,p);canvas.drawLine(12,11,12,17,p);canvas.drawLine(10,11,12,11,p);canvas.drawLine(10,17,14,17,p);p.setStyle(Paint.Style.FILL);canvas.drawCircle(12,7,.9f,p);}
                 case "recents" -> {for(int x=4;x<=14;x+=10)for(int y=4;y<=14;y+=10)canvas.drawRoundRect(x,y,x+6,y+6,1.5f,1.5f,p);}
+                case "eye_closed" -> {
+                    path.moveTo(2,8);path.quadTo(12,16,22,8);canvas.drawPath(path,p);
+                    canvas.drawLine(5.5f,10.3f,4,15,p);
+                    canvas.drawLine(12,12,12,16.5f,p);
+                    canvas.drawLine(18.5f,10.3f,20,15,p);
+                }
+                case "subtitle_sliders" -> {
+                    for(int x:new int[]{5,12,19}){
+                        int y=x==12?8:15;
+                        canvas.drawLine(x,3,x,y-2,p);
+                        canvas.drawCircle(x,y,2,p);
+                        canvas.drawLine(x,y+2,x,21,p);
+                    }
+                }
+                case "subtitle_expand", "subtitle_frame" -> {
+                    for(int i=0;i<4;i++){
+                        canvas.save();canvas.rotate(i*90,12,12);
+                        path.moveTo(4,9);path.lineTo(4,4);path.lineTo(9,4);
+                        if(name.equals("subtitle_expand")){path.moveTo(4,4);path.lineTo(9,9);}
+                        canvas.drawPath(path,p);path.reset();canvas.restore();
+                    }
+                }
+                case "subtitle_cover" -> {
+                    path.moveTo(8,16);path.lineTo(5,16);path.quadTo(3,16,3,14);
+                    path.lineTo(3,5);path.quadTo(3,3,5,3);path.lineTo(14,3);
+                    path.quadTo(16,3,16,5);path.lineTo(16,8);canvas.drawPath(path,p);
+                    canvas.drawRoundRect(8,8,21,21,2,2,p);
+                }
+                case "subtitle_exit" -> {
+                    path.moveTo(13,7);path.lineTo(13,5);path.quadTo(13,3,11,3);
+                    path.lineTo(5,3);path.quadTo(3,3,3,5);path.lineTo(3,19);
+                    path.quadTo(3,21,5,21);path.lineTo(11,21);path.quadTo(13,21,13,19);
+                    path.lineTo(13,17);path.moveTo(8,12);path.lineTo(22,12);
+                    path.moveTo(18,8);path.lineTo(22,12);path.lineTo(18,16);canvas.drawPath(path,p);
+                }
                 case "apps" -> {p.setStyle(Paint.Style.FILL);for(int x=5;x<=19;x+=7)for(int y=5;y<=19;y+=7)canvas.drawCircle(x,y,2.1f,p);}
                 case "screenshot" -> {android.graphics.drawable.Drawable mark=getContext().getDrawable(R.drawable.ic_screen_capture_mark);if(mark!=null){mark=mark.mutate();mark.setTint(color);mark.setBounds(0,0,24,24);mark.draw(canvas);}}
                 case "region" -> {
@@ -126,12 +171,22 @@ final class Ui {
                 case "status_play" -> {p.setStyle(Paint.Style.FILL);path.moveTo(7,4);path.quadTo(5,3,5,6);path.lineTo(5,18);path.quadTo(5,21,8,19);path.lineTo(20,13);path.quadTo(22,12,20,10.5f);path.close();canvas.drawPath(path,p);}
                 case "scan_text" -> {path.moveTo(3,8);path.lineTo(3,4);path.lineTo(8,4);path.moveTo(16,4);path.lineTo(21,4);path.lineTo(21,8);path.moveTo(21,16);path.lineTo(21,20);path.lineTo(16,20);path.moveTo(8,20);path.lineTo(3,20);path.lineTo(3,16);canvas.drawPath(path,p);canvas.drawLine(7,9,17,9,p);canvas.drawLine(7,13,17,13,p);canvas.drawLine(7,17,13,17,p);}
                 case "browser_lock" -> {canvas.drawRoundRect(4,10,20,21,2,2,p);path.moveTo(7,10);path.lineTo(7,7);path.cubicTo(7,0,17,0,17,7);path.lineTo(17,10);canvas.drawPath(path,p);}
+                case "browser_pin", "browser_pinned" -> {
+                    path.moveTo(8,3);path.lineTo(16,3);path.lineTo(16,6);
+                    path.lineTo(15,7);path.lineTo(15,11);path.quadTo(15,12,16,13);
+                    path.lineTo(19,15);path.lineTo(19,17);path.lineTo(5,17);
+                    path.lineTo(5,15);path.lineTo(8,13);path.quadTo(9,12,9,11);
+                    path.lineTo(9,7);path.lineTo(8,6);path.close();
+                    if(name.equals("browser_pinned"))p.setStyle(Paint.Style.FILL_AND_STROKE);
+                    canvas.drawPath(path,p);p.setStyle(Paint.Style.STROKE);
+                    canvas.drawLine(12,17,12,22,p);
+                }
                 case "compass" -> {canvas.drawCircle(12,12,9,p);path.moveTo(15,8);path.lineTo(13,13);path.lineTo(8,16);path.lineTo(10,11);path.close();canvas.drawPath(path,p);}
                 case "pause" -> {canvas.drawLine(8,5,8,19,p);canvas.drawLine(16,5,16,19,p);}
                 case "play" -> {path.moveTo(7,4);path.lineTo(20,12);path.lineTo(7,20);path.close();canvas.drawPath(path,p);}
                 case "stop" -> {p.setStyle(Paint.Style.FILL);canvas.drawRoundRect(6,6,18,18,2,2,p);}
                 case "full_screen" -> {p.setStrokeWidth(2.6f);path.moveTo(4,9);path.lineTo(4,4);path.lineTo(9,4);path.moveTo(15,4);path.lineTo(20,4);path.lineTo(20,9);path.moveTo(20,15);path.lineTo(20,20);path.lineTo(15,20);path.moveTo(9,20);path.lineTo(4,20);path.lineTo(4,15);canvas.drawPath(path,p);}
-                case "move_area" -> {canvas.drawLine(3,12,21,12,p);canvas.drawLine(12,3,12,21,p);for(int angle=0;angle<360;angle+=90){canvas.save();canvas.rotate(angle,12,12);canvas.drawLine(9,6,12,3,p);canvas.drawLine(12,3,15,6,p);canvas.restore();}p.setStyle(Paint.Style.FILL);canvas.drawCircle(12,12,1.5f,p);}
+                case "move_area" -> {var mark=getContext().getDrawable(R.drawable.ic_move_area).mutate();mark.setTint(color);mark.setBounds(0,0,24,24);mark.draw(canvas);}
                 case "resolution" -> {p.setStrokeWidth(1.7f);canvas.drawRect(2,5,22,19,p);canvas.save();canvas.clipRect(4,8,20,16);for(int x=-8;x<26;x+=4)canvas.drawLine(x,17,x+10,7,p);canvas.restore();}
                 case "watermark" -> {canvas.drawRoundRect(3,4,21,20,2.5f,2.5f,p);canvas.drawLine(8,9,16,9,p);canvas.drawLine(12,9,12,16,p);}
                 case "audio" -> {canvas.drawRoundRect(9,3,15,14,3,3,p);canvas.drawArc(6,7,18,18,0,180,false,p);canvas.drawLine(12,18,12,22,p);}
@@ -142,6 +197,11 @@ final class Ui {
                 case "recent_apps" -> {canvas.drawCircle(12,12,9,p);canvas.drawLine(12,6,12,12,p);canvas.drawLine(12,12,18,12,p);}
                 case "favorite_apps", "star_on" -> {canvas.save();canvas.translate(2,2);canvas.scale(.833333f,.833333f);for(int i=0;i<10;i++){double angle=-Math.PI/2+i*Math.PI/5;float radius=i%2==0?10:5.5f;float x=12+(float)Math.cos(angle)*radius,y=12+(float)Math.sin(angle)*radius;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();if(name.equals("star_on"))p.setStyle(Paint.Style.FILL_AND_STROKE);canvas.drawPath(path,p);canvas.restore();}
                 case "text" -> {canvas.drawLine(4,5,20,5,p);canvas.drawLine(12,5,12,20,p);canvas.drawLine(8,20,16,20,p);canvas.drawLine(4,5,4,8,p);canvas.drawLine(20,5,20,8,p);}
+                case "subtitle" -> {
+                    canvas.drawRoundRect(2.5f,4.5f,21.5f,19.5f,1,1,p);
+                    canvas.drawArc(6,9,11.5f,15,48,264,false,p);
+                    canvas.drawArc(13,9,18.5f,15,48,264,false,p);
+                }
                 case "translate" -> {android.graphics.drawable.Drawable mark=getContext().getDrawable(R.drawable.ic_translate_mark);if(mark!=null){mark=mark.mutate();mark.setTint(color);mark.setBounds(0,0,24,24);mark.draw(canvas);}}
                 case "translation_swap" -> {p.setStrokeWidth(2.1f);canvas.drawLine(6,9,18,9,p);canvas.drawLine(18,9,14.5f,5.5f,p);int ink=p.getColor();p.setColor(Ui.dark?Ui.MUTED:0xFF759682);canvas.drawLine(18,15,6,15,p);canvas.drawLine(6,15,9.5f,18.5f,p);p.setColor(ink);}
                 case "down_chevron" -> {canvas.drawLine(4,8,12,16,p);canvas.drawLine(12,16,20,8,p);}

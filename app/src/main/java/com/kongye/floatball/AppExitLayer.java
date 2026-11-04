@@ -48,7 +48,7 @@ final class AppExitLayer {
     }
     private void handoff(){
         if(cancelled||handedOff||masking)return;masking=true;mask.run();
-        // Let the original windows become hidden before the task's own exit transition starts.
+        // Let the original windows finish traversal before Android moves the task.
         host.postOnAnimation(()->{if(!cancelled)host.postOnAnimation(()->{
             if(cancelled)return;if(!handoff.getAsBoolean()){fail();return;}handedOff=true;awaitBackdrop(SystemClock.uptimeMillis()+250);
         });});
@@ -56,9 +56,9 @@ final class AppExitLayer {
     private void awaitBackdrop(long deadline){
         if(cancelled||host==null)return;
         if(activity.getWindow().getDecorView().hasWindowFocus()&&SystemClock.uptimeMillis()<deadline){host.postOnAnimation(()->awaitBackdrop(deadline));return;}
-        host.postOnAnimation(()->{if(!cancelled)host.postOnAnimation(this::slide);});
+        host.postOnAnimation(this::slide);
     }
-    private void slide(){if(cancelled||view==null)return;view.animate().translationY(-height-originY).setDuration(android.animation.ValueAnimator.areAnimatorsEnabled()?650:0).setInterpolator(new android.view.animation.PathInterpolator(.22f,1,.36f,1)).withEndAction(this::finish).start();}
+    private void slide(){if(cancelled||view==null)return;view.animate().translationY(-height-originY).setDuration(android.animation.ValueAnimator.areAnimatorsEnabled()?AppMotion.SLIDE_MS:0).setInterpolator(AppMotion.SLIDE_CURVE).withEndAction(this::finish).start();}
     private void finish(){
         if(cancelled||finishing||host==null)return;finishing=true;view.setVisibility(View.INVISIBLE);
         // Present a completely transparent final buffer before removing its surface.

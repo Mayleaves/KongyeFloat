@@ -1,8 +1,14 @@
 package com.kongye.floatball;
 import java.util.*;
+import java.util.regex.Pattern;
 
-/** Conservative OCR-only typography cleanup. Exact accessible source is never modified. */
+/** Chinese punctuation cleanup for recognized text and rendered subtitles. */
 final class OcrPunctuation {
+    private static final Pattern SUBTITLE_MARKS = Pattern.compile(
+            "((?:https?://|www\\.)[\\p{ASCII}&&[^\\s<>\"]]+"
+            + "|[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}"
+            + "|(?<=[0-9])[,.:](?=[0-9])|(?<=[A-Z0-9])\\.(?=[A-Z0-9]))"
+            + "|\\.{2,}|…+|[,.!?;:()]", Pattern.CASE_INSENSITIVE);
     private OcrPunctuation(){}
     static boolean han(int cp){return Character.UnicodeScript.of(cp)==Character.UnicodeScript.HAN;}
     static boolean containsHan(String text){return text.codePoints().anyMatch(OcrPunctuation::han);}
@@ -28,6 +34,40 @@ final class OcrPunctuation {
         for(String pair:new String[]{"\"“”","'‘’"}){int opening=-1;for(int i=0;i<text.length();i++){if(pair.indexOf(text.charAt(i))<0)continue;if(opening<0)opening=i;else{if(containsHan(text.substring(opening+1,i))){result.setCharAt(opening,pair.charAt(1));result.setCharAt(i,pair.charAt(2));}opening=-1;}}}
         return result.toString();
     }
+
+    static String normalizeChineseSubtitle(String text) {
+        String[] lines = text.split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (!containsHan(line)) continue;
+            String normalized = normalize(line);
+            var marks = SUBTITLE_MARKS.matcher(line);
+            StringBuilder result = new StringBuilder();
+            int cursor = 0;
+            while (marks.find()) {
+                result.append(normalized, cursor, marks.start());
+                String mark = marks.group();
+                String replacement = marks.group(1) != null ? mark : switch (mark) {
+                    case "," -> "，";
+                    case "." -> "。";
+                    case "!" -> "！";
+                    case "?" -> "？";
+                    case ";" -> "；";
+                    case ":" -> "：";
+                    case "(" -> "（";
+                    case ")" -> "）";
+                    default -> "……";
+                };
+                result.append(replacement);
+                cursor = marks.end();
+            }
+            lines[i] = result.append(normalized, cursor, normalized.length()).toString()
+                    .replaceAll("\\h+(?=[，。！？；：）])", "")
+                    .replaceAll("([，。！？；：…（])\\h+(?=[\\p{IsHan}“‘（])", "$1");
+        }
+        return String.join("\n", lines);
+    }
+
     static TextRegion normalize(TextRegion r){return withText(r,normalize(r.text));}
     private static TextRegion withText(TextRegion r,String text){
         ArrayList<TextRegion> parts=new ArrayList<>();int cursor=0;for(TextRegion part:r.parts){int at=r.text.indexOf(part.text,cursor);if(at>=0&&at+part.text.length()<=text.length()){parts.add(withText(part,text.substring(at,at+part.text.length())));cursor=at+part.text.length();}else parts.add(normalize(part));}
