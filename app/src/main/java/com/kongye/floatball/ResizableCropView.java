@@ -11,11 +11,12 @@ final class ResizableCropView extends View {
     final RectF area=new RectF();private final Paint paint=new Paint(3);private final Path dash=new Path();
     private int handle=-1;private float downX,downY;private float[] original;private boolean creating;
     private Consumer<RectF> changed;
-    private boolean subtitleFrame;
+    private boolean subtitleFrame,regionFrame;
     private final android.graphics.drawable.Drawable moveIcon;
     ResizableCropView(Context c,Bitmap background,boolean live){super(c);this.background=background;this.live=live;moveIcon=c.getDrawable(R.drawable.ic_move_area).mutate();moveIcon.setTint(Color.WHITE);setContentDescription("截图选择框，可拖动四边和四角调整大小，拖动中心移动");}
     void setChanged(Consumer<RectF> callback){changed=callback;}
     void useSubtitleFrame(){subtitleFrame=true;}
+    void useRegionFrame(){regionFrame=true;}
     void resetSubtitleFrame(){
         area.set(getWidth()*.1f,getHeight()*.35f,getWidth()*.9f,getHeight()*.58f);
         notifyChange();
@@ -56,6 +57,7 @@ final class ResizableCropView extends View {
     @Override public boolean performClick(){super.performClick();return true;}
     @Override protected void onDraw(Canvas canvas){
         if(background!=null&&!background.isRecycled())canvas.drawBitmap(background,null,new Rect(0,0,getWidth(),getHeight()),null);
+        if(regionFrame){drawRegionFrame(canvas);return;}
         paint.setStyle(Paint.Style.FILL);paint.setColor(live?0xCC000000:0x88000000);canvas.drawRect(0,0,getWidth(),area.top,paint);canvas.drawRect(0,area.bottom,getWidth(),getHeight(),paint);canvas.drawRect(0,area.top,area.left,area.bottom,paint);canvas.drawRect(area.right,area.top,getWidth(),area.bottom,paint);
         if(subtitleFrame){
             paint.setColor(Ui.GREEN);
@@ -85,5 +87,94 @@ final class ResizableCropView extends View {
         canvas.drawCircle(cx,cy,d(19),paint);
         moveIcon.setBounds(Math.round(cx-radius),Math.round(cy-radius),Math.round(cx+radius),Math.round(cy+radius));
         moveIcon.draw(canvas);
+    }
+    private void drawRegionFrame(Canvas canvas){
+        float radius=Math.min(d(18),Math.min(area.width(),area.height())/3);
+        Path cutout=new Path();
+        cutout.addRoundRect(area,radius,radius,Path.Direction.CW);
+        Path shade=new Path();
+        shade.addRect(0,0,getWidth(),getHeight(),Path.Direction.CW);
+        shade.addRoundRect(area,radius,radius,Path.Direction.CW);
+        shade.setFillType(Path.FillType.EVEN_ODD);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(0x9E09100D);
+        canvas.drawPath(shade,paint);
+        canvas.save();
+        canvas.clipPath(cutout);
+        paint.setStrokeWidth(d(.7f));
+        paint.setColor(0x33FFFFFF);
+        for(int part=1;part<=2;part++){
+            float x=area.left+area.width()*part/3,y=area.top+area.height()*part/3;
+            canvas.drawLine(x,area.top,x,area.bottom,paint);
+            canvas.drawLine(area.left,y,area.right,y,paint);
+        }
+        canvas.restore();
+        float length=Math.min(d(24),Math.min(area.width(),area.height())/3);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(0xD1FFFFFF);
+        paint.setStrokeWidth(d(1.5f));
+        canvas.drawLine(area.left+length,area.top,area.right-length,area.top,paint);
+        canvas.drawLine(area.left+length,area.bottom,area.right-length,area.bottom,paint);
+        canvas.drawLine(area.left,area.top+length,area.left,area.bottom-length,paint);
+        canvas.drawLine(area.right,area.top+length,area.right,area.bottom-length,paint);
+        paint.setColor(0xFFB5D68E);
+        paint.setStrokeWidth(d(4));
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        for(int index=0;index<4;index++){
+            boolean left=index%2==0,top=index<2;
+            float x=left?area.left:area.right,y=top?area.top:area.bottom;
+            float sx=left?1:-1,sy=top?1:-1;
+            canvas.save();
+            canvas.translate(x,y);
+            canvas.scale(sx,sy);
+            dash.reset();
+            dash.moveTo(length,0);
+            dash.lineTo(radius,0);
+            dash.arcTo(0,0,radius*2,radius*2,270,-90,false);
+            dash.lineTo(0,length);
+            canvas.drawPath(dash,paint);
+            canvas.restore();
+        }
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.WHITE);
+        float half=Math.min(d(13),Math.min(area.width(),area.height())/4),thickness=d(2);
+        canvas.drawRoundRect(area.centerX()-half,area.top-thickness,area.centerX()+half,area.top+thickness,thickness,thickness,paint);
+        canvas.drawRoundRect(area.centerX()-half,area.bottom-thickness,area.centerX()+half,area.bottom+thickness,thickness,thickness,paint);
+        canvas.drawRoundRect(area.left-thickness,area.centerY()-half,area.left+thickness,area.centerY()+half,thickness,thickness,paint);
+        canvas.drawRoundRect(area.right-thickness,area.centerY()-half,area.right+thickness,area.centerY()+half,thickness,thickness,paint);
+        float cx=area.centerX(),cy=area.centerY();
+        paint.setColor(0x851E3529);
+        canvas.drawCircle(cx,cy,d(19),paint);
+        paint.setColor(0xBFFFFFFF);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(d(1.5f));
+        canvas.drawCircle(cx,cy,d(19),paint);
+        paint.setStyle(Paint.Style.FILL);
+        moveIcon.setBounds(Math.round(cx-d(9)),Math.round(cy-d(9)),Math.round(cx+d(9)),Math.round(cy+d(9)));
+        moveIcon.draw(canvas);
+        drawRegionSize(canvas);
+        paint.setStrokeCap(Paint.Cap.BUTT);
+    }
+    private void drawRegionSize(Canvas canvas){
+        Rect source=sourceRect(background==null?getWidth():background.getWidth(),background==null?getHeight():background.getHeight());
+        String label="区域截图 · "+source.width()+" × "+source.height()+" px";
+        paint.setTypeface(Typeface.create("monospace",Typeface.NORMAL));
+        paint.setTextSize(11*getResources().getDisplayMetrics().scaledDensity);
+        float width=paint.measureText(label)+d(30),height=d(24);
+        float x=Math.max(d(6),Math.min(getWidth()-width-d(6),area.left+d(2)));
+        float y=area.top-d(30);
+        if(y<d(6))y=area.top+d(8);
+        paint.setColor(0xE6182A20);
+        canvas.drawRoundRect(x,y,x+width,y+height,d(9),d(9),paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(d(.7f));
+        paint.setColor(0x59B5D68E);
+        canvas.drawRoundRect(x,y,x+width,y+height,d(9),d(9),paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(0xFFF6C945);
+        canvas.drawCircle(x+d(10),y+height/2,d(3),paint);
+        paint.setColor(0xFFE2F0E4);
+        Paint.FontMetrics font=paint.getFontMetrics();
+        canvas.drawText(label,x+d(20),y+height/2-(font.ascent+font.descent)/2,paint);
     }
 }

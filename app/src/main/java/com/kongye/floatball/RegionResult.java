@@ -92,7 +92,15 @@ final class RegionResult {
     }
     private String combinedText(java.util.List<TextRegion> exact,java.util.List<TextRegion> ocr){if(!Prefs.of(context).getBoolean("ocr_chinese_punctuation",true))return RegionTextFusion.text(RegionTextFusion.merge(exact,ocr));ArrayList<TextRegion> formatted=new ArrayList<>();for(TextRegion line:ocr)formatted.add(OcrPunctuation.normalize(line));return RegionTextFusion.text(RegionTextFusion.merge(exact,formatted));}
     private void failed(){recognizing=false;if(!originalText.isEmpty()){rawValue=RegionTextFusion.text(originalText);value=normalized(rawValue);statusText="已提取原文，图片文字识别未完成，可重试";}else statusText="识别暂不可用，仍可编辑文字和保存图片";Prefs.of(context).edit().putString("last_ocr_state","failed").apply();if(!closed&&mode==0)refreshRecognition();}
-    private void copy(String text){if(text.isBlank()){toast("没有可复制的文字");return;}try{context.getSystemService(android.content.ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("空叶识别文字",text));Prefs.of(context).edit().putInt("last_selection_copy_length",text.length()).apply();toast("文字已复制");}catch(RuntimeException error){toast("复制失败，请重试");}}
+    private void copy(String text){
+        if(text.isBlank()){toast("没有可复制的文字");return;}
+        try{
+            context.getSystemService(android.content.ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("空叶识别文字",text));
+        }catch(RuntimeException error){toast("复制失败，请重试");return;}
+        Prefs.of(context).edit().putInt("last_selection_copy_length",text.length()).apply();
+        toast("文字已复制");
+        close();
+    }
     private void note(){if(value.isBlank()){toast("请先输入或识别文字");return;}String old=Prefs.of(context).getString("note","");String combined=old.isEmpty()?value:old+"\n\n"+value;if(combined.length()>100000){toast("便签已达字数上限");return;}Prefs.of(context).edit().putString("note",combined).apply();toast("已追加到便签");}
     private void launch(Intent intent){try{context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));}catch(RuntimeException e){toast("没有可处理此内容的应用");}}
     private void shareText(){if(value.isBlank()){toast("没有可分享的文字");return;}Intent intent=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,value);close();launch(Intent.createChooser(intent,"分享文字"));}
@@ -148,7 +156,31 @@ final class RegionResult {
     }
     private void applyImage(ImageEditView canvas){finishInlineText();Bitmap next;try{next=canvas.render();}catch(RuntimeException|OutOfMemoryError e){toast("编辑内存不足，请重试");return;}Bitmap old=image;image=next;originalText=Collections.emptyList();lastOcr=Collections.emptyList();++recognitionGeneration;if(recognizing){recognizing=false;statusText="图片已编辑，可重新识别文字";}edited=true;Prefs.of(context).edit().putInt("last_edit_width",image.getWidth()).putInt("last_edit_height",image.getHeight()).putString("last_edit_marks",canvas.marks()).apply();canvas.dispose();editingCanvas=null;show();old.recycle();}
     private void save(boolean share){
-        if(saving){toast("正在处理图片，请稍候");return;}saving=true;if(!share)toast("正在保存图片…");Bitmap target=image;worker.execute(()->{String message;android.net.Uri uri=null;try{uri=share?ShareImageProvider.prepare(context,target):MediaFiles.saveBitmap(context,target,kind+(edited?"Edited":""));message=share?null:"图片已保存到相册";}catch(Exception e){message="保存失败，请检查剩余空间";}String response=message;android.net.Uri saved=uri;new Handler(Looper.getMainLooper()).post(()->{saving=false;if(!closed){if(response!=null)toast(response);if(share&&saved!=null){Intent intent=new Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM,saved).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);intent.setClipData(ClipData.newRawUri("空叶截图",saved));close();launch(Intent.createChooser(intent,"分享图片").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}}else target.recycle();});});
+        if(saving)return;
+        saving=true;
+        Bitmap target=image;
+        worker.execute(()->{
+            String message;
+            android.net.Uri uri=null;
+            try{
+                uri=share?ShareImageProvider.prepare(context,target):MediaFiles.saveBitmap(context,target,kind+(edited?"Edited":""));
+                message=share?null:"图片已保存到相册";
+            }catch(Exception e){message="保存失败，请检查剩余空间";}
+            String response=message;
+            android.net.Uri saved=uri;
+            new Handler(Looper.getMainLooper()).post(()->{
+                saving=false;
+                if(closed){target.recycle();return;}
+                if(response!=null)toast(response);
+                if(saved==null)return;
+                if(share){
+                    Intent intent=new Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM,saved).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    intent.setClipData(ClipData.newRawUri("空叶截图",saved));
+                    close();
+                    launch(Intent.createChooser(intent,"分享图片").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+                }else close();
+            });
+        });
     }
     void close(){if(closed)return;closed=true;++recognitionGeneration;window.remove();if(editingCanvas!=null){editingCanvas.dispose();editingCanvas=null;}if(!saving)image.recycle();pinChanged.accept(false);finished.run();}
 }
