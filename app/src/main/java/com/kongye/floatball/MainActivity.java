@@ -16,7 +16,7 @@ import android.widget.*;
 public class MainActivity extends Activity {
     private static final String HIDE_FROM_RECENTS = "hide_from_recents";
     private static boolean createdUi;
-    private boolean gestureEntrance;
+    private boolean gestureEntrance,introTouchActive;
     private static java.lang.ref.WeakReference<MainActivity> visible=new java.lang.ref.WeakReference<>(null);
     private View motionContent(){return findViewById(android.R.id.content);}
     static boolean hideIfVisible(){return AppMotion.hideIfVisible();}
@@ -40,7 +40,27 @@ public class MainActivity extends Activity {
         if(state!=null)tab=state.getInt("tab",0);
         boolean launcher=(state==null||!createdUi)&&Intent.ACTION_MAIN.equals(getIntent().getAction())&&getIntent().hasCategory(Intent.CATEGORY_LAUNCHER);createdUi=true;
         if(Build.VERSION.SDK_INT>=31)getSplashScreen().setOnExitAnimationListener(view->view.remove());
-        gestureEntrance=getIntent().getBooleanExtra("gesture_entry",false);render();if(launcher){FrameLayout layer=new FrameLayout(this);((ViewGroup)shell.getParent()).removeView(shell);layer.addView(shell,new FrameLayout.LayoutParams(-1,-1));intro=new LaunchIntroView(this,()->{LaunchIntroView old=intro;intro=null;if(old!=null)old.animate().alpha(0).setDuration(420).withEndAction(()->layer.removeView(old)).start();});layer.addView(intro,new FrameLayout.LayoutParams(-1,-1));setContentView(layer);}BallArt.prepare(this,()->{if(!isDestroyed()){refreshBall();if(intro==null)render();}});
+        gestureEntrance=getIntent().getBooleanExtra("gesture_entry",false);render();if(launcher){FrameLayout layer=new FrameLayout(this);((ViewGroup)shell.getParent()).removeView(shell);layer.addView(shell,new FrameLayout.LayoutParams(-1,-1));intro=new LaunchIntroView(this,()->dismissIntro(true));layer.addView(intro,new FrameLayout.LayoutParams(-1,-1));setContentView(layer);}BallArt.prepare(this,()->{if(!isDestroyed()){refreshBall();if(intro==null)render();}});
+    }
+    @Override public boolean dispatchTouchEvent(MotionEvent event){
+        if(intro!=null||introTouchActive){
+            int action=event.getActionMasked();
+            introTouchActive=action!=MotionEvent.ACTION_UP&&action!=MotionEvent.ACTION_CANCEL;
+            if(action==MotionEvent.ACTION_UP&&intro!=null)dismissIntro(false);
+            return true;
+        }
+        return super.dispatchTouchEvent(event);
+    }
+    private void dismissIntro(boolean animate){
+        LaunchIntroView old=intro;
+        if(old==null)return;
+        old.animate().cancel();
+        Runnable remove=()->{
+            if(old.getParent() instanceof ViewGroup parent)parent.removeView(old);
+            if(intro==old)intro=null;
+        };
+        if(animate)old.animate().alpha(0).setDuration(420).withEndAction(remove).start();
+        else remove.run();
     }
     private void animateGestureEntrance(){if(!gestureEntrance)return;gestureEntrance=false;AppMotion.enter(this);}
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);gestureEntrance=intent.getBooleanExtra("gesture_entry",false);}

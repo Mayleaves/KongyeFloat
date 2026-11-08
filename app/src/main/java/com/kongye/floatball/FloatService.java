@@ -293,7 +293,19 @@ public class FloatService extends Service {
         EditText e=editor("记下此刻的想法…",6);e.setText(Prefs.of(this).getString("note",""));e.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100000)});
         body.addView(e,new LinearLayout.LayoutParams(-1,Math.min(dp(220),screenHeight()/3)));
         e.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){}public void onTextChanged(CharSequence s,int st,int before,int count){Prefs.of(FloatService.this).edit().putString("note",s.toString()).apply();}public void afterTextChanged(Editable s){}});
-        Ui.gap(body,14);body.addView(Ui.button(this,"复制便签",true,()->copy(e.getText().toString())));
+        Ui.gap(body,14);
+        LinearLayout actions=Ui.row(this);
+        TextView clear=Ui.button(this,"清空",false,()->{
+            if(e.getText().toString().isEmpty()){toast("便签已经是空的");return;}
+            e.setText("");
+            toast("便签已清空");
+        });
+        clear.setContentDescription("清空便签");
+        LinearLayout.LayoutParams clearAt=new LinearLayout.LayoutParams(0,-2,1);
+        clearAt.rightMargin=dp(8);
+        actions.addView(clear,clearAt);
+        actions.addView(Ui.button(this,"复制便签",true,()->copy(e.getText().toString())),new LinearLayout.LayoutParams(0,-2,1));
+        body.addView(actions);
     }
     private void copy(String text){
         if(text.isEmpty()){toast("还没有内容");return;}

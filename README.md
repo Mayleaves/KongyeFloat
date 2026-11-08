@@ -2,7 +2,7 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [2.0.4 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v2.0.4) · [详细使用说明](docs/USER_GUIDE.md) · [1.30.10 验证记录](docs/VALIDATION-1.30.10.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [2.0.5 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v2.0.5) · [详细使用说明](docs/USER_GUIDE.md) · [1.30.10 验证记录](docs/VALIDATION-1.30.10.md)
 
 ## 功能
 
@@ -26,11 +26,11 @@
 
 「设置 → 增强悬浮层」可在无障碍服务连接时改善悬浮球的显示范围，无需 Root。Android 或目标应用仍可能限制安全页面上的悬浮窗、截图和录音。
 
-Ace2 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0.4/KongyeFloat-2.0.4-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0.4/KongyeFloat-2.0.4-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
+Ace2 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0.5/KongyeFloat-2.0.5-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0.5/KongyeFloat-2.0.5-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 2.0.4。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 2.0.5。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 
