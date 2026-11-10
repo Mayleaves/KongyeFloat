@@ -65,6 +65,7 @@ final class Ui {
                     p.setStyle(Paint.Style.FILL);path.moveTo(5,16);path.cubicTo(3,8,9,4,21,4);path.cubicTo(21,14,15,21,8,19);path.close();canvas.drawPath(path,p);
                     p.setColor(Color.WHITE);p.setStyle(Paint.Style.STROKE);canvas.drawLine(5,21,17,8,p);canvas.drawLine(11,14,10,10,p);
                 }
+                case "password_fill" -> {canvas.drawCircle(8,9,4,p);canvas.drawLine(11,12,20,21,p);canvas.drawLine(16,17,19,14,p);canvas.drawLine(18.5f,19.5f,21.5f,16.5f,p);}
                 case "update_arrow" -> {canvas.drawLine(5,12,19,12,p);canvas.drawLine(14,7,19,12,p);canvas.drawLine(19,12,14,17,p);}
                 case "ball_leaf" -> {p.setStrokeWidth(2);path.moveTo(17,4);path.cubicTo(11.5f,4,6,8,6,15.5f);path.cubicTo(6,17.5f,7,19,7,19);path.cubicTo(7,19,8.5f,20,10.5f,20);path.cubicTo(18,20,22,14.5f,22,9);path.cubicTo(22,6.5f,20,4,17,4);path.moveTo(5,20);path.lineTo(15,10);canvas.drawPath(path,p);}
                 case "leaf_outline" -> {path.moveTo(5,17);path.cubicTo(2,9,10,3,21,3);path.cubicTo(21,14,15,21,7,19);canvas.drawPath(path,p);canvas.drawLine(3,22,17,8,p);}

@@ -2,12 +2,13 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [2.0.5 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v2.0.5) · [详细使用说明](docs/USER_GUIDE.md) · [1.30.10 验证记录](docs/VALIDATION-1.30.10.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.0 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.0) · [详细使用说明](docs/USER_GUIDE.md) · [3.0 验证记录](docs/VALIDATION-3.0.md)
 
 ## 功能
 
 - **悬浮球与手势**：自定义点击、双击、长按和上下划动作；长按展开环形快捷，快捷位置可配置应用或功能。
-- **截图**：整屏、区域截图和长截图；区域截图保留选区内完整文字节点，并以 ML Kit 与 PaddleOCR PP-OCRv5 双引擎本机识别补齐图片文字，按位置去重合并；中文标点优化可关闭，支持编辑、复制和翻译。长图支持手动或自动滚动拼接、预览、拖动排序和删除。
+- **截图**：整屏、区域截图和长截图；区域截图保留选区内完整文字节点，并以 ML Kit 与 PaddleOCR PP-OCRv5 双引擎本机识别补齐图片文字，按位置去重合并；中文标点优化可关闭，支持编辑、复制和翻译；区域、整屏及长截图结果均支持复制图片。长图支持手动或自动滚动拼接、预览、拖动排序和删除。
+- **密码填充**：主动点击后连接同签名空叶文档密码空间，匹配或搜索条目、按需解锁，再填入当前登录框；不自动提交，不将密码复制到剪贴板。网页需要可读取的地址栏。
 - **图片编辑**：裁剪、旋转、镜像、文字、画笔、画框、直线、箭头、序号、高亮和马赛克；支持颜色、粗细和双指缩放。
 - **录屏与 GIF**：选择录制区域、分辨率和声音来源，可添加水印；录制完成后预览、保存、分享或将视频转换为 GIF。
 - **个性化**：导入图片或透明 GIF 作为悬浮球，调整尺寸（30%–500%）、透明度和边距；支持深色、浅色、跟随系统和定时切换。
@@ -26,11 +27,11 @@
 
 「设置 → 增强悬浮层」可在无障碍服务连接时改善悬浮球的显示范围，无需 Root。Android 或目标应用仍可能限制安全页面上的悬浮窗、截图和录音。
 
-Ace2 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0.5/KongyeFloat-2.0.5-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v2.0.5/KongyeFloat-2.0.5-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
+Ace2 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.0/KongyeFloat-3.0-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.0/KongyeFloat-3.0-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 2.0.5。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.0。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 

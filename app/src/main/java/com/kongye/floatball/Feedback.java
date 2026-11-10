@@ -35,7 +35,7 @@ final class Feedback {
             capsule.setOutlineSpotShadowColor(0x47193424);
         }
         FrameLayout badge=new FrameLayout(app);
-        boolean success=message.contains("已复制")||message.contains("已保存")||message.contains("已追加")||message.contains("已清空")||message.contains("已生成")||message.contains("已重置")||message.equals("识别完成")||message.equals("翻译完成");
+        boolean success=message.contains("已复制")||message.contains("已保存")||message.contains("已追加")||message.contains("已清空")||message.contains("已填入")||message.contains("已生成")||message.contains("已重置")||message.equals("识别完成")||message.equals("翻译完成");
         badge.setBackground(Ui.bg(success?0xFF85A867:0xFFF6C945,12,app));
         badge.addView(new StatusGlyph(app,success),new FrameLayout.LayoutParams(Ui.dp(app,14),Ui.dp(app,14),Gravity.CENTER));
         capsule.addView(badge,new LinearLayout.LayoutParams(Ui.dp(app,24),Ui.dp(app,24)));

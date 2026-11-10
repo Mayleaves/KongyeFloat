@@ -79,8 +79,7 @@ final class RegionResult {
             LinearLayout imageSection=resultSection();imageSection.setContentDescription("画面预览卡片");LinearLayout imageHead=Ui.row(context);imageHead.addView(section("画面预览"),new LinearLayout.LayoutParams(0,-2,1));imageHead.addView(Ui.text(context,image.getWidth()+" × "+image.getHeight()+" px",11,Ui.MUTED,false));addIcon(imageHead,imageFolded?"expand":"collapse",imageFolded?"展开图片":"收起图片",()->{imageFolded=!imageFolded;show();});imageSection.addView(imageHead);
             if(!imageFolded){
                 Ui.gap(imageSection,8);ImageView preview=new ImageView(context);preview.setImageBitmap(image);preview.setScaleType(ImageView.ScaleType.FIT_CENTER);Ui.frame(preview,Ui.BG,14);preview.setContentDescription("截图图片，点击预览");preview.setOnClickListener(v->zoom());imageSection.addView(preview,new LinearLayout.LayoutParams(-1,kind.equals("Region")?Math.min(dp(200),metrics().heightPixels/4):Math.min(dp(230),metrics().heightPixels/3)));Ui.gap(imageSection,12);
-                LinearLayout actions=Ui.row(context);addAction(actions,"save","保存","保存图片",()->save(false));addAction(actions,"share","分享","分享图片",()->save(true));addAction(actions,"edit","编辑标注","编辑图片",this::editImage);
-                LinearLayout primary=(LinearLayout)actions.getChildAt(2);primary.setBackground(Ui.ripple(context,Ui.GREEN,14));primary.removeViewAt(0);int primaryInk=Ui.dark?0xFF102E21:Color.WHITE;primary.addView(Ui.icon(context,"edit",primaryInk,18),0,new LinearLayout.LayoutParams(dp(18),dp(18)));((TextView)primary.getChildAt(1)).setTextColor(primaryInk);((TextView)primary.getChildAt(1)).setTextSize(12);imageSection.addView(actions);
+                LinearLayout actions=Ui.row(context);addAction(actions,"copy","复制","复制截图",this::copyImage);addAction(actions,"share","分享","分享图片",()->save(true));addAction(actions,"edit","编辑","编辑图片",this::editImage);addAction(actions,"save","保存","保存图片",()->save(false));imageSection.addView(actions);
             }
             sections.addView(imageSection);DisplayMetrics m=metrics();int width=m.widthPixels-dp(pinned?72:48);sections.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));card.addView(viewport,new LinearLayout.LayoutParams(-1,Math.min(sections.getMeasuredHeight(),m.heightPixels-dp(190))));
         }
@@ -155,6 +154,27 @@ final class RegionResult {
             android.graphics.drawable.GradientDrawable dot=Ui.bg(color,13,context);if(on)dot.setStroke(dp(2),Ui.SURFACE);else if(color==Color.WHITE||color==Color.BLACK&&Ui.dark)dot.setStroke(1,Ui.MUTED);View d=new View(context);d.setBackground(dot);cell.addView(d,new FrameLayout.LayoutParams(dp(26),dp(26),Gravity.CENTER));colors.addView(cell,new LinearLayout.LayoutParams(0,dp(40),1));}
     }
     private void applyImage(ImageEditView canvas){finishInlineText();Bitmap next;try{next=canvas.render();}catch(RuntimeException|OutOfMemoryError e){toast("编辑内存不足，请重试");return;}Bitmap old=image;image=next;originalText=Collections.emptyList();lastOcr=Collections.emptyList();++recognitionGeneration;if(recognizing){recognizing=false;statusText="图片已编辑，可重新识别文字";}edited=true;Prefs.of(context).edit().putInt("last_edit_width",image.getWidth()).putInt("last_edit_height",image.getHeight()).putString("last_edit_marks",canvas.marks()).apply();canvas.dispose();editingCanvas=null;show();old.recycle();}
+    private void copyImage(){
+        if(saving)return;
+        saving=true;
+        Bitmap target=image;
+        worker.execute(()->{
+            android.net.Uri uri=null;
+            try{uri=ShareImageProvider.prepare(context,target);}catch(Exception ignored){}
+            android.net.Uri copied=uri;
+            new Handler(Looper.getMainLooper()).post(()->{
+                saving=false;
+                if(closed){target.recycle();return;}
+                if(copied==null){toast("复制截图失败，请检查剩余空间");return;}
+                try{
+                    ClipData clip=ClipData.newUri(context.getContentResolver(),"空叶截图",copied);
+                    if(Build.VERSION.SDK_INT>=33){PersistableBundle extra=new PersistableBundle();extra.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE,true);clip.getDescription().setExtras(extra);}
+                    context.getSystemService(android.content.ClipboardManager.class).setPrimaryClip(clip);
+                    toast("截图已复制");close();
+                }catch(RuntimeException error){toast("复制截图失败，请重试");}
+            });
+        });
+    }
     private void save(boolean share){
         if(saving)return;
         saving=true;

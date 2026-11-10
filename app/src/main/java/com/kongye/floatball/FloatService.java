@@ -30,12 +30,14 @@ public class FloatService extends Service {
     private boolean captureInFlight;
     private CaptureController captures;
     private SubtitleSession subtitles;
+    private PasswordFillController passwordFill;private int vaultStartGeneration;
+    private android.animation.AnimatorSet pullAnimator;
     private QuickDock quickDock;private GestureCaptureOverlay captureTarget;private boolean followReturning;private int followHomeX,followHomeY;
     private boolean renderedDark;private int displayRotation;
     private final Runnable themeTick=new Runnable(){public void run(){boolean now=ThemePolicy.isDark(FloatService.this);if(now!=renderedDark){ThemePolicy.apply(FloatService.this);renderedDark=now;closePanel();}handler.postDelayed(this,60000-System.currentTimeMillis()%60000);}};
     private final Runnable appPolicyTick=new Runnable(){public void run(){boolean configured=false;for(String key:Prefs.of(FloatService.this).getAll().keySet())if(key.startsWith("app_mode_")){configured=true;break;}if(configured&&AppCatalog.hasUsage(FloatService.this)){long now=System.currentTimeMillis();android.app.usage.UsageEvents events=getSystemService(android.app.usage.UsageStatsManager.class).queryEvents(now-10000,now);android.app.usage.UsageEvents.Event event=new android.app.usage.UsageEvents.Event();String pkg=null;long last=0;if(events!=null)while(events.hasNextEvent()){events.getNextEvent(event);if(event.getEventType()==android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED&&event.getTimeStamp()>=last&&!"com.android.systemui".equals(event.getPackageName())){last=event.getTimeStamp();pkg=event.getPackageName();}}if(pkg!=null)foregroundChanged(pkg);}handler.postDelayed(this,750);}};
     private final Runnable fade=()->{if(ball!=null&&panel==null&&browser==null&&(quickDock==null||!quickDock.isVisible())&&!appMode.equals("hidden")&&Prefs.of(this).getBoolean("fade",true))ball.animate().alpha(baseAlpha()*.45f).setDuration(300).start();};
-    private final BroadcastReceiver screenReceiver=new BroadcastReceiver(){@Override public void onReceive(Context c,Intent i){if(Intent.ACTION_SCREEN_OFF.equals(i.getAction())){subtitles.stop();closePanel();if(captures!=null&&captures.isActive()){Prefs.of(c).edit().putString("last_capture_cancel_reason","screen_off").apply();captures.cancel();}hideCaptureTarget();if(ball!=null)ball.setVisibility(View.GONE);}else if(Intent.ACTION_USER_PRESENT.equals(i.getAction())||Intent.ACTION_SCREEN_ON.equals(i.getAction())){handler.postDelayed(()->{applyPolicy();wakeBall();},250);}}};
+    private final BroadcastReceiver screenReceiver=new BroadcastReceiver(){@Override public void onReceive(Context c,Intent i){if(Intent.ACTION_SCREEN_OFF.equals(i.getAction())){vaultStartGeneration++;if(passwordFill!=null)passwordFill.cancel();subtitles.stop();closePanel();if(captures!=null&&captures.isActive()){Prefs.of(c).edit().putString("last_capture_cancel_reason","screen_off").apply();captures.cancel();}hideCaptureTarget();if(ball!=null)ball.setVisibility(View.GONE);}else if(Intent.ACTION_USER_PRESENT.equals(i.getAction())||Intent.ACTION_SCREEN_ON.equals(i.getAction())){handler.postDelayed(()->{applyPolicy();wakeBall();},250);}}};
     @Override public void onCreate(){
         super.onCreate();instance=this;BallSettings.migrate(this);handler.postDelayed(appPolicyTick,300);handler.postDelayed(ballWatchdog,1500);foreground=AssistService.foregroundPackage;appMode=AppBehavior.mode(this,foreground);QuickActions.migrate(this);ThemePolicy.apply(this);renderedDark=Ui.dark;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);windows=OverlayWindows.get(this);displayRotation=windows.getDefaultDisplay().getRotation();quickDock=new QuickDock(this,this::perform);captures=new CaptureController(this,visible->{captureVisible=visible;applyPolicy();});subtitles=new SubtitleSession(this,()->captureInFlight||captures.isActive()||ScreenRecordingService.running||panel!=null||browser!=null||quickDock.isVisible()||(touch!=null&&touch.pressed));handler.postDelayed(themeTick,60000-System.currentTimeMillis()%60000);
         NotificationManager nm=getSystemService(NotificationManager.class);nm.createNotificationChannel(new NotificationChannel("float","空叶悬浮球运行状态",NotificationManager.IMPORTANCE_LOW));
@@ -113,28 +115,29 @@ public class FloatService extends Service {
         recoveryAnimator.addListener(new android.animation.AnimatorListenerAdapter(){boolean cancelled;@Override public void onAnimationCancel(android.animation.Animator a){cancelled=true;}@Override public void onAnimationEnd(android.animation.Animator a){if(cancelled)return;if(ball!=null){ballParams.x=toX;ballParams.y=toY;updateBall();savePosition();}clearRecovery();}});recoveryAnimator.start();handler.postDelayed(this::applyPolicy,8100);
     }
     private final Runnable ballWatchdog=new Runnable(){public void run(){if(instance!=FloatService.this)return;if(running&&Settings.canDrawOverlays(FloatService.this)){if(ball==null||!ball.isAttachedToWindow()){removeBall();try{addBall();}catch(RuntimeException ignored){}}if(captures!=null&&!captures.isActive())captureVisible=true;boolean locked=getSystemService(KeyguardManager.class).isKeyguardLocked();if(ball!=null&&!locked&&!ScreenRecordingService.running&&captureVisible&&!appMode.equals("disabled")){if(ball.getVisibility()!=View.VISIBLE)applyPolicy();if(SystemClock.uptimeMillis()>=recoveryUntil&&(touch==null||!touch.pressed)){int min=edgeGap(),minY=edgeGapY(),maxX=screenWidth()-ballParams.width-min,maxY=screenHeight()-ballParams.height-minY;int nx=GestureRules.clamp(ballParams.x,min,maxX),ny=GestureRules.clamp(ballParams.y,minY,maxY);if(nx!=ballParams.x||ny!=ballParams.y){ballParams.x=nx;ballParams.y=ny;updateBall();savePosition();}}}}handler.postDelayed(this,1500);}};
-    private void removeBall(){clearRecovery();handler.removeCallbacks(fade);if(touch!=null){handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);touch=null;}if(snapAnimator!=null)snapAnimator.cancel();if(ball!=null){ball.animate().cancel();try{windows.removeView(ball);}catch(IllegalArgumentException ignored){}ball=null;}}
+    private void removeBall(){cancelPull();clearRecovery();handler.removeCallbacks(fade);if(touch!=null){handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);touch=null;}if(snapAnimator!=null)snapAnimator.cancel();if(ball!=null){ball.animate().cancel();try{windows.removeView(ball);}catch(IllegalArgumentException ignored){}ball=null;}}
     private void wakeBall(){if(stopping)return;handler.removeCallbacks(fade);if(ball!=null){ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);ball.setAlpha(appMode.equals("hidden")?1:baseAlpha());handler.postDelayed(fade,3000);}}
     private void vibrate(){if(Prefs.of(this).getBoolean("haptic",true)){Vibrator v=(Vibrator)getSystemService(VIBRATOR_SERVICE);if(v!=null&&v.hasVibrator())v.vibrate(VibrationEffect.createOneShot(12,VibrationEffect.DEFAULT_AMPLITUDE));}}
     private void savePosition(){Prefs.of(this).edit().putInt("x",ballParams.x).putInt("y",ballParams.y).apply();}
     private class BallTouch implements View.OnTouchListener {
         float downX,downY,lastMoveX,lastMoveY,anchorX,anchorY,pointerX,pointerY;int initialX,initialY,maxFollow;long downAt;
-        boolean moved,dragging,pendingTap,holdTriggered,holdMoved,pressed,armed,drawing;
+        boolean moved,dragging,pendingTap,holdTriggered,holdMoved,pressed,armed,drawing,pulled;
         final Runnable single=()->{pendingTap=false;if(ball!=null)ball.performClick();};
         final Runnable hold=()->{if(!pressed||moved||dragging)return;handler.removeCallbacks(single);pendingTap=false;holdTriggered=true;holdMoved=false;touchReceipt("HOLD",downX,downY);vibrate();perform(Prefs.action(FloatService.this,"long"));};
         final Runnable arm=()->{if(!pressed||!dragging||armed)return;armed=true;anchorX=captureX();anchorY=captureY();vibrate();showCaptureCross();Prefs.of(FloatService.this).edit().putString("drag_cross_state","yellow").apply();};
-        private void reset(){handler.removeCallbacks(hold);handler.removeCallbacks(arm);hideCaptureTarget();if(ball!=null){ball.setScaleX(1);ball.setScaleY(1);}}
+        private void reset(){cancelPull();handler.removeCallbacks(hold);handler.removeCallbacks(arm);hideCaptureTarget();if(ball!=null){ball.setScaleX(1);ball.setScaleY(1);}}
         private void restore(){ballParams.x=initialX;ballParams.y=initialY;updateBall();}
         @Override public boolean onTouch(View view,MotionEvent event){
             pointerX=event.getRawX();pointerY=event.getRawY();
             switch(event.getActionMasked()){
-                case MotionEvent.ACTION_DOWN->{touchReceipt("DOWN",event.getRawX(),event.getRawY());clearRecovery();wakeBall();if(snapAnimator!=null)snapAnimator.cancel();if(followReturning){ballParams.x=followHomeX;ballParams.y=followHomeY;followReturning=false;updateBall();}downX=lastMoveX=event.getRawX();downY=lastMoveY=event.getRawY();initialX=ballParams.x;initialY=ballParams.y;downAt=SystemClock.uptimeMillis();moved=dragging=holdTriggered=holdMoved=armed=drawing=false;pressed=true;maxFollow=0;handler.postDelayed(hold,650);return true;}
+                case MotionEvent.ACTION_DOWN->{touchReceipt("DOWN",event.getRawX(),event.getRawY());clearRecovery();wakeBall();if(snapAnimator!=null)snapAnimator.cancel();if(followReturning){ballParams.x=followHomeX;ballParams.y=followHomeY;followReturning=false;updateBall();}downX=lastMoveX=event.getRawX();downY=lastMoveY=event.getRawY();initialX=ballParams.x;initialY=ballParams.y;downAt=SystemClock.uptimeMillis();moved=dragging=holdTriggered=holdMoved=armed=drawing=pulled=false;pressed=true;maxFollow=0;handler.postDelayed(hold,650);return true;}
                 case MotionEvent.ACTION_MOVE->{
                     float dx=event.getRawX()-downX,dy=event.getRawY()-downY;
                     if(holdTriggered){if(Math.hypot(dx,dy)>dp(12))holdMoved=true;if(holdMoved&&quickDock.isVisible())quickDock.hover(event.getRawX(),event.getRawY());return true;}
                     long duration=SystemClock.uptimeMillis()-downAt;if(Math.hypot(dx,dy)>dp(8)){moved=true;handler.removeCallbacks(hold);}
                     if(!dragging&&GestureRules.isDrag(dx,dy,duration,dp(8))){dragging=true;handler.removeCallbacks(single);pendingTap=false;vibrate();Prefs.of(FloatService.this).edit().putString("drag_cross_state","red").apply();handler.postDelayed(arm,450);}
                     if(dragging){
+                        if(!pulled&&pullingFromEdge(initialX,dx)){pulled=true;animatePull();}
                         ballParams.x=GestureRules.dragPosition(initialX,event.getRawX(),downX);ballParams.y=GestureRules.dragPosition(initialY,event.getRawY(),downY);updateBall();
                         if(armed){drawing|=Math.hypot(captureX()-anchorX,captureY()-anchorY)>dp(12);}
                         else if(Math.hypot(event.getRawX()-lastMoveX,event.getRawY()-lastMoveY)>dp(2)){handler.removeCallbacks(arm);handler.postDelayed(arm,450);lastMoveX=event.getRawX();lastMoveY=event.getRawY();}
@@ -170,6 +173,22 @@ public class FloatService extends Service {
             return true;
         }
     }
+    private boolean pullingFromEdge(int initial,float dx){
+        int edge=GestureRules.edgeWithInset(initial,screenWidth(),ballParams.width,edgeGap());
+        boolean left=initial+ballParams.width/2<screenWidth()/2;
+        return Math.abs(initial-edge)<=dp(8)&&(left?dx>dp(10):dx<-dp(10));
+    }
+    private void cancelPull(){if(pullAnimator!=null){pullAnimator.cancel();pullAnimator=null;}if(ball!=null){ball.setScaleX(1);ball.setScaleY(1);}}
+    private void animatePull(){
+        cancelPull();if(ball==null||!android.animation.ValueAnimator.areAnimatorsEnabled())return;
+        // Transform only the ball: no window resizing or touch/capture-coordinate changes.
+        android.animation.ObjectAnimator x=android.animation.ObjectAnimator.ofFloat(ball,View.SCALE_X,1,.74f,1,.91f,1);
+        android.animation.ObjectAnimator y=android.animation.ObjectAnimator.ofFloat(ball,View.SCALE_Y,1,1,.80f,1,1);
+        pullAnimator=new android.animation.AnimatorSet();pullAnimator.playTogether(x,y);pullAnimator.setDuration(480);
+        pullAnimator.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+        pullAnimator.addListener(new android.animation.AnimatorListenerAdapter(){@Override public void onAnimationEnd(android.animation.Animator a){if(ball!=null){ball.setScaleX(1);ball.setScaleY(1);}}});pullAnimator.start();
+        if((getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putInt("qa_pull_count",Prefs.of(this).getInt("qa_pull_count",0)+1).apply();
+    }
     private void touchReceipt(String event,float x,float y){if((getApplicationInfo().flags&android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putString("qa_touch_event",event).putFloat("qa_touch_x",x).putFloat("qa_touch_y",y).putLong("qa_touch_time",SystemClock.uptimeMillis()).apply();}
     private void animateFollowHome(int x,int y,Runnable done){
         if(ball==null)return;int startX=ballParams.x,startY=ballParams.y;followReturning=true;followHomeX=x;followHomeY=y;snapAnimator=ValueAnimator.ofFloat(0,1);snapAnimator.setDuration(160);
@@ -196,12 +215,14 @@ public class FloatService extends Service {
     static int[] ballCenter(){FloatService service=instance;if(service==null||service.ball==null||!service.ball.isAttachedToWindow())return null;int[] at=new int[2];service.ball.getLocationOnScreen(at);at[0]+=service.ball.getWidth()/2;at[1]+=service.ball.getHeight()/2;return at;}
     void perform(String action){
         if(action==null||!running||captureInFlight)return;action=Prefs.canonicalAction(action);if("none".equals(action))return;
+        int vaultRequest=++vaultStartGeneration;if(passwordFill!=null)passwordFill.cancel();
         if(captures!=null&&captures.isActive()&&!captures.allowsBall()){toast("请先完成或取消当前截图");return;}
         if("quick".equals(action)){if(touch==null||!touch.pressed)return;closePanel();int[] center=ballCenter();if(center!=null)quickDock.show(center[0],center[1]);return;}
         if(subtitles.isActive()&&java.util.Set.of("region","longshot","auto_longshot","screenshot","record","gif_record").contains(action)){toast("请先关闭字幕翻译");return;}
         if("menu".equals(action)){if(panel!=null||browser!=null)closePanel();else showMenu();return;}
         closePanel();vibrate();if(action.startsWith("edit_slot:")){try{launch(new Intent(this,QuickSettingsActivity.class).putExtra("edit_slot",Integer.parseInt(action.substring(10))));}catch(NumberFormatException ignored){}return;}if(action.startsWith("app:")){launchApp(action.substring(4));return;}
         switch(action){
+            case "password_fill" -> {if(passwordFill==null)passwordFill=new PasswordFillController(this);handler.postDelayed(()->{if(running&&vaultRequest==vaultStartGeneration)passwordFill.start();},180);}
             case "none" -> {}
             case "subtitle" -> subtitles.start();
             case "notes" -> showNotes();
@@ -328,5 +349,5 @@ public class FloatService extends Service {
     }
     private void launchApp(String pkg){Intent intent=getPackageManager().getLaunchIntentForPackage(pkg);if(intent==null)toast("该应用已卸载或无法启动");else launch(intent);}
     void stopSubtitles(){if(subtitles!=null)subtitles.stop();}
-    @Override public void onDestroy(){stopSubtitles();stopping=true;if(ball!=null){ball.animate().cancel();ball.setAlpha(0);ball.setVisibility(View.INVISIBLE);ballParams.alpha=0;updateBall();}if(instance==this)instance=null;running=false;MainActivity.runningChanged();handler.removeCallbacksAndMessages(null);captureInFlight=false;hideCaptureTarget();if(captures!=null)captures.destroy();closePanel();removeBall();try{unregisterReceiver(screenReceiver);}catch(IllegalArgumentException ignored){}stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy();}
+    @Override public void onDestroy(){if(passwordFill!=null)passwordFill.destroy();stopSubtitles();stopping=true;if(ball!=null){ball.animate().cancel();ball.setAlpha(0);ball.setVisibility(View.INVISIBLE);ballParams.alpha=0;updateBall();}if(instance==this)instance=null;running=false;MainActivity.runningChanged();handler.removeCallbacksAndMessages(null);captureInFlight=false;hideCaptureTarget();if(captures!=null)captures.destroy();closePanel();removeBall();try{unregisterReceiver(screenReceiver);}catch(IllegalArgumentException ignored){}stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy();}
 }

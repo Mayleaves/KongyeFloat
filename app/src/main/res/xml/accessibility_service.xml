@@ -7,5 +7,5 @@
     android:canRetrieveWindowContent="true"
     android:canTakeScreenshot="true"
     android:canPerformGestures="true"
-    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds"
     android:settingsActivity="com.kongye.floatball.MainActivity" />

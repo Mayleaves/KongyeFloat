@@ -213,6 +213,7 @@ public class MainActivity extends Activity {
         if(schedule){link(theme,"开始时间",ThemePolicy.time(start),()->pickThemeTime("dark_start",1320));link(theme,"结束时间",ThemePolicy.time(end),()->pickThemeTime("dark_end",420));}
         LinearLayout hide=settingItem(theme,"eye_closed","后台隐藏",null,null);
         addSwitch(hide,HIDE_FROM_RECENTS,true);
+        if(VaultClient.debug(this))settingLink(theme,"password_fill","密码空间接口",null,new VaultClient(this).providerPackage(),()->new UiDialog(this).setTitle("密码空间接口（调试）").setItems(VaultClient.PACKAGES,(d,which)->{Prefs.of(this).edit().putString("vault_package",VaultClient.PACKAGES[which]).apply();render();}).setNegativeButton("取消",null).show());
         content.addView(theme);
         if(schedule){Ui.gap(content,10);hint(start==end?"起止时间相同：全天深色。":"按手机本地时间切换，可跨午夜。");}
         label("关于与更新");LinearLayout other=group();
