@@ -48,7 +48,7 @@ final class PasswordFillController {
             call("match",args,this::showMatches);
         });
     }
-    private Bundle targetArgs(){Bundle args=new Bundle();args.putString("package",destination.pkg());if(!destination.domain().isEmpty())args.putString("domain",destination.domain());return args;}
+    private Bundle targetArgs(){Bundle args=new Bundle();if(destination.domain().isEmpty())args.putString("package",destination.pkg());else args.putString("domain",destination.domain());return args;}
     private void call(String method,Bundle args,Consumer<Bundle> callback){
         int ticket=generation;
         try{worker.execute(()->{

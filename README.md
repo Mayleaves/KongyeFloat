@@ -65,3 +65,6 @@ Windows 上可运行 `gradlew.bat assembleDebug`。项目里的 `scripts/build.p
 - `docs`：详细使用说明与历史验证记录。
 
 当前仓库不包含签名密钥、本机 SDK 配置、构建缓存或设备测试数据。第三方标志说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+
+三软件密码联动的开启方式、日常操作和手机测试清单见[联动使用说明](docs/三软件联动使用与手机测试.md)。
