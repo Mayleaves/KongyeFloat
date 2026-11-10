@@ -13,6 +13,14 @@ public class GestureRulesCheck {
         check(!GestureRules.isDrag(0,0,900,8),"stationary long press must not drag");
         check(!GestureRules.isDrag(0,60,200,8),"quick swipe must not drag");
         check(GestureRules.isDrag(20,0,280,8),"held movement starts dragging");
+        check(GestureRules.isDrag(12,0,35,8),"horizontal pull follows before hold timeout");
+        check(GestureRules.isDrag(-12,3,45,8),"right edge inward pull follows immediately");
+        check(GestureRules.isDrag(14,9,55,8),"horizontal-biased diagonal pull follows immediately");
+        check(!GestureRules.isDrag(4,1,100,8),"small horizontal jitter does not drag");
+        check(!GestureRules.isDrag(12,-40,100,8),"quick upward intent stays a swipe");
+        check(!GestureRules.isDrag(-12,40,100,8),"quick downward intent stays a swipe");
+        check(!GestureRules.isDrag(10,10,120,8),"ambiguous diagonal retains hold threshold");
+        check(GestureRules.isDrag(0,12,280,8),"held vertical movement still starts drag");
         check("up".equals(GestureRules.swipe(4,-50,150,28)),"quick upward swipe");
         check("down".equals(GestureRules.swipe(-4,50,150,28)),"quick downward swipe");
         check(GestureRules.swipe(40,30,150,28)==null,"horizontal movement must not invoke vertical gesture");

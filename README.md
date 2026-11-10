@@ -4,6 +4,8 @@
 
 [下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.0 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.0) · [详细使用说明](docs/USER_GUIDE.md) · [3.0 验证记录](docs/VALIDATION-3.0.md)
 
+v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原有果冻形变、回边、上下轻划和长按。已安装原 v3.0 时请手动重新下载覆盖。详见[索尼验证记录](docs/VALIDATION-3.0-跟手修正.md)。
+
 ## 功能
 
 - **悬浮球与手势**：自定义点击、双击、长按和上下划动作；长按展开环形快捷，快捷位置可配置应用或功能。

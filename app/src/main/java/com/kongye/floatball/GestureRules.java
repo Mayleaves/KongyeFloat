@@ -11,7 +11,9 @@ public final class GestureRules {
         return Math.max(0,Math.min(extent,pointer-offset+(offset+edgeInset)*progress));
     }
     public static boolean isDrag(float dx, float dy, long duration, float slop) {
-        return Math.hypot(dx, dy) > slop && duration >= 280;
+        // Clear horizontal intent cannot invoke an up/down gesture: follow the finger immediately.
+        // Keep the hold threshold for vertical/ambiguous movement so quick swipes still work.
+        return Math.hypot(dx, dy) > slop && (duration >= 280 || Math.abs(dx) > Math.abs(dy) * 1.2f);
     }
     public static String swipe(float dx, float dy, long duration, float threshold) {
         if (duration >= 280 || Math.abs(dy) < threshold || Math.abs(dy) < Math.abs(dx) * 1.4f) return null;
