@@ -11,12 +11,15 @@ import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.*;
 import java.util.function.Consumer;
 
 /** Transparent outside, editable OCR and image sections, movable pin, selectable text and local editing. */
 final class RegionResult {
     private final Context context;private Bitmap image;private final CaptureWindow window;private final Runnable finished;private final ExecutorService worker;private final Consumer<Boolean> pinChanged;
+    // OCR has its own queue: image export must never wait for recognition.
+    private final ExecutorService recognitionWorker=Executors.newSingleThreadExecutor(r->new Thread(()->{android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);r.run();},"Kongye-CaptureOCR"));
     private final String kind;private ImageEditView editingCanvas;private int brushColor=0xFFF44336,brushSize=4;
     private java.util.List<TextRegion> originalText=Collections.emptyList(),lastOcr=Collections.emptyList();private volatile int recognitionGeneration;private volatile boolean closed;
     private String rawValue="",value="",statusText="识别中…";private boolean updatingText;private View retryButton;private boolean recognizing=true,saving,pinned,allFolded,textFolded,imageFolded,edited;
@@ -87,7 +90,7 @@ final class RegionResult {
     }
     private void recognize(){
         final int token=++recognitionGeneration;final java.util.List<TextRegion> exact=new ArrayList<>(originalText);final Bitmap input;try{input=image.copy(Bitmap.Config.ARGB_8888,false);}catch(RuntimeException|OutOfMemoryError error){failed();return;}
-        Prefs.of(context).edit().putString("last_ocr_state","recognizing").apply();worker.execute(()->{String recognized=null;java.util.List<TextRegion> recognizedRegions=Collections.emptyList();try{recognizedRegions=EnhancedOcr.recognize(context,input,()->closed||token!=recognitionGeneration);recognized=combinedText(exact,recognizedRegions);}catch(Exception|OutOfMemoryError ignored){}finally{input.recycle();}String output=recognized;java.util.List<TextRegion> completedRegions=recognizedRegions;new Handler(Looper.getMainLooper()).post(()->{if(closed||token!=recognitionGeneration)return;if(output==null){failed();return;}lastOcr=completedRegions;recognizing=false;rawValue=output;value=normalized(rawValue);statusText="识别完成";Prefs.of(context).edit().putString("last_ocr_state","done").apply();if(mode==0)refreshRecognition();});});
+        Prefs.of(context).edit().putString("last_ocr_state","recognizing").apply();recognitionWorker.execute(()->{String recognized=null;java.util.List<TextRegion> recognizedRegions=Collections.emptyList();try{if(closed||token!=recognitionGeneration)return;recognizedRegions=EnhancedOcr.recognize(context,input,()->closed||token!=recognitionGeneration);recognized=combinedText(exact,recognizedRegions);}catch(Exception|OutOfMemoryError ignored){}finally{input.recycle();}String output=recognized;java.util.List<TextRegion> completedRegions=recognizedRegions;new Handler(Looper.getMainLooper()).post(()->{if(closed||token!=recognitionGeneration)return;if(output==null){failed();return;}lastOcr=completedRegions;recognizing=false;rawValue=output;value=normalized(rawValue);statusText="识别完成";Prefs.of(context).edit().putString("last_ocr_state","done").apply();if(mode==0)refreshRecognition();});});
     }
     private String combinedText(java.util.List<TextRegion> exact,java.util.List<TextRegion> ocr){if(!Prefs.of(context).getBoolean("ocr_chinese_punctuation",true))return RegionTextFusion.text(RegionTextFusion.merge(exact,ocr));ArrayList<TextRegion> formatted=new ArrayList<>();for(TextRegion line:ocr)formatted.add(OcrPunctuation.normalize(line));return RegionTextFusion.text(RegionTextFusion.merge(exact,formatted));}
     private void failed(){recognizing=false;if(!originalText.isEmpty()){rawValue=RegionTextFusion.text(originalText);value=normalized(rawValue);statusText="已提取原文，图片文字识别未完成，可重试";}else statusText="识别暂不可用，仍可编辑文字和保存图片";Prefs.of(context).edit().putString("last_ocr_state","failed").apply();if(!closed&&mode==0)refreshRecognition();}
@@ -157,6 +160,7 @@ final class RegionResult {
     private void copyImage(){
         if(saving)return;
         saving=true;
+        toast("正在复制图片…");
         Bitmap target=image;
         worker.execute(()->{
             android.net.Uri uri=null;
@@ -178,6 +182,7 @@ final class RegionResult {
     private void save(boolean share){
         if(saving)return;
         saving=true;
+        toast(share?"正在准备分享…":"正在保存图片…");
         Bitmap target=image;
         worker.execute(()->{
             String message;
@@ -202,5 +207,5 @@ final class RegionResult {
             });
         });
     }
-    void close(){if(closed)return;closed=true;++recognitionGeneration;window.remove();if(editingCanvas!=null){editingCanvas.dispose();editingCanvas=null;}if(!saving)image.recycle();pinChanged.accept(false);finished.run();}
+    void close(){if(closed)return;closed=true;++recognitionGeneration;recognitionWorker.shutdown();window.remove();if(editingCanvas!=null){editingCanvas.dispose();editingCanvas=null;}if(!saving)image.recycle();pinChanged.accept(false);finished.run();}
 }

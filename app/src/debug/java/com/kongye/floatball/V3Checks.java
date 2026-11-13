@@ -26,8 +26,8 @@ final class V3Checks {
         if(command.equals("contract")){
             if(!PasswordTarget.host("https://www.Example.com/path?q=one").equals("example.com")||!PasswordTarget.host("example.com:443/a").equals("example.com")||!PasswordTarget.host("https://user@example.com").isEmpty()||!PasswordTarget.host("search term").isEmpty()||!PasswordTarget.host("javascript:alert(1)").isEmpty())throw new IllegalStateException("URL safety");
             android.graphics.Rect bounds=new android.graphics.Rect(1,2,3,4);PasswordTarget.Field f=new PasswordTarget.Field("/1","id",bounds);
-            PasswordTarget.Snapshot a=new PasswordTarget.Snapshot("pkg","example.com",3,null,f);
-            if(!PasswordTarget.same(a,a)||PasswordTarget.same(a,new PasswordTarget.Snapshot("pkg","other.com",3,null,f))||PasswordTarget.same(a,new PasswordTarget.Snapshot("other","example.com",3,null,f)))throw new IllegalStateException("Destination guard");
+            PasswordTarget.Snapshot a=new PasswordTarget.Snapshot("pkg","example.com",3,PageRules.Kind.LOGIN,null,f,null,null,f,"");
+            if(!PasswordTarget.same(a,a)||PasswordTarget.same(a,new PasswordTarget.Snapshot("pkg","other.com",3,PageRules.Kind.LOGIN,null,f,null,null,f,""))||PasswordTarget.same(a,new PasswordTarget.Snapshot("other","example.com",3,PageRules.Kind.LOGIN,null,f,null,null,f,"")))throw new IllegalStateException("Destination guard");
             Prefs.of(c).edit().putBoolean("qa_v3_contract",true).apply();return;
         }
         if(command.equals("diagnostic")){

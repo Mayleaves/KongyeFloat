@@ -32,6 +32,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Edge inset compilation failed' }
 & (Join-Path $jdkBin 'java.exe') -cp $output EdgeGapCheck
 if ($LASTEXITCODE -ne 0) { throw 'Edge inset checks failed' }
 
+& (Join-Path $jdkBin 'javac.exe') -encoding UTF-8 -d $output (Join-Path $projectRoot 'app\src\main\java\com\kongye\floatball\PageRules.java') (Join-Path $projectRoot 'tests\PasswordPageCheck.java')
+if ($LASTEXITCODE -ne 0) { throw 'Password page compilation failed' }
+& (Join-Path $jdkBin 'java.exe') -cp $output com.kongye.floatball.PasswordPageCheck
+if ($LASTEXITCODE -ne 0) { throw 'Password page checks failed' }
+
 & (Join-Path $jdkBin 'javac.exe') -encoding UTF-8 -d $output (Join-Path $projectRoot 'app\src\main\java\com\kongye\floatball\BrowserSearch.java') (Join-Path $projectRoot 'app\src\main\java\com\kongye\floatball\GestureRules.java') (Join-Path $projectRoot 'tests\V19Check.java')
 if ($LASTEXITCODE -ne 0) { throw 'Search/edge compilation failed' }
 & (Join-Path $jdkBin 'java.exe') -cp $output com.kongye.floatball.V19Check

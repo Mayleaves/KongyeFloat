@@ -2,9 +2,14 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.0 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.0) · [详细使用说明](docs/USER_GUIDE.md) · [3.0 验证记录](docs/VALIDATION-3.0.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.1.1 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.1.1) · [详细使用说明](docs/USER_GUIDE.md) · [3.1.1 验证记录](docs/VALIDATION-3.1.1.md)
 
 v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原有果冻形变、回边、上下轻划和长按。已安装原 v3.0 时请手动重新下载覆盖。详见[索尼验证记录](docs/VALIDATION-3.0-跟手修正.md)。
+
+## 3.1.1 更新
+
+- 首页权限只保留悬浮窗、无障碍，不再申请通知权限。后台服务和录屏仍遵守系统的前台运行提示要求；通知关闭时保留录制控制球，录制结束直接打开预览。
+- 图片保存、复制、分享不再与 OCR 排队；识别未完成也能处理图片。选择直接保存时跳过文字提取，保持原始尺寸和无损 PNG。
 
 ## 功能
 
@@ -29,11 +34,11 @@ v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原
 
 「设置 → 增强悬浮层」可在无障碍服务连接时改善悬浮球的显示范围，无需 Root。Android 或目标应用仍可能限制安全页面上的悬浮窗、截图和录音。
 
-Ace2 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.0/KongyeFloat-3.0-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.0/KongyeFloat-3.0-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
+Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.1.1/KongyeFloat-3.1.1-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.1.1/KongyeFloat-3.1.1-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.0。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.1.1。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 

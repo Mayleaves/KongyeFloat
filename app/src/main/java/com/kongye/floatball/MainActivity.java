@@ -1,6 +1,5 @@
 package com.kongye.floatball;
 
-import android.Manifest;
 import android.app.*;
 import android.content.*;
 import android.content.res.ColorStateList;
@@ -141,8 +140,8 @@ public class MainActivity extends Activity {
         showRunningState(on,false);
         power.setOnClickListener(v->{if(FloatService.running)startService(new Intent(this,FloatService.class).setAction(FloatService.STOP));else startBall(null);});
         state.addView(power,new LinearLayout.LayoutParams(dp(48),dp(48)));status.addView(state);content.addView(status);
-        boolean overlay=Settings.canDrawOverlays(this),assist=AssistService.instance!=null,notifications=notificationsAllowed();
-        label("权限");content.addView(new PermissionStrip(this,new boolean[]{overlay,assist,notifications},new Runnable[]{this::overlayPermission,this::accessibilityPermission,()->{if(notifications||Build.VERSION.SDK_INT<33)notificationSettings();else requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},12);}}));
+        boolean overlay=Settings.canDrawOverlays(this),assist=AssistService.instance!=null;
+        label("权限");content.addView(new PermissionStrip(this,new boolean[]{overlay,assist},new Runnable[]{this::overlayPermission,this::accessibilityPermission}));
         Ui.gap(content,18);LinearLayout toolHead=Ui.row(this);TextView title=Ui.text(this,"工具",13,Ui.MUTED,true);Ui.pad(title,6,0,0,0);toolHead.addView(title,new LinearLayout.LayoutParams(0,-2,1));toolHead.addView(iconButton("tool_sliders","管理首页工具",this::manageHomeTools),new LinearLayout.LayoutParams(dp(44),dp(44)));content.addView(toolHead);
         java.util.ArrayList<String> ids=HomeTools.load(this);LinearLayout tools=group();tools.setContentDescription("首页工具列表");Ui.pad(tools,6,8,6,8);
         tools.addView(new HomeToolGrid(this,ids,id->tool(id,HomeTools.label(id)),order->HomeTools.save(this,order)),new LinearLayout.LayoutParams(-1,-2));
@@ -163,10 +162,6 @@ public class MainActivity extends Activity {
         TextView chip=Ui.centeredText(this,granted?"✓ 已开启":"去开启",10,granted?Ui.GREEN:Ui.dark?0xFF102E21:Color.WHITE,false);
         chip.setBackground(Ui.bg(granted?Ui.PALE:Ui.GREEN,14,this));Ui.pad(chip,9,5,9,5);cell.addView(chip,new LinearLayout.LayoutParams(-2,-2));group.addView(cell,new LinearLayout.LayoutParams(0,-2,1));
     }
-    private boolean notificationsAllowed(){return Build.VERSION.SDK_INT<33||checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED;}
-    private void notificationSettings(){safeSettings(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName()));}
-    // A permanently denied request returns at once without a dialog; send the user to the system page instead.
-    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){super.onRequestPermissionsResult(request,permissions,results);if(request==12&&!notificationsAllowed()&&Build.VERSION.SDK_INT>=33&&!shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS))notificationSettings();render();}
     private void gestures() {
         label("外观与位置");ballAppearance();
         label("手势操作");

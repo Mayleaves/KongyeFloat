@@ -8,12 +8,12 @@ import android.widget.*;
 
 /** Scheme C from the supplied HTML; all status values come from Android permissions. */
 final class PermissionStrip extends LinearLayout {
-    private static final String[] NAMES={"悬浮窗","无障碍","通知"};
+    private static final String[] NAMES={"悬浮窗","无障碍"};
     PermissionStrip(Context c,boolean[] granted,Runnable[] actions){
         super(c);setOrientation(VERTICAL);setContentDescription("权限智能紧凑胶囊条");Ui.pad(this,12,12,12,12);
         GradientDrawable frame=Ui.bg(Ui.SURFACE,22,c);frame.setStroke(Ui.dp(c,.7f),Ui.LINE);setBackground(frame);
         LinearLayout bar=Ui.row(c);int missing=0,first=-1;StringBuilder pending=new StringBuilder();
-        for(int i=0;i<3;i++){
+        for(int i=0;i<NAMES.length;i++){
             boolean on=granted[i];final Runnable action=actions[i];if(!on){missing++;if(first<0)first=i;if(pending.length()>0)pending.append("、");pending.append(NAMES[i]);}
             LinearLayout chip=Ui.row(c);chip.setGravity(Gravity.CENTER);Ui.pad(chip,6,9,6,9);chip.setMinimumHeight(Ui.dp(c,36));chip.setFocusable(true);chip.setContentDescription(NAMES[i]+(on?"，已开启":"，未开启，去开启"));
             int fill=on?(Ui.dark?Ui.PALE:0xFFEEF4EC):(Ui.dark?0xFF3C3529:0xFFF5F2EB),ink=on?(Ui.dark?Ui.INK:0xFF25543D):(Ui.dark?0xFFE3CFAB:0xFF5B4D34);
