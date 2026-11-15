@@ -68,6 +68,14 @@ final class OcrPunctuation {
         return String.join("\n", lines);
     }
 
+    static String formatTranslatedSubtitle(String text, String language) {
+        // OCR blocks are paragraphs. Let the overlay wrap them at the available width.
+        String paragraph = text.replaceAll("[\\r\\n]+", " ").strip();
+        if (!"zh".equals(language)) return paragraph;
+        return normalizeChineseSubtitle(paragraph)
+                .replaceAll("(?<=\\p{IsHan})[\\h\\u200B\\uFEFF]+(?=\\p{IsHan})", "");
+    }
+
     static TextRegion normalize(TextRegion r){return withText(r,normalize(r.text));}
     private static TextRegion withText(TextRegion r,String text){
         ArrayList<TextRegion> parts=new ArrayList<>();int cursor=0;for(TextRegion part:r.parts){int at=r.text.indexOf(part.text,cursor);if(at>=0&&at+part.text.length()<=text.length()){parts.add(withText(part,text.substring(at,at+part.text.length())));cursor=at+part.text.length();}else parts.add(normalize(part));}

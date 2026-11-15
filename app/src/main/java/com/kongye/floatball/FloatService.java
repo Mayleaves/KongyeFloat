@@ -50,12 +50,14 @@ public class FloatService extends Service {
         if(Build.VERSION.SDK_INT>=33)registerReceiver(screenReceiver,filter,Context.RECEIVER_NOT_EXPORTED);else registerReceiver(screenReceiver,filter);AppCatalog.prefetch(this);
     }
     @Override public int onStartCommand(Intent intent,int flags,int id){
-        if(intent!=null&&STOP.equals(intent.getAction())){stopWithMotion();return START_NOT_STICKY;}
+        if(intent==null&&!UpdateRestoreReceiver.enabled(this)){stopSelf();return START_NOT_STICKY;}
+        if(intent!=null&&STOP.equals(intent.getAction())){UpdateRestoreReceiver.remember(this,false);stopWithMotion();return START_NOT_STICKY;}
         if(stopping){stopGeneration++;handler.removeCallbacks(stopAfterMotion);stopping=false;running=true;if(ball!=null){ballParams.alpha=1;ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);applyPolicy();wakeBall();}MainActivity.runningChanged();}
         if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY;}
         if(intent!=null&&REFRESH.equals(intent.getAction())){appMode=AppBehavior.mode(this,AssistService.foregroundPackage);ThemePolicy.apply(this);renderedDark=Ui.dark;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);closeToolPanels();removeBall();}
         boolean wasRunning=running;if(ball==null)try{addBall();}catch(RuntimeException e){toast("无法显示悬浮窗，请检查权限");stopSelf();return START_NOT_STICKY;}
         running=true;if(!wasRunning){MainActivity.runningChanged();if(ball!=null&&ball.getVisibility()==View.VISIBLE&&!appMode.equals("hidden")){ball.setAlpha(0);ball.setScaleX(.65f);ball.setScaleY(.65f);ball.animate().alpha(baseAlpha()).scaleX(1).scaleY(1).setDuration(android.animation.ValueAnimator.areAnimatorsEnabled()?750:0).start();}}if(intent!=null&&RECOVER.equals(intent.getAction()))recoverBall();
+        UpdateRestoreReceiver.remember(this,true);
         if(intent!=null&&intent.hasExtra("action")){String action=intent.getStringExtra("action");handler.postDelayed(()->perform(action),wasRunning&&"apps".equals(action)?0:220);}
         BallArt.prepare(this,()->{if(instance==this&&running)startService(new Intent(this,FloatService.class).setAction(REFRESH));});return START_STICKY;
     }

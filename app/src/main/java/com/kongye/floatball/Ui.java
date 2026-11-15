@@ -134,10 +134,52 @@ final class Ui {
                     }
                 }
                 case "subtitle_cover" -> {
-                    path.moveTo(8,16);path.lineTo(5,16);path.quadTo(3,16,3,14);
-                    path.lineTo(3,5);path.quadTo(3,3,5,3);path.lineTo(14,3);
-                    path.quadTo(16,3,16,5);path.lineTo(16,8);canvas.drawPath(path,p);
-                    canvas.drawRoundRect(8,8,21,21,2,2,p);
+                    canvas.drawRoundRect(3,5,21,19,2,2,p);
+                    canvas.drawLine(7,11,17,11,p);
+                    canvas.drawLine(7,15,13,15,p);
+                }
+                case "subtitle_color_sample" -> {
+                    canvas.save();
+                    canvas.rotate(45,12,12);
+                    canvas.drawRoundRect(9.3f,2.5f,14.7f,8.5f,2.7f,2.7f,p);
+                    canvas.drawLine(8,8.5f,16,8.5f,p);
+                    path.moveTo(10,9); path.lineTo(10,17); path.lineTo(12,20);
+                    path.lineTo(14,17); path.lineTo(14,9);
+                    canvas.drawPath(path,p);
+                    canvas.restore();
+                }
+                case "subtitle_position" -> {
+                    canvas.drawRoundRect(4,8,20,16,2,2,p);
+                    canvas.drawLine(8,4,16,4,p);
+                    canvas.drawLine(8,20,16,20,p);
+                }
+                case "subtitle_align" -> {
+                    canvas.drawLine(4,5,20,5,p);
+                    canvas.drawLine(7,10,17,10,p);
+                    canvas.drawLine(4,15,20,15,p);
+                    canvas.drawLine(7,20,17,20,p);
+                }
+                case "subtitle_font_size" -> {
+                    path.moveTo(3,19); path.lineTo(7,8); path.lineTo(11,19);
+                    path.moveTo(5,15); path.lineTo(9,15);
+                    path.moveTo(12,19); path.lineTo(17,4); path.lineTo(22,19);
+                    path.moveTo(14,14); path.lineTo(20,14);
+                    canvas.drawPath(path,p);
+                }
+                case "subtitle_background" -> {
+                    path.moveTo(12,3);
+                    path.cubicTo(9,7,5,11,5,15);
+                    path.cubicTo(5,19,8,22,12,22);
+                    path.cubicTo(16,22,19,19,19,15);
+                    path.cubicTo(19,11,15,7,12,3);
+                    path.close();
+                    canvas.drawPath(path,p);
+                    canvas.drawArc(8,11,16,19,85,100,false,p);
+                }
+                case "subtitle_opacity" -> {
+                    canvas.drawCircle(12,12,9,p);
+                    p.setStyle(Paint.Style.FILL);
+                    canvas.drawArc(3,3,21,21,-90,180,true,p);
                 }
                 case "subtitle_exit" -> {
                     path.moveTo(13,7);path.lineTo(13,5);path.quadTo(13,3,11,3);

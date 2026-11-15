@@ -272,6 +272,10 @@ public final class ReleaseHistoryActivity extends Activity {
     private void openReleasePage(String tag) {
         String url = ReleaseSummary.releaseUrl(tag);
         if (url == null) return;
+        openWeb(url);
+    }
+
+    private void openWeb(String url) {
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE));
         } catch (ActivityNotFoundException | SecurityException unavailable) {
@@ -556,6 +560,7 @@ public final class ReleaseHistoryActivity extends Activity {
         refreshTool = null;
         refreshIcon = null;
         if (model.selected == null) {
+            header.addView(Ui.tool(this, "github", "GitHub", () -> openWeb(GitHubUpdate.PROJECT)), new LinearLayout.LayoutParams(dp(42), dp(42)));
             FrameLayout btn = new FrameLayout(this);
             btn.setContentDescription("刷新更新历史");
             btn.setFocusable(true);

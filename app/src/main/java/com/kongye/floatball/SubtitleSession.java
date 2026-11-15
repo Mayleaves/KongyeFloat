@@ -23,6 +23,9 @@ import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions;
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions;
 import java.util.function.BooleanSupplier;
+import java.util.*;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 
 /** An explicit, in-memory OCR session over one user-selected screen region. */
 final class SubtitleSession {
@@ -33,6 +36,12 @@ final class SubtitleSession {
     private static final int PANEL_GREEN = 0xFF24533B;
     private static final int DEFAULT_OPACITY = 78;
     private static final int POLL_MS = 650;
+    private static final int PREVIEW_NAME_COLOR = 0xFF82C4A1;
+    private static final List<String> PREVIEW_SOURCE = List.of("Kongye Float", "Hello, this is the Kongye Float.");
+    private static final List<String> PREVIEW_TRANSLATION = List.of("空叶", "你好，这里是空叶悬浮球。");
+    private static final SubtitleFrame PREVIEW_FRAME = new SubtitleFrame(1000, 100, List.of(
+            new SubtitleLayout.Block(PREVIEW_SOURCE.get(0), 30, 12, 970, 36, PREVIEW_NAME_COLOR, 24),
+            new SubtitleLayout.Block(PREVIEW_SOURCE.get(1), 30, 54, 970, 78, Color.WHITE, 24)));
     private final Context context;
     private final SharedPreferences preferences;
     private final BooleanSupplier blocked;
@@ -43,19 +52,30 @@ final class SubtitleSession {
     private WindowManager overlays;
     private AssistService assist;
     private FrameLayout panel;
+    private FrameLayout preview;
+    private SubtitleCaptionView previewOriginal, previewCover;
+    private TextView previewFloating;
     private ResizableCropView selection;
     private FrameLayout layer;
     private TextView caption;
+    private SubtitleCaptionView styledCaption;
+    private SubtitleFrame latestFrame = SubtitleFrame.EMPTY;
+    private List<String> translatedBlocks = List.of();
+    private String displayedKey = "";
+    private final LinkedHashMap<String, String> translatedCache = new LinkedHashMap<>();
     private TextRecognizer reader;
     private LanguageIdentifier identifier;
     private Translator translator;
     private Runnable translationTimeout;
     private boolean active, live, frameBusy, translating, modelReady;
-    private boolean frameVisible, cover;
-    private int epoch, translationJob, background, opacity, alignment;
+    private boolean frameVisible, cover, captionBelow, presentationHidden;
+    private int epoch, translationJob, background, opacity, coverOpacity, alignment, fontScale;
     private String source, target, clientPair = "";
-    private String latest = "", displayed = "", translation = "";
+    private String detectedSource = "";
+    private String latest = "", translation = "";
     private String status = "";
+    private boolean languageChanged, followBackground, followTextColor;
+    private int sampledBackground;
     private long retryAt;
 
     SubtitleSession(Context context, BooleanSupplier blocked) {
@@ -75,12 +95,18 @@ final class SubtitleSession {
         }
         overlays = assist.getSystemService(WindowManager.class);
         frameVisible = preferences.getBoolean("subtitle_frame", true);
-        cover = preferences.getBoolean("subtitle_cover", false);
+        cover = preferences.getBoolean("subtitle_follow_original", false) || preferences.getBoolean("subtitle_cover", true);
+        captionBelow = preferences.getBoolean("subtitle_caption_below", false);
         background = preferences.getInt("subtitle_background", COLORS[0]);
+        followBackground = preferences.getBoolean("subtitle_follow_background", background == COLORS[0]);
+        followTextColor = preferences.getBoolean("subtitle_follow_text_color", true);
         opacity = Math.max(0, Math.min(100, preferences.getInt("subtitle_opacity", DEFAULT_OPACITY)));
+        coverOpacity = Math.max(0, Math.min(100, preferences.getInt("subtitle_cover_opacity", 100)));
+        fontScale = Math.max(60, Math.min(160, preferences.getInt("subtitle_font_scale", 100)));
         alignment = Math.max(0, Math.min(2, preferences.getInt("subtitle_alignment", 1)));
         source = preferences.getString("subtitle_source", "auto");
         target = preferences.getString("subtitle_target", "zh");
+        detectedSource = "";
         screen.set(displayBounds());
         area.setEmpty();
         active = true;
@@ -167,15 +193,11 @@ final class SubtitleSession {
             }
         };
         layer.setWillNotDraw(false);
-        caption = Ui.text(context, "", 17, Color.WHITE, true);
-        caption.setEllipsize(TextUtils.TruncateAt.END);
-        caption.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_BALANCED);
-        caption.setLineSpacing(dp(3), 1f);
-        if (Build.VERSION.SDK_INT >= 33) {
-            caption.setLineBreakStyle(android.graphics.text.LineBreakConfig.LINE_BREAK_STYLE_STRICT);
-            caption.setLineBreakWordStyle(android.graphics.text.LineBreakConfig.LINE_BREAK_WORD_STYLE_PHRASE);
-        }
+        caption = newCaption();
         layer.addView(caption);
+        styledCaption = new SubtitleCaptionView(context);
+        styledCaption.setContentDescription("按原文位置显示的字幕译文");
+        layer.addView(styledCaption);
         layer.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
             if (view == layer && (l != ol || t != ot || r != or || b != ob)) render();
         });
@@ -211,38 +233,103 @@ final class SubtitleSession {
         return params;
     }
 
+    private TextView newCaption() {
+        TextView text = Ui.text(context, "", 17, Color.WHITE, false);
+        text.setEllipsize(TextUtils.TruncateAt.END);
+        text.setIncludeFontPadding(false);
+        text.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+        text.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY);
+        if (Build.VERSION.SDK_INT >= 33) {
+            text.setLineBreakStyle(android.graphics.text.LineBreakConfig.LINE_BREAK_STYLE_STRICT);
+            text.setLineBreakWordStyle(android.graphics.text.LineBreakConfig.LINE_BREAK_WORD_STYLE_PHRASE);
+        }
+        return text;
+    }
+
+    private int subtitleBackground(int percent) {
+        return (effectiveBackground() & 0xFFFFFF) | (Math.round(percent * 2.55f) << 24);
+    }
+
+    private int effectiveBackground() {
+        return followBackground && sampledBackground != 0 ? sampledBackground : background;
+    }
+
+    private int textColorOverride() {
+        if (followTextColor) return 0;
+        return Color.luminance(effectiveBackground() | 0xFF000000) >= .179f ? Color.BLACK : Color.WHITE;
+    }
+
     private void render() {
+        renderPreview();
         if (layer == null || caption == null) return;
         layer.invalidate();
-        caption.setText(translation);
-        caption.setVisibility(translation.isEmpty() ? View.GONE : View.VISIBLE);
-        caption.setTextLocale(java.util.Locale.forLanguageTag(target));
-        int horizontal = alignment == 0 ? Gravity.LEFT : alignment == 2 ? Gravity.RIGHT : Gravity.CENTER_HORIZONTAL;
-        caption.setGravity(horizontal | Gravity.CENTER_VERTICAL);
-        caption.setBackground(Ui.bg((background & 0xFFFFFF) | (Math.round(opacity * 2.55f) << 24), 8, context));
-        boolean light = Color.luminance(background | 0xFF000000) > .6f && opacity >= 45;
-        caption.setTextColor(light ? Color.BLACK : Color.WHITE);
-        caption.setShadowLayer(light ? 0 : dp(2), 0, dp(1), Color.BLACK);
+        boolean visible = !translation.isEmpty() && displayedKey.equals(latestFrame.key)
+                && translatedBlocks.size() == latestFrame.blocks.size() && !area.isEmpty();
+        int visibility = !visible ? View.GONE : presentationHidden ? View.INVISIBLE : View.VISIBLE;
         int[] origin = new int[2];
         layer.getLocationOnScreen(origin);
-        int width = Math.min(area.width(), dp(560));
-        int extra = area.width() - width;
-        int offset = alignment == 0 ? 0 : alignment == 2 ? extra : extra / 2;
-        int side = Math.min(dp(10), width / 5);
-        caption.setPadding(side + (cover ? offset : 0), dp(5), side + (cover ? extra - offset : 0), dp(5));
-        int available = cover ? area.height() : area.top - origin[1] - dp(6);
-        if (!cover && available < 2 * caption.getLineHeight() + dp(10)) available = screen.height();
-        caption.setMaxLines(Math.max(1, (available - dp(10) + dp(3)) / caption.getLineHeight()));
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(cover ? area.width() : width, cover ? area.height() : -2);
-        params.leftMargin = area.left - origin[0] + (cover ? 0 : offset);
-        int top = area.top;
-        if (!cover) {
-            caption.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            top = Math.max(origin[1], area.top - caption.getMeasuredHeight() - dp(6));
+        if (cover) {
+            caption.setVisibility(View.GONE);
+            styledCaption.setVisibility(visibility);
+            if (!visible) return;
+            FrameLayout.LayoutParams at = new FrameLayout.LayoutParams(area.width(), area.height());
+            at.leftMargin = area.left - origin[0]; at.topMargin = area.top - origin[1];
+            styledCaption.setLayoutParams(at);
+            styledCaption.show(latestFrame, translatedBlocks, target, subtitleBackground(coverOpacity), fontScale, textColorOverride());
+            return;
         }
-        params.topMargin = top - origin[1];
-        caption.setLayoutParams(params);
+        styledCaption.setVisibility(View.GONE);
+        caption.setVisibility(visibility);
+        if (!visible) return;
+        Rect region = new Rect(area);
+        region.offset(-origin[0], -origin[1]);
+        renderFloating(caption, latestFrame, translatedBlocks, region, screen.bottom - origin[1], false);
+    }
+
+    private void renderFloating(TextView text, SubtitleFrame frame, List<String> blocks, Rect region,
+                                int bottom, boolean small) {
+        text.setTextLocale(Locale.forLanguageTag(small ? "zh" : target));
+        int horizontal = alignment == 0 ? Gravity.LEFT : alignment == 2 ? Gravity.RIGHT : Gravity.CENTER_HORIZONTAL;
+        text.setGravity(horizontal | Gravity.TOP);
+        text.setBackground(Ui.bg(subtitleBackground(opacity), 4, context));
+        text.setLineSpacing(dp(small ? 1 : 3), 1f);
+        int width = region.width();
+        int side = Math.min(dp(10), width / 5);
+        int room = Math.max(0, captionBelow ? bottom - region.bottom : region.top);
+        text.setPadding(side, dp(small ? 2 : 4), side, dp(small ? 2 : 4));
+        int percent = fontScale;
+        while (true) {
+            text.setText(floatingText(text, frame, blocks, region.height(), percent));
+            text.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            if (text.getMeasuredHeight() <= room || percent <= 35) break;
+            percent = Math.max(35, percent - 5);
+        }
+        int gap = Math.min(dp(small ? 3 : 6), Math.max(0, room - text.getMeasuredHeight()));
+        int height = Math.min(text.getMeasuredHeight(), room - gap);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
+        params.leftMargin = region.left;
+        params.topMargin = captionBelow ? region.bottom + gap : region.top - gap - height;
+        text.setLayoutParams(params);
+    }
+
+    private CharSequence floatingText(TextView view, SubtitleFrame frame, List<String> blocks, int height, int percent) {
+        android.text.SpannableStringBuilder content = new android.text.SpannableStringBuilder();
+        float sourceScale = height / (float) frame.height;
+        int textColor = textColorOverride();
+        for (int i = 0; i < blocks.size(); i++) {
+            String text = blocks.get(i);
+            if (text.isBlank()) continue;
+            if (content.length() > 0) content.append('\n');
+            int start = content.length();
+            SubtitleLayout.Block original = frame.blocks.get(i);
+            content.append(text);
+            int size = Math.round(SubtitleCaptionView.fontSize(view.getPaint(), text, original.lineHeight() * sourceScale, percent));
+            content.setSpan(new android.text.style.AbsoluteSizeSpan(size), start, content.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            content.setSpan(new android.text.style.ForegroundColorSpan(textColor == 0 ? original.color() : textColor),
+                    start, content.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return content;
     }
 
     private void schedule(long delay) {
@@ -264,8 +351,12 @@ final class SubtitleSession {
         frameBusy = true;
         if (assist.captureSubtitleWindow(selected, (bitmap, error) -> read(bitmap, error, token))) return;
         // Older versions capture the display. Blank only overlays that intersect the crop.
-        boolean hideCaption = intersects(caption, selected);
-        if (hideCaption) caption.setVisibility(View.INVISIBLE);
+        View presentation = cover ? styledCaption : caption;
+        boolean hideCaption = intersects(presentation, selected);
+        if (hideCaption) {
+            presentationHidden = true;
+            presentation.setVisibility(View.INVISIBLE);
+        }
         main.postDelayed(() -> {
             if (token != epoch || !ready()) {
                 restoreAfterFrame(hideCaption);
@@ -301,7 +392,10 @@ final class SubtitleSession {
     }
 
     private void restoreAfterFrame(boolean hideCaption) {
-        if (hideCaption && caption != null) caption.setVisibility(translation.isEmpty() ? View.GONE : View.VISIBLE);
+        if (hideCaption) {
+            presentationHidden = false;
+            render();
+        }
     }
 
     private void read(Bitmap bitmap, String error, int token) {
@@ -316,20 +410,29 @@ final class SubtitleSession {
         }
         try {
             reader.process(InputImage.fromBitmap(bitmap, 0)).addOnCompleteListener(task -> {
-                bitmap.recycle();
+                try {
                 if (token == epoch && ready()) {
                     if (task.isSuccessful()) {
-                        latest = task.getResult().getText().trim();
+                        latestFrame = SubtitleFrame.read(task.getResult(), bitmap);
+                        int detected = latestFrame.background;
+                        if (detected != 0 && (sampledBackground == 0 || SubtitleLayout.distance(sampledBackground, detected) >= 14))
+                            sampledBackground = detected;
+                        latest = latestFrame.text;
                         if (latest.isEmpty()) {
                             clearText();
                             if (!translating) status = "";
-                        } else translateLatest();
+                        } else {
+                            render();
+                            translateLatest();
+                        }
                     } else {
                         clearText();
                         status = "字幕识别失败，正在重试";
                     }
                 }
-                finishFrame();
+                } catch (RuntimeException failure) {
+                    clearText(); status = "字幕识别失败，正在重试";
+                } finally { bitmap.recycle(); finishFrame(); }
             });
         } catch (RuntimeException errorDuringRead) {
             bitmap.recycle();
@@ -345,38 +448,46 @@ final class SubtitleSession {
 
     private void clearText() {
         latest = "";
-        displayed = "";
-        if (!translation.isEmpty()) { translation = ""; render(); }
+        latestFrame = SubtitleFrame.EMPTY;
+        sampledBackground = 0;
+        displayedKey = "";
+        translatedBlocks = List.of();
+        translation = ""; render();
     }
 
     private void translateLatest() {
-        if (translating || latest.isEmpty() || latest.equals(displayed) || SystemClock.uptimeMillis() < retryAt) return;
+        if (translating || latest.isEmpty() || latestFrame.key.equals(displayedKey) || SystemClock.uptimeMillis() < retryAt) return;
         translating = true;
         int token = ++translationJob;
-        String original = latest;
+        SubtitleFrame original = latestFrame;
         if (!source.equals("auto")) { prepareClient(source, original, token); return; }
         try {
             if (identifier == null) identifier = LanguageIdentification.getClient(
                     new LanguageIdentificationOptions.Builder().setConfidenceThreshold(.25f).build());
-            Runnable fallback = () -> prepareClient(TranslationPolicy.scriptLanguage(original), original, token);
+            Runnable fallback = () -> prepareClient(TranslationPolicy.scriptLanguage(original.text), original, token);
             timeout(fallback, 4000);
-            identifier.identifyLanguage(original).addOnCompleteListener(task -> {
+            identifier.identifyLanguage(original.text).addOnCompleteListener(task -> {
                 if (!valid(token) || translationTimeout != fallback) return;
                 String language = task.isSuccessful() ? TranslateLanguage.fromLanguageTag(task.getResult()) : null;
-                prepareClient(language == null ? TranslationPolicy.scriptLanguage(original) : language, original, token);
+                prepareClient(language == null ? TranslationPolicy.scriptLanguage(original.text) : language, original, token);
             });
         } catch (RuntimeException failure) {
-            prepareClient(TranslationPolicy.scriptLanguage(original), original, token);
+            prepareClient(TranslationPolicy.scriptLanguage(original.text), original, token);
         }
     }
 
     private boolean valid(int token) { return token == translationJob && active && translating; }
 
-    private void prepareClient(String language, String original, int token) {
+    private void prepareClient(String language, SubtitleFrame original, int token) {
         if (!valid(token)) return;
+        if ("auto".equals(source)) detectedSource = language;
         clearTimeout();
         if (language.isEmpty()) { failed(token, "请选择字幕源语言"); return; }
-        if (language.equals(target)) { translated(token, original, original); return; }
+        if (language.equals(target)) {
+            ArrayList<String> unchanged = new ArrayList<>();
+            for (SubtitleLayout.Block block : original.blocks) unchanged.add(block.text());
+            translated(token, original, unchanged); return;
+        }
         String pair = language + ":" + target;
         try {
             if (!pair.equals(clientPair) || translator == null) {
@@ -397,7 +508,7 @@ final class SubtitleSession {
                 if (!valid(token) || client != translator) return;
                 if (!task.isSuccessful()) { failed(token, "模型下载失败，请检查 Wi-Fi"); return; }
                 modelReady = true;
-                if (!original.equals(latest)) {
+                if (!original.key.equals(latestFrame.key)) {
                     translating = false;
                     clearTimeout();
                     translateLatest();
@@ -406,24 +517,40 @@ final class SubtitleSession {
         } catch (RuntimeException failure) { failed(token, "无法准备字幕翻译"); }
     }
 
-    private void translate(Translator client, String original, int token) {
+    private void translate(Translator client, SubtitleFrame original, int token) {
         timeout(() -> failed(token, "字幕翻译超时"), 20000);
         try {
-            client.translate(original).addOnCompleteListener(task -> {
+            ArrayList<Task<String>> jobs = new ArrayList<>();
+            String pair = clientPair;
+            for (SubtitleLayout.Block block : original.blocks) {
+                String cached = translatedCache.get(pair + "\u0000" + block.text());
+                jobs.add(cached == null ? client.translate(block.text()) : Tasks.forResult(cached));
+            }
+            Tasks.whenAllComplete(jobs).addOnCompleteListener(task -> {
                 if (!valid(token) || client != translator) return;
-                if (task.isSuccessful()) translated(token, original, task.getResult());
-                else failed(token, "字幕翻译失败，正在重试");
+                ArrayList<String> results = new ArrayList<>();
+                for (int i = 0; i < jobs.size(); i++) {
+                    Task<String> job = jobs.get(i);
+                    if (!job.isSuccessful() || job.getResult() == null) { failed(token, "字幕翻译失败，正在重试"); return; }
+                    results.add(job.getResult());
+                    translatedCache.put(pair + "\u0000" + original.blocks.get(i).text(), job.getResult());
+                }
+                while (translatedCache.size() > 128) translatedCache.remove(translatedCache.keySet().iterator().next());
+                translated(token, original, results);
             });
         } catch (RuntimeException failure) { failed(token, "字幕翻译失败，正在重试"); }
     }
 
-    private void translated(int token, String original, String result) {
+    private void translated(int token, SubtitleFrame original, List<String> results) {
         if (!valid(token)) return;
         translating = false;
         clearTimeout();
-        if (ready() && original.equals(latest)) {
-            displayed = original;
-            translation = "zh".equals(target) ? OcrPunctuation.normalizeChineseSubtitle(result) : result;
+        if (ready() && original.key.equals(latestFrame.key)) {
+            displayedKey = original.key;
+            ArrayList<String> formatted = new ArrayList<>();
+            for (String value : results) formatted.add(OcrPunctuation.formatTranslatedSubtitle(value, target));
+            translatedBlocks = List.copyOf(formatted);
+            translation = String.join("\n", translatedBlocks);
             status = "";
             render();
         }
@@ -464,8 +591,9 @@ final class SubtitleSession {
         clearTimeout();
         closeTranslator();
         latest = "";
-        displayed = "";
+        displayedKey = "";
         retryAt = 0;
+        languageChanged = false;
     }
 
     void showActions() {
@@ -500,13 +628,17 @@ final class SubtitleSession {
             card.addView(Ui.text(context, status, 13, Ui.MUTED, false));
             Ui.gap(card, 8);
         }
-        card.addView(featureRow("subtitle_sliders", "字幕设置", "识别区域、对齐、背景色与透明度", false, this::showSettings));
+        card.addView(settingsAction());
         Ui.gap(card, 12);
         card.addView(primaryButton("subtitle_exit", "退出翻译", this::stop));
     }
 
     private void showSettings() {
-        LinearLayout card = makePanel(true);
+        populateSettings(makePanel(true));
+    }
+
+    private void populateSettings(LinearLayout card) {
+        card.removeAllViews();
         LinearLayout header = Ui.row(context);
         View mark = new View(context);
         mark.setBackground(Ui.bg(accentText(), 4, context));
@@ -516,12 +648,17 @@ final class SubtitleSession {
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
         LinearLayout reset = Ui.action(context, "reset", "重置", "重置字幕设置", () -> {
             frameVisible = true;
-            cover = false;
+            cover = true;
+            captionBelow = false;
             alignment = 1;
             background = COLORS[0];
+            followBackground = true;
+            followTextColor = true;
             opacity = DEFAULT_OPACITY;
+            coverOpacity = 100;
+            fontScale = 100;
+            populateSettings(card);
             saveStyle();
-            showSettings();
         });
         reset.setBackground(Ui.ripple(context, cardColor(), 12));
         Ui.pad(reset, 10, 0, 10, 0);
@@ -529,48 +666,165 @@ final class SubtitleSession {
         header.addView(reset);
         card.addView(header);
         Ui.gap(card, 12);
+        addPreview(card);
+        Ui.gap(card, 10);
         ScrollView scroll = new ScrollView(context);
         scroll.setClipToPadding(false);
         LinearLayout body = Ui.column(context);
         scroll.addView(body);
         card.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        body.addView(featureRow("subtitle_expand", "调整识别区域", "拖动选区框，调整字幕扫描范围", true, this::editRegion));
-        LinearLayout switches = section(body, 12, 2);
-        addCheck(switches, "subtitle_frame", "显示虚线框", frameVisible, value -> { frameVisible = value; saveStyle(); });
-        divider(switches);
-        addCheck(switches, "subtitle_cover", "译文覆盖选区", cover, value -> { cover = value; saveStyle(); });
-        LinearLayout options = section(body, 12, 4);
-        LinearLayout align = optionRow("译文对齐");
+        LinearLayout controls = section(body, 0, 4);
+        addTranslationLanguages(controls);
+        divider(controls);
+        LinearLayout region = optionRow("subtitle_expand", "调整识别区域");
+        region.setMinimumHeight(dp(46));
+        TextView adjustRegion = Ui.centeredText(context, "去调整", 11, Color.WHITE, true);
+        Ui.pad(adjustRegion, 8, 5, 8, 5);
+        adjustRegion.setBackground(Ui.ripple(context, 0xFF25553D, 8));
+        adjustRegion.setFocusable(true);
+        adjustRegion.setContentDescription("去调整");
+        adjustRegion.setOnClickListener(view -> editRegion());
+        region.addView(adjustRegion, new LinearLayout.LayoutParams(-2, -2));
+        region.setOnClickListener(view -> editRegion());
+        controls.addView(region);
+        divider(controls);
+        LinearLayout positionOptions = Ui.column(context);
+        populatePositionOptions(positionOptions);
+        positionOptions.setVisibility(cover ? View.GONE : View.VISIBLE);
+        Runnable[] syncOpacity = {() -> {}};
+        addCheck(controls, "subtitle_cover", "译文覆盖选区", cover, value -> {
+            cover = value;
+            positionOptions.setVisibility(cover ? View.GONE : View.VISIBLE);
+            syncOpacity[0].run();
+            saveStyle();
+        });
+        divider(controls);
+        addCheck(controls, "subtitle_frame", "显示虚线框", frameVisible, value -> { frameVisible = value; saveStyle(); });
+        LinearLayout options = section(body, 12, 12);
+        options.addView(positionOptions);
+        LinearLayout textColorRow = addCheck(options, "text", "译文字色跟随画面", followTextColor, value -> {
+            followTextColor = value;
+            saveStyle();
+        });
+        Ui.pad(textColorRow, 8, 4, 8, 4);
+        textColorRow.setMinimumHeight(dp(40));
+        divider(options);
+        addFontSize(options);
+        syncOpacity[0] = addBackgroundSection(section(body, 12, 12));
+        Ui.gap(card, 12);
+        card.addView(primaryButton(null, "完成", this::resume));
+        renderPreview();
+    }
+
+    private void populatePositionOptions(LinearLayout options) {
+        LinearLayout position = optionRow("subtitle_position", "译文位置");
+        LinearLayout sides = Ui.segmented(context, new String[]{"选区上方", "选区下方"}, captionBelow ? 1 : 0,
+                index -> { captionBelow = index == 1; saveStyle(); });
+        sides.setBackground(Ui.bg(controlColor(), 12, context));
+        position.addView(sides, new LinearLayout.LayoutParams(dp(162), -2));
+        options.addView(position);
+        divider(options);
+        LinearLayout align = optionRow("subtitle_align", "译文对齐");
         LinearLayout segmented = Ui.segmented(context, new String[]{"靠左", "居中", "靠右"}, alignment,
                 index -> { alignment = index; saveStyle(); });
         segmented.setBackground(Ui.bg(controlColor(), 12, context));
         align.addView(segmented, new LinearLayout.LayoutParams(dp(162), -2));
         options.addView(align);
         divider(options);
-        addChoices(options, "源语言", SOURCE_NAMES,
-                indexOf(source) + 1, index -> {
-                    String selected = index == 0 ? "auto" : LANGUAGES[index - 1];
-                    if (selected.equals(source)) return;
-                    source = selected;
-                    preferences.edit().putString("subtitle_source", source).apply();
-                    replaceReader();
-                });
-        divider(options);
-        addChoices(options, "翻译为", LANGUAGE_NAMES, Math.max(0, indexOf(target)), index -> {
-            target = LANGUAGES[index];
-            preferences.edit().putString("subtitle_target", target).apply();
-        });
-        addBackgroundSection(section(body, 12, 12));
-        Ui.gap(card, 12);
-        card.addView(primaryButton("check", "完成", this::resume));
     }
 
-    private void addBackgroundSection(LinearLayout card) {
-        LinearLayout heading = optionRow("字幕背景颜色");
-        TextView colorLabel = Ui.text(context, hexColor(), 11, Ui.MUTED, false);
+    private void addPreview(LinearLayout card) {
+        card.addView(Ui.text(context, "实时预览", 11, Ui.MUTED, true));
+        Ui.gap(card, 5);
+        preview = new FrameLayout(context) {
+            private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+            @Override protected void dispatchDraw(Canvas canvas) {
+                super.dispatchDraw(canvas);
+                if (!frameVisible) return;
+                Rect r = previewArea(this);
+                stroke.setColor(Ui.BRAND);
+                stroke.setStyle(Paint.Style.STROKE);
+                stroke.setStrokeWidth(dp(1));
+                stroke.setPathEffect(new DashPathEffect(new float[]{dp(4), dp(3)}, 0));
+                canvas.drawRect(r.left - 1, r.top - 1, r.right + 1, r.bottom + 1, stroke);
+            }
+        };
+        preview.setBackground(surface(0xFF303832, 12, 0xFF4F6054));
+        preview.setClipToOutline(true);
+        previewOriginal = new SubtitleCaptionView(context);
+        previewCover = new SubtitleCaptionView(context);
+        previewFloating = newCaption();
+        preview.addView(previewOriginal);
+        preview.addView(previewCover);
+        preview.addView(previewFloating);
+        preview.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, or, ob) -> {
+            if (view == preview && (r - l != or - ol || b - t != ob - ot)) renderPreview();
+        });
+        card.addView(preview, new LinearLayout.LayoutParams(-1, dp(screen.height() < dp(450) ? 100 : 116)));
+    }
+
+    private Rect previewArea(View view) {
+        int height = dp(36);
+        int top = (view.getHeight() - height) / 2;
+        return new Rect(dp(10), top, view.getWidth() - dp(10), top + height);
+    }
+
+    private void renderPreview() {
+        if (preview == null || preview.getWidth() <= dp(20) || preview.getHeight() <= dp(36)) return;
+        Rect region = previewArea(preview);
+        FrameLayout.LayoutParams at = new FrameLayout.LayoutParams(region.width(), region.height());
+        at.leftMargin = region.left;
+        at.topMargin = region.top;
+        previewOriginal.setLayoutParams(new FrameLayout.LayoutParams(at));
+        previewOriginal.show(PREVIEW_FRAME, PREVIEW_SOURCE, "en", 0, 100, 0);
+        previewCover.setVisibility(cover ? View.VISIBLE : View.GONE);
+        previewFloating.setVisibility(cover ? View.GONE : View.VISIBLE);
+        if (cover) {
+            previewCover.setLayoutParams(at);
+            previewCover.show(PREVIEW_FRAME, PREVIEW_TRANSLATION, "zh", subtitleBackground(coverOpacity),
+                    fontScale, textColorOverride());
+        } else renderFloating(previewFloating, PREVIEW_FRAME, PREVIEW_TRANSLATION, region, preview.getHeight(), true);
+        preview.invalidate();
+    }
+
+    private void addFontSize(LinearLayout card) {
+        LinearLayout row = optionRow("subtitle_font_size", "译文字号");
+        TextView value = Ui.text(context, fontScale + "%", 12, accentText(), true);
+        row.addView(value);
+        card.addView(row);
+        SeekBar slider = new LeafSeekBar(context);
+        slider.setContentDescription("译文字号");
+        slider.setMax(20);
+        slider.setProgress((fontScale - 60) / 5);
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {}
+            @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                if (!fromUser) return;
+                fontScale = 60 + progress * 5;
+                value.setText(fontScale + "%");
+                saveStyle();
+            }
+        });
+        card.addView(slider, new LinearLayout.LayoutParams(-1, dp(32)));
+    }
+
+    private Runnable addBackgroundSection(LinearLayout card) {
+        LinearLayout heading = optionRow("subtitle_background", "字幕背景颜色");
+        TextView colorLabel = Ui.text(context, hexColor(effectiveBackground()), 11, Ui.MUTED, false);
         colorLabel.setTypeface(Typeface.MONOSPACE);
         heading.addView(colorLabel);
         card.addView(heading);
+        LinearLayout manual = Ui.column(context);
+        Runnable syncBackgroundMode = () -> {
+            manual.setVisibility(followBackground ? View.GONE : View.VISIBLE);
+            colorLabel.setText(hexColor(effectiveBackground()));
+        };
+        addCheck(card, "subtitle_color_sample", "跟随画面", followBackground, value -> {
+            followBackground = value;
+            syncBackgroundMode.run();
+            saveStyle();
+        });
         LinearLayout colors = Ui.row(context);
         EditText hex = Ui.field(context, "自定义颜色 #RRGGBB");
         hex.setSingleLine(true);
@@ -579,12 +833,12 @@ final class SubtitleSession {
         hex.setOnClickListener(view -> editColor(hex));
         hex.setTypeface(Typeface.MONOSPACE);
         hex.setTextSize(12);
-        hex.setText(hexColor());
+        hex.setText(hexColor(background));
         View dot = new View(context);
         LinearLayout[] swatches = new LinearLayout[COLORS.length];
         Runnable syncColor = () -> {
-            colorLabel.setText(hexColor());
-            hex.setText(hexColor());
+            colorLabel.setText(hexColor(effectiveBackground()));
+            hex.setText(hexColor(background));
             dot.setBackground(swatch(background, 4));
             for (int i = 0; i < COLORS.length; i++) {
                 boolean selected = background == COLORS[i];
@@ -615,8 +869,8 @@ final class SubtitleSession {
             if (i > 0) at.leftMargin = dp(5);
             colors.addView(choice, at);
         }
-        card.addView(colors);
-        Ui.gap(card, 8);
+        manual.addView(colors);
+        Ui.gap(manual, 8);
         LinearLayout colorField = Ui.row(context);
         LinearLayout input = Ui.row(context);
         Ui.pad(input, 10, 0, 0, 0);
@@ -638,36 +892,49 @@ final class SubtitleSession {
         LinearLayout.LayoutParams applyAt = new LinearLayout.LayoutParams(-2, dp(38));
         applyAt.leftMargin = dp(8);
         colorField.addView(apply, applyAt);
-        card.addView(colorField);
+        manual.addView(colorField);
+        card.addView(manual);
+        syncColor.run();
+        syncBackgroundMode.run();
         Ui.gap(card, 8);
         divider(card);
-        LinearLayout opacityRow = optionRow("背景不透明度");
-        TextView opacityLabel = Ui.centeredText(context, opacity + "%", 12, accentText(), true);
-        opacityLabel.setBackground(surface(controlColor(), 7));
-        Ui.pad(opacityLabel, 7, 3, 7, 3);
+        LinearLayout opacityRow = optionRow("subtitle_opacity", "背景不透明度");
+        TextView opacityLabel = Ui.text(context, "", 12, accentText(), true);
         opacityRow.addView(opacityLabel);
         card.addView(opacityRow);
         SeekBar slider = new LeafSeekBar(context);
         slider.setContentDescription("字幕背景不透明度");
         slider.setMax(100);
-        slider.setProgress(opacity);
+        Runnable syncOpacity = () -> {
+            int percent = cover ? coverOpacity : opacity;
+            opacityLabel.setText(percent + "%");
+            slider.setProgress(percent);
+        };
         slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onStartTrackingTouch(SeekBar bar) {}
             @Override public void onStopTrackingTouch(SeekBar bar) { saveStyle(); }
             @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
                 if (!fromUser) return;
-                opacity = progress;
-                opacityLabel.setText(opacity + "%");
-                render();
+                if (cover) coverOpacity = progress;
+                else opacity = progress;
+                opacityLabel.setText(progress + "%");
+                saveStyle();
             }
         });
         card.addView(slider, new LinearLayout.LayoutParams(-1, dp(32)));
-        syncColor.run();
+        syncOpacity.run();
+        return syncOpacity;
     }
 
     private void saveStyle() {
         preferences.edit().putBoolean("subtitle_frame", frameVisible).putBoolean("subtitle_cover", cover)
+                .putBoolean("subtitle_caption_below", captionBelow)
+                .remove("subtitle_follow_original").remove("subtitle_original_opacity")
                 .putInt("subtitle_background", background).putInt("subtitle_opacity", opacity)
+                .putBoolean("subtitle_follow_background", followBackground)
+                .putBoolean("subtitle_follow_text_color", followTextColor)
+                .putInt("subtitle_cover_opacity", coverOpacity)
+                .putInt("subtitle_font_scale", fontScale)
                 .putInt("subtitle_alignment", alignment).apply();
         render();
     }
@@ -695,7 +962,7 @@ final class SubtitleSession {
         return surface(color, radius, 0x44838D87);
     }
 
-    private String hexColor() { return String.format(java.util.Locale.ROOT, "#%06X", background & 0xFFFFFF); }
+    private String hexColor(int color) { return String.format(Locale.ROOT, "#%06X", color & 0xFFFFFF); }
 
     private FrameLayout badge(String icon, int fill, int tint, int size) {
         FrameLayout badge = new FrameLayout(context);
@@ -718,37 +985,29 @@ final class SubtitleSession {
         gradient.setCornerRadius(dp(16));
         button.setBackground(new android.graphics.drawable.RippleDrawable(
                 android.content.res.ColorStateList.valueOf(0x33FFFFFF), gradient, null));
-        button.addView(Ui.icon(context, icon, Color.WHITE, 18));
         TextView text = Ui.text(context, label, 15, Color.WHITE, true);
-        Ui.pad(text, 8, 0, 0, 0);
+        if (icon != null) {
+            button.addView(Ui.icon(context, icon, Color.WHITE, 18));
+            Ui.pad(text, 8, 0, 0, 0);
+        }
         button.addView(text);
         button.setOnClickListener(view -> action.run());
         return button;
     }
 
-    private LinearLayout featureRow(String icon, String label, String detail, boolean highlight, Runnable action) {
+    private LinearLayout settingsAction() {
         LinearLayout row = Ui.row(context);
         Ui.pad(row, 12, 10, 12, 10);
-        int tint = accentText();
-        var fill = highlight ? surface(0x1924533B, 16, 0x3324533B) : surface(cardColor(), 16);
         row.setBackground(new android.graphics.drawable.RippleDrawable(
-                android.content.res.ColorStateList.valueOf(0x202E6F4E), fill, null));
-        row.addView(badge(icon, highlight ? PANEL_GREEN : 0x1924533B, highlight ? Color.WHITE : tint, 36));
-        LinearLayout texts = Ui.column(context);
-        Ui.pad(texts, 10, 0, 6, 0);
-        texts.addView(Ui.text(context, label, 14, highlight ? tint : Ui.INK, true));
-        Ui.gap(texts, 4);
-        texts.addView(Ui.text(context, detail, 11, Ui.MUTED, false));
-        row.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
-        if (highlight) {
-            TextView adjust = Ui.centeredText(context, "去调整", 11, Color.WHITE, true);
-            Ui.pad(adjust, 8, 5, 8, 5);
-            adjust.setBackground(Ui.bg(PANEL_GREEN, 8, context));
-            row.addView(adjust);
-        } else row.addView(Ui.icon(context, "forward", Ui.MUTED, 17));
+                android.content.res.ColorStateList.valueOf(0x202E6F4E), surface(cardColor(), 16), null));
+        row.addView(badge("subtitle_sliders", 0x1924533B, accentText(), 36));
+        TextView title = Ui.text(context, "字幕设置", 14, Ui.INK, true);
+        Ui.pad(title, 10, 0, 6, 0);
+        row.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        row.addView(Ui.icon(context, "forward", Ui.MUTED, 17));
         row.setFocusable(true);
-        row.setContentDescription(label);
-        row.setOnClickListener(view -> action.run());
+        row.setContentDescription("字幕设置");
+        row.setOnClickListener(view -> showSettings());
         return row;
     }
 
@@ -767,15 +1026,18 @@ final class SubtitleSession {
         group.addView(line, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
     }
 
-    private LinearLayout optionRow(String title) {
+    private LinearLayout optionRow(String icon, String title) {
         LinearLayout row = Ui.row(context);
         Ui.pad(row, 8, 4, 8, 4);
         row.setMinimumHeight(dp(40));
-        row.addView(Ui.text(context, title, 13, Ui.INK, true), new LinearLayout.LayoutParams(0, -2, 1));
+        row.addView(Ui.icon(context, icon, Ui.MUTED, 16));
+        TextView label = Ui.text(context, title, 13, Ui.INK, true);
+        Ui.pad(label, 8, 0, 4, 0);
+        row.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
         return row;
     }
 
-    private void addCheck(LinearLayout parent, String icon, String title, boolean selected, java.util.function.Consumer<Boolean> change) {
+    private LinearLayout addCheck(LinearLayout parent, String icon, String title, boolean selected, java.util.function.Consumer<Boolean> change) {
         LinearLayout row = Ui.row(context);
         Ui.pad(row, 10, 5, 10, 5);
         row.setMinimumHeight(dp(46));
@@ -790,36 +1052,101 @@ final class SubtitleSession {
         row.addView(toggle);
         row.setOnClickListener(view -> toggle.toggle());
         parent.addView(row);
+        return row;
     }
 
-    private void addChoices(LinearLayout parent, String title, String[] labels, int selected, java.util.function.IntConsumer change) {
-        LinearLayout row = optionRow(title);
+    private void addTranslationLanguages(LinearLayout parent) {
+        LinearLayout row = Ui.row(context);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView from = Ui.centeredText(context, "", 14, Ui.INK, true);
+        TextView to = Ui.centeredText(context, "", 14, Ui.INK, true);
+        LinearLayout sourceChoices = newLanguageChoices();
+        LinearLayout targetChoices = newLanguageChoices();
+        Runnable refresh = () -> {
+            boolean expanded = sourceChoices.getVisibility() == View.VISIBLE || targetChoices.getVisibility() == View.VISIBLE;
+            int fromIndex = indexOf(source) + 1, toIndex = Math.max(0, indexOf(target));
+            from.setText(SOURCE_NAMES[fromIndex]);
+            to.setText(LANGUAGE_NAMES[toIndex]);
+            selectLanguage(sourceChoices, fromIndex);
+            selectLanguage(targetChoices, toIndex);
+            sourceChoices.setVisibility(View.GONE);
+            targetChoices.setVisibility(View.GONE);
+            if (expanded) row.post(() -> row.requestRectangleOnScreen(new Rect(0, 0, row.getWidth(), row.getHeight()), true));
+        };
+        row.addView(TranslationPane.languageChip(from, "源语言", () -> toggleLanguageChoices(sourceChoices, targetChoices)),
+                new LinearLayout.LayoutParams(0, dp(48), 1));
+        FrameLayout swap = new FrameLayout(context);
+        swap.setContentDescription("交换翻译语言");
+        swap.setFocusable(true);
+        swap.setBackground(Ui.ripple(context, Ui.dark ? Ui.PALE : 0xFFE6EFE4, 18));
+        swap.addView(Ui.icon(context, "translation_swap", Ui.GREEN, 22),
+                new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
+        swap.setOnClickListener(view -> {
+            String original = "auto".equals(source) ? detectedSource : source;
+            if (indexOf(original) < 0) {
+                toggleLanguageChoices(sourceChoices, targetChoices);
+                return;
+            }
+            setLanguages(target, original);
+            refresh.run();
+        });
+        row.addView(swap, new LinearLayout.LayoutParams(dp(40), dp(32)));
+        row.addView(TranslationPane.languageChip(to, "翻译为", () -> toggleLanguageChoices(targetChoices, sourceChoices)),
+                new LinearLayout.LayoutParams(0, dp(48), 1));
+        parent.addView(row);
+        addLanguageOptions(sourceChoices, "源语言", SOURCE_NAMES, index -> {
+            setLanguages(index == 0 ? "auto" : LANGUAGES[index - 1], target);
+            refresh.run();
+        });
+        addLanguageOptions(targetChoices, "翻译为", LANGUAGE_NAMES, index -> {
+            setLanguages(source, LANGUAGES[index]);
+            refresh.run();
+        });
+        parent.addView(sourceChoices);
+        parent.addView(targetChoices);
+        refresh.run();
+    }
+
+    private void setLanguages(String from, String to) {
+        boolean sourceChanged = !source.equals(from);
+        if (!sourceChanged && target.equals(to)) return;
+        source = from;
+        target = to;
+        languageChanged = true;
+        preferences.edit().putString("subtitle_source", source).putString("subtitle_target", target).apply();
+        if (sourceChanged) {
+            detectedSource = "";
+            replaceReader();
+        }
+    }
+
+    private LinearLayout newLanguageChoices() {
         LinearLayout options = Ui.column(context);
         options.setBackground(surface(controlColor(), 14));
         options.setClipToOutline(true);
         options.setVisibility(View.GONE);
-        TextView current = Ui.centeredText(context, labels[selected], 14, Ui.INK, true);
-        LinearLayout chip = TranslationPane.languageChip(current, title,
-                () -> options.setVisibility(options.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
-        row.addView(chip, new LinearLayout.LayoutParams(dp(145), dp(40)));
-        parent.addView(row);
+        return options;
+    }
+
+    private void toggleLanguageChoices(View selected, View other) {
+        other.setVisibility(View.GONE);
+        selected.setVisibility(selected.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+        if (selected.getVisibility() == View.VISIBLE) {
+            selected.post(() -> selected.requestRectangleOnScreen(new Rect(0, 0, selected.getWidth(), selected.getHeight()), false));
+        }
+    }
+
+    private void addLanguageOptions(LinearLayout options, String title, String[] labels, java.util.function.IntConsumer change) {
         for (int i = 0; i < labels.length; i++) {
             int index = i;
             TextView option = Ui.text(context, labels[index], 15, Ui.INK, false);
             Ui.pad(option, 12, 0, 12, 0);
             option.setGravity(Gravity.CENTER_VERTICAL);
             option.setBackground(Ui.ripple(context, 0, 0));
-            option.setOnClickListener(view -> {
-                current.setText(labels[index]);
-                selectLanguage(options, index);
-                options.setVisibility(View.GONE);
-                change.accept(index);
-            });
+            option.setOnClickListener(view -> change.accept(index));
             option.setContentDescription(title + "，" + labels[index]);
             options.addView(option, new LinearLayout.LayoutParams(-1, dp(44)));
         }
-        selectLanguage(options, selected);
-        parent.addView(options);
     }
 
     private void selectLanguage(LinearLayout options, int selected) {
@@ -838,7 +1165,8 @@ final class SubtitleSession {
 
     private LinearLayout makePanel(boolean settings) {
         removePanel();
-        invalidateWork();
+        // Pause capture while the controls are open, keeping the current translation for preview.
+        main.removeCallbacks(poll);
         FrameLayout root = new FrameLayout(context);
         root.setBackgroundColor(0x4D0A1A12);
         root.setOnClickListener(view -> resume());
@@ -892,7 +1220,7 @@ final class SubtitleSession {
                     layout.height = height;
                     card.setLayoutParams(layout);
                 }
-                boolean compact = bottom > 0 && height < dp(210);
+                boolean compact = bottom > 0 && height < dp(300);
                 for (int i = 0; i < card.getChildCount(); i++) {
                     View child = card.getChildAt(i);
                     if (!(child instanceof ScrollView)) child.setVisibility(compact ? View.GONE : View.VISIBLE);
@@ -915,6 +1243,10 @@ final class SubtitleSession {
 
     private void resume() {
         removePanel();
+        if (languageChanged) {
+            invalidateWork();
+            clearText();
+        }
         saveStyle();
         schedule(120);
     }
@@ -922,6 +1254,10 @@ final class SubtitleSession {
     private void removePanel() {
         removeOverlay(panel);
         panel = null;
+        preview = null;
+        previewOriginal = null;
+        previewCover = null;
+        previewFloating = null;
         selection = null;
     }
 
@@ -955,6 +1291,8 @@ final class SubtitleSession {
         removeOverlay(layer);
         layer = null;
         caption = null;
+        styledCaption = null;
+        translatedCache.clear();
     }
 
     private void removeOverlay(View view) {
