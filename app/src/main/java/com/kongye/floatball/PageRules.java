@@ -12,6 +12,8 @@ final class PageRules {
     // android.text.InputType 的常量（编译期常量，抄过来以免依赖 Android）
     static final int MASK_CLASS=0x0f,MASK_VARIATION=0xff0,CLASS_TEXT=1,CLASS_NUMBER=2,CLASS_PHONE=3;
     static final int VARIATION_EMAIL=0x20,VARIATION_WEB_EMAIL=0xd0;
+    /** Some WebViews omit isPassword; inputType still identifies secret fields. */
+    static boolean passwordInput(int inputType){int cls=inputType&MASK_CLASS,variation=inputType&MASK_VARIATION;return cls==CLASS_TEXT&&(variation==0x80||variation==0x90||variation==0xe0)||cls==CLASS_NUMBER&&variation==0x10;}
 
     enum Type{USERNAME,PHONE,EMAIL,PASSWORD,NEW,CONFIRM,CURRENT,OTP,OTHER;
         boolean account(){return this==USERNAME||this==PHONE||this==EMAIL;}
@@ -32,6 +34,7 @@ final class PageRules {
 
     /** 第 5.1 节：先命中的算数 */
     static Type classify(String label,boolean password,int inputType){
+        password=password||passwordInput(inputType);
         int cls=inputType&MASK_CLASS,variation=inputType&MASK_VARIATION;
         if(OTP.matcher(label).find())return Type.OTP;
         if(password&&CONFIRM.matcher(label).find())return Type.CONFIRM;

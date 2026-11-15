@@ -14,6 +14,10 @@ public class FixtureLogin extends Activity {
         TextView url=new TextView(this);url.setId(getResources().getIdentifier("url_bar","id",getPackageName()));url.setText(getIntent().getStringExtra("url")==null?"https://login.example.com/signin":getIntent().getStringExtra("url"));ui.addView(url);
         account=new EditText(this);account.setId(1001);account.setHint("测试账号");account.setInputType(InputType.TYPE_CLASS_TEXT);ui.addView(account);
         password=new EditText(this);password.setId(1002);password.setHint("测试密码");password.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);ui.addView(password);
+        if(getIntent().getBooleanExtra("web_password",false))password.setAccessibilityDelegate(new View.AccessibilityDelegate(){
+            public void onInitializeAccessibilityNodeInfo(View v,AccessibilityNodeInfo info){super.onInitializeAccessibilityNodeInfo(v,info);info.setPassword(false);info.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD);}
+        });
+        if(getIntent().getBooleanExtra("no_fields",false)){account.setVisibility(View.GONE);password.setVisibility(View.GONE);}
         if(getIntent().getBooleanExtra("unsupported",false))password.setAccessibilityDelegate(new View.AccessibilityDelegate(){
             public void onInitializeAccessibilityNodeInfo(View v,AccessibilityNodeInfo info){super.onInitializeAccessibilityNodeInfo(v,info);info.removeAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT);}
             public boolean performAccessibilityAction(View v,int a,Bundle data){return a==AccessibilityNodeInfo.ACTION_SET_TEXT?false:super.performAccessibilityAction(v,a,data);}

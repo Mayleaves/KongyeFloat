@@ -37,6 +37,11 @@ public final class PasswordPageCheck {
         check(PageRules.kindOf(change, texts()) == PageRules.Kind.CHANGE, "change kind");
 
         check(PageRules.classify("短信验证码", true, TEXT) == PageRules.Type.OTP, "otp even when masked");
+        check(PageRules.classify("",false,TEXT|0x80)==PageRules.Type.PASSWORD,"native password input without password flag");
+        check(PageRules.classify("",false,TEXT|0xe0)==PageRules.Type.PASSWORD,"web password input without password flag");
+        check(PageRules.passwordInput(TEXT|0x90),"visible password remains sensitive");
+        check(PageRules.passwordInput(PageRules.CLASS_NUMBER|0x10),"numeric password remains sensitive");
+        check(!PageRules.passwordInput(TEXT|PageRules.VARIATION_EMAIL),"email is not secret input");
         check(PageRules.classify("再次输入手机号", false, TEXT) == PageRules.Type.PHONE, "confirm only for password fields");
         check(PageRules.classify("", false, PHONE) == PageRules.Type.PHONE, "phone input class");
         check(PageRules.classify("", false, TEXT | PageRules.VARIATION_EMAIL) == PageRules.Type.EMAIL, "email input type");

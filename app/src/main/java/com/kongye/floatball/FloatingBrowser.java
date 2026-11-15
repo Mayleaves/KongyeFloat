@@ -16,11 +16,23 @@ final class FloatingBrowser {
     private final Context context;private final WindowManager wm;private final Runnable dismiss;private final Consumer<Intent> launch;
     private FrameLayout root,pinButton,foldButton;private LinearLayout card,body,addressRow;private FrameLayout.LayoutParams cardAt;private WindowManager.LayoutParams params;
     private WebView web;private EditText address;private TextView status,bing,google;
-    private boolean docked;private boolean pinned,folded,closed,attached;private int x,y,imeBottom,barTop,barBottom,loads;
+    private boolean docked;private boolean pinned,folded,closed,attached,restoreImeOnFocus;private int x,y,imeBottom,barTop,barBottom,loads;
     FloatingBrowser(Context c,Runnable dismiss,Consumer<Intent> launch){context=c;this.dismiss=dismiss;this.launch=launch;wm=OverlayWindows.get(c);y=dp(48);}
     private int dp(float n){return Ui.dp(context,n);}private int screenW(){android.util.DisplayMetrics m=new android.util.DisplayMetrics();wm.getDefaultDisplay().getRealMetrics(m);return m.widthPixels;}private int screenH(){android.util.DisplayMetrics m=new android.util.DisplayMetrics();wm.getDefaultDisplay().getRealMetrics(m);return m.heightPixels;}
     void show(){
-        root=new FrameLayout(context){@Override public boolean dispatchTouchEvent(MotionEvent e){if(Boolean.TRUE.equals(getTag(R.id.dock_morph_running)))return true;if(pinned){if(e.getActionMasked()==MotionEvent.ACTION_OUTSIDE){animate().alpha(.45f).setDuration(280).start();return false;}if(e.getActionMasked()==MotionEvent.ACTION_DOWN)animate().alpha(1).setDuration(160).start();}return super.dispatchTouchEvent(e);}@Override public boolean dispatchKeyEvent(KeyEvent e){if(e.getKeyCode()==KeyEvent.KEYCODE_BACK){if(e.getAction()==KeyEvent.ACTION_UP){if(folded)fold(false);else if(!goBack())dismiss.run();}return true;}return super.dispatchKeyEvent(e);}};
+        root=new FrameLayout(context){@Override public boolean dispatchTouchEvent(MotionEvent e){if(Boolean.TRUE.equals(getTag(R.id.dock_morph_running)))return true;return super.dispatchTouchEvent(e);}@Override public boolean dispatchKeyEvent(KeyEvent e){if(e.getKeyCode()==KeyEvent.KEYCODE_BACK){if(e.getAction()==KeyEvent.ACTION_UP){if(folded)fold(false);else if(!goBack())dismiss.run();}return true;}return super.dispatchKeyEvent(e);}
+            @Override public void onWindowFocusChanged(boolean focused){
+                super.onWindowFocusChanged(focused);
+                if(!focused){restoreImeOnFocus=!closed&&!folded&&imeBottom>0&&findFocus()!=this;return;}
+                if(restoreImeOnFocus){
+                    restoreImeOnFocus=false;
+                    // A focusable autofill popup can hide IME as it is removed. Ask again
+                    // after ViewRoot has restored this window's input connection.
+                    post(()->{View target=findFocus();if(!closed&&!folded&&hasWindowFocus()&&target!=null&&target!=this)
+                        context.getSystemService(InputMethodManager.class).showSoftInput(target,InputMethodManager.SHOW_IMPLICIT);});
+                }
+            }
+        };
         root.setClipChildren(false);root.setClipToPadding(false);root.setBackgroundColor(Color.TRANSPARENT);root.setFocusableInTouchMode(true);root.setOnClickListener(v->{if(!pinned)dismiss.run();});
         card=Ui.card(context);Ui.softShadow(card);card.setBackground(Ui.floatingFrame(context,24));
         // One outer outline around the toolbar and web content, with a straight seam between them.
@@ -45,7 +57,9 @@ final class FloatingBrowser {
             public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){if(!closed&&request.isForMainFrame())showStatus("加载失败，可切换搜索引擎或更换网址");}
             public void onReceivedSslError(WebView view,SslErrorHandler handler,android.net.http.SslError error){handler.cancel();if(!closed)showStatus("网站证书异常，已停止加载");}
         });body.addView(web,new LinearLayout.LayoutParams(-1,0,1));
-        params=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);params.gravity=Gravity.TOP|Gravity.LEFT;params.softInputMode=WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN;params.setTitle("空叶浏览器");if(Build.VERSION.SDK_INT>=30)params.setFitInsetsTypes(0);
+        // Autofill temporarily changes window focus. Keep the existing IME state
+        // when focus returns instead of hiding the keyboard on every refocus.
+        params=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);params.gravity=Gravity.TOP|Gravity.LEFT;params.softInputMode=WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING|WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED;params.setTitle("空叶浏览器");if(Build.VERSION.SDK_INT>=30)params.setFitInsetsTypes(0);
         root.setOnApplyWindowInsetsListener((v,insets)->{if(closed)return insets;if(Build.VERSION.SDK_INT>=30){android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.systemBars());barTop=bars.top;barBottom=bars.bottom;imeBottom=insets.getInsets(WindowInsets.Type.ime()).bottom;}else{barTop=insets.getSystemWindowInsetTop();barBottom=dp(24);int bottom=insets.getSystemWindowInsetBottom();imeBottom=bottom>dp(120)?bottom:0;}layout();return insets;});
         x=dp(8);wm.addView(root,params);attached=true;layout();root.requestFocus();root.requestApplyInsets();web.loadUrl(BrowserSearch.home(Prefs.of(context).getString("browser_engine","bing")));
     }
@@ -78,7 +92,10 @@ final class FloatingBrowser {
         dividerAt.setMargins(dp(3), 0, dp(3), 0);
         controls.addView(divider, dividerAt);
         foldButton = addTool(controls, "collapse", "收起浏览器", () -> fold(!folded));
-        pinButton = addTool(controls, "browser_pin", "置顶浏览器", () -> { pinned = !pinned; layout(); });
+        pinButton = addTool(controls, "pin", "置顶浏览器", () -> {
+            pinned = !pinned;
+            if(pinned)keepBallReachable();else layout();
+        });
         addTool(controls, "close", "关闭浏览器", dismiss);
 
         addressRow = Ui.row(context);
@@ -151,14 +168,27 @@ final class FloatingBrowser {
     private void chip(TextView v,boolean on){v.setSelected(on);v.setBackground(on?Ui.bg(Ui.SURFACE,10,context):null);v.setElevation(on?dp(1):0);v.setTextColor(on?Ui.INK:toolColor());}
     private void navigate(){String url=BrowserSearch.url(address.getText().toString(),Prefs.of(context).getString("browser_engine","bing"));if(url==null){if(!address.getText().toString().trim().isEmpty())showStatus("请输入 HTTPS 网址");return;}web.loadUrl(url);hideKeyboard();web.requestFocus();}
     boolean goBack(){if(!closed&&web!=null&&web.canGoBack()){web.goBack();return true;}return false;}
-    private void hideKeyboard(){context.getSystemService(InputMethodManager.class).hideSoftInputFromWindow(root.getWindowToken(),0);}
+    boolean isPinned(){return pinned&&!closed;}
+    void keepBallReachable(){
+        if(!isPinned()||docked)return;
+        Rect ball=FloatService.ballBounds();
+        x=ball!=null&&ball.centerX()<screenW()/2?pinGutter():dp(8);
+        layout();
+    }
+    private int pinGutter(){
+        Rect ball=FloatService.ballBounds();
+        if(ball==null)return dp(8);
+        int edge=ball.centerX()<screenW()/2?ball.right:screenW()-ball.left;
+        return Math.max(dp(8),Math.min(dp(72),edge+dp(4)));
+    }
+    private void hideKeyboard(){restoreImeOnFocus=false;context.getSystemService(InputMethodManager.class).hideSoftInputFromWindow(root.getWindowToken(),0);}
     private void fold(boolean value){if(closed)return;hideKeyboard();root.requestFocus();folded=value;body.setVisibility(value?View.GONE:View.VISIBLE);addressRow.setVisibility(value?View.GONE:View.VISIBLE);if(value)web.onPause();else web.onResume();layout();}
     private void button(FrameLayout target,String icon,String label){if(TextUtils.equals(label,target.getContentDescription()))return;target.setContentDescription(label);target.removeAllViews();target.addView(Ui.icon(context,icon,toolColor(),16),new FrameLayout.LayoutParams(dp(16),dp(16),Gravity.CENTER));}
-    private void layout(){if(!attached||closed||docked)return;button(pinButton,pinned?"browser_pinned":"browser_pin",pinned?"取消置顶浏览器":"置顶浏览器");button(foldButton,folded?"expand":"collapse",folded?"展开浏览器":"收起浏览器");int oldW=params.width,oldH=params.height,oldX=params.x,oldY=params.y;int margin=pinned?0:dp(8),cardHeight=folded?-2:-1;if(cardAt.height!=cardHeight||cardAt.leftMargin!=margin){cardAt.height=cardHeight;cardAt.width=-1;cardAt.gravity=Gravity.CENTER;cardAt.setMargins(margin,margin,margin,margin);card.setLayoutParams(cardAt);}
-        if(pinned){params.flags|=WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS|WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;root.setPadding(dp(12),dp(12),dp(12),dp(12));params.width=screenW()-dp(16);int top=Math.max(dp(32),barTop),bottom=Math.max(barBottom,imeBottom);y=Math.max(top,Math.min(screenH()-dp(100),y));int height=imeBottom>0?Math.min(screenH()-dp(112),Math.max(dp(260),screenH()-y-bottom-dp(16))):screenH()-dp(112);params.height=folded?-2:height;int maxY=screenH()-(folded?dp(84):height)-barBottom-dp(8);y=Math.max(top,Math.min(maxY,y));params.x=x;params.y=y;}else{params.flags&=~(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS|WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH);root.setPadding(0,barTop,0,Math.max(barBottom,imeBottom));params.width=params.height=-1;params.x=params.y=0;}
+    private void layout(){if(!attached||closed||docked)return;button(pinButton,pinned?"pinned":"pin",pinned?"取消置顶浏览器":"置顶浏览器");button(foldButton,folded?"expand":"collapse",folded?"展开浏览器":"收起浏览器");int oldW=params.width,oldH=params.height,oldX=params.x,oldY=params.y;int margin=pinned?0:dp(8),cardHeight=folded?-2:-1;if(cardAt.height!=cardHeight||cardAt.leftMargin!=margin){cardAt.height=cardHeight;cardAt.width=-1;cardAt.gravity=Gravity.CENTER;cardAt.setMargins(margin,margin,margin,margin);card.setLayoutParams(cardAt);}
+        if(pinned){params.flags|=WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS|WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;root.setPadding(dp(8),dp(12),dp(8),dp(12));params.width=screenW()-dp(8)-pinGutter();int top=Math.max(dp(32),barTop),bottom=Math.max(barBottom,imeBottom);y=Math.max(top,Math.min(screenH()-dp(100),y));int height=imeBottom>0?Math.min(screenH()-dp(112),Math.max(dp(260),screenH()-y-bottom-dp(16))):screenH()-dp(112);params.height=folded?-2:height;int maxY=screenH()-(folded?dp(84):height)-barBottom-dp(8);y=Math.max(top,Math.min(maxY,y));params.x=x;params.y=y;}else{params.flags&=~(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS|WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH);root.setPadding(0,barTop,0,Math.max(barBottom,imeBottom));params.width=params.height=-1;params.x=params.y=0;}
         if(oldW!=params.width||oldH!=params.height||oldX!=params.x||oldY!=params.y)wm.updateViewLayout(root,params);receipt(null);
     }
-    private void dock(boolean left){docked=true;DockMorph.dock(context,wm,root,left,"browser","展开置顶浏览器标签",()->{docked=false;x=params.x;y=params.y;receipt(null);});}
+    private void dock(boolean left){docked=true;DockMorph.dock(context,wm,root,left,"browser","展开置顶浏览器标签",()->{docked=false;y=params.y;keepBallReachable();});}
     private void installDrag(View handle) {
         handle.setOnTouchListener(new View.OnTouchListener() {
             private float startX, startY;
@@ -180,6 +210,7 @@ final class FloatingBrowser {
                     case MotionEvent.ACTION_UP -> {
                         view.performClick();
                         if (x < -params.width / 2 || x > screenW() - params.width / 2) dock(x < 0);
+                        else keepBallReachable();
                     }
                 }
                 return true;

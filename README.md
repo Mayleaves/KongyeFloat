@@ -2,9 +2,48 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.1.1 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.1.1) · [详细使用说明](docs/USER_GUIDE.md) · [3.1.1 验证记录](docs/VALIDATION-3.1.1.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.3.14 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.3.14) · [详细使用说明](docs/USER_GUIDE.md) · [3.3.14 验证记录](docs/VALIDATION-3.3.14.md)
 
 v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原有果冻形变、回边、上下轻划和长按。已安装原 v3.0 时请手动重新下载覆盖。详见[索尼验证记录](docs/VALIDATION-3.0-跟手修正.md)。
+
+## 3.3.14 更新
+
+- 检查更新只显示简短摘要，完整内容在更新历史查看。弹窗周围变暗，点击暗色区域关闭；点击内部空白保持打开。
+- 检查更新弹窗与设置页一起滑动进入更新历史，返回保留真实弹窗，修复闪动；更新历史入口无灰色按压底框。
+- 更新历史支持 Markdown 详情、搜索、分页及本地缓存；刷新图标减速归位，并显示成功或失败反馈。
+- 密码填充提供准备状态、连接反馈和具体原因；无法确认网页地址时，引导使用空叶文档的系统自动填充。
+- 首页保留悬浮窗、无障碍、通知三个权限模块，通知由用户选择开启。置顶浏览器和后台隐藏图标延续下列改进。
+
+## 3.3.2 调整
+
+- 置顶浏览器点击悬浮球时保持透明度，避免菜单开合引起闪烁。
+- 后台隐藏的睁眼与闭眼采用统一描边，增加连续切换动画。
+
+## 3.3.1 本地调整
+
+- 首页恢复悬浮窗、无障碍、通知三项权限入口。通知由用户选择开启。
+- 悬浮浏览器与截图结果使用同款置顶图标。快捷菜单开合时保留置顶网页，并为悬浮球留出点击空间。
+- 后台隐藏关闭时显示睁眼图标。更多密码仅在输入关键词后显示搜索状态。
+- 浏览器只提供网页标题时，提示使用空叶文档的系统自动填充。
+
+## 3.3.0 本地调整
+
+- 首页权限合并为紧凑卡片，悬浮窗与无障碍状态并排显示。
+- 更新历史支持版本、标题、说明搜索和结果分页，列表与详情隐藏滚动条。
+- 设置入口统一为「密码填充」，准备情况与操作步骤重新排版；连接成功显示绿色勾选反馈。
+- 首页填充先返回上一应用；无法填写时留在当前页面说明原因，不再自动跳转说明页。
+
+## 3.2.1 本地调整
+
+- 历史更新改为紧凑列表，设置行去掉副标题。
+- 权限使用自然宽度的小胶囊，连接检查显示明确结果和反馈。
+- 密码选择删除多余说明和关闭图标，更多密码搜索区按内容收起。
+
+## 3.2.0 本地更新
+
+- 密码填充增加三步使用说明、权限准备状态和密码空间连接检查。在首页点击会打开说明；在目标页面无法填写时会区分输入框、网址、无障碍服务等原因。
+- 新增「设置 → 关于与更新 → 更新历史」，可翻页浏览 GitHub 正式版本、查看详情；已加载的首页历史记录可离线查看。
+- 更新弹窗与历史详情使用相同的原生 Markdown 显示，支持标题、列表、粗体、链接、引用和代码块；已是最新版时也显示更新说明。
 
 ## 3.1.1 更新
 
@@ -34,11 +73,11 @@ v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原
 
 「设置 → 增强悬浮层」可在无障碍服务连接时改善悬浮球的显示范围，无需 Root。Android 或目标应用仍可能限制安全页面上的悬浮窗、截图和录音。
 
-Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.1.1/KongyeFloat-3.1.1-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.1.1/KongyeFloat-3.1.1-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
+Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.3.14/KongyeFloat-3.3.14-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.3.14/KongyeFloat-3.3.14-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.1.1。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.3.14。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 

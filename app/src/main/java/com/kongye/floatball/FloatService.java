@@ -53,7 +53,7 @@ public class FloatService extends Service {
         if(intent!=null&&STOP.equals(intent.getAction())){stopWithMotion();return START_NOT_STICKY;}
         if(stopping){stopGeneration++;handler.removeCallbacks(stopAfterMotion);stopping=false;running=true;if(ball!=null){ballParams.alpha=1;ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);applyPolicy();wakeBall();}MainActivity.runningChanged();}
         if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY;}
-        if(intent!=null&&REFRESH.equals(intent.getAction())){appMode=AppBehavior.mode(this,AssistService.foregroundPackage);ThemePolicy.apply(this);renderedDark=Ui.dark;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);closePanel();removeBall();}
+        if(intent!=null&&REFRESH.equals(intent.getAction())){appMode=AppBehavior.mode(this,AssistService.foregroundPackage);ThemePolicy.apply(this);renderedDark=Ui.dark;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);closeToolPanels();removeBall();}
         boolean wasRunning=running;if(ball==null)try{addBall();}catch(RuntimeException e){toast("无法显示悬浮窗，请检查权限");stopSelf();return START_NOT_STICKY;}
         running=true;if(!wasRunning){MainActivity.runningChanged();if(ball!=null&&ball.getVisibility()==View.VISIBLE&&!appMode.equals("hidden")){ball.setAlpha(0);ball.setScaleX(.65f);ball.setScaleY(.65f);ball.animate().alpha(baseAlpha()).scaleX(1).scaleY(1).setDuration(android.animation.ValueAnimator.areAnimatorsEnabled()?750:0).start();}}if(intent!=null&&RECOVER.equals(intent.getAction()))recoverBall();
         if(intent!=null&&intent.hasExtra("action")){String action=intent.getStringExtra("action");handler.postDelayed(()->perform(action),wasRunning&&"apps".equals(action)?0:220);}
@@ -118,7 +118,7 @@ public class FloatService extends Service {
     private void removeBall(){cancelPull();clearRecovery();handler.removeCallbacks(fade);if(touch!=null){handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);touch=null;}if(snapAnimator!=null)snapAnimator.cancel();if(ball!=null){ball.animate().cancel();try{windows.removeView(ball);}catch(IllegalArgumentException ignored){}ball=null;}}
     private void wakeBall(){if(stopping)return;handler.removeCallbacks(fade);if(ball!=null){ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);ball.setAlpha(appMode.equals("hidden")?1:baseAlpha());handler.postDelayed(fade,3000);}}
     private void vibrate(){if(Prefs.of(this).getBoolean("haptic",true)){Vibrator v=(Vibrator)getSystemService(VIBRATOR_SERVICE);if(v!=null&&v.hasVibrator())v.vibrate(VibrationEffect.createOneShot(12,VibrationEffect.DEFAULT_AMPLITUDE));}}
-    private void savePosition(){Prefs.of(this).edit().putInt("x",ballParams.x).putInt("y",ballParams.y).apply();}
+    private void savePosition(){Prefs.of(this).edit().putInt("x",ballParams.x).putInt("y",ballParams.y).apply();if(browser!=null)browser.keepBallReachable();}
     private class BallTouch implements View.OnTouchListener {
         float downX,downY,lastMoveX,lastMoveY,anchorX,anchorY,pointerX,pointerY;int initialX,initialY,maxFollow;long downAt;
         boolean moved,dragging,pendingTap,holdTriggered,holdMoved,pressed,armed,drawing,pulled;
@@ -213,14 +213,21 @@ public class FloatService extends Service {
     private void toast(String msg){Feedback.show(this,msg);}
     private void launch(Intent i){if(i.getComponent()!=null&&i.getComponent().getClassName().equals(QuickSettingsActivity.class.getName()))i.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);try{startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));}catch(RuntimeException e){toast("无法打开，请在主界面重试");}}
     static int[] ballCenter(){FloatService service=instance;if(service==null||service.ball==null||!service.ball.isAttachedToWindow())return null;int[] at=new int[2];service.ball.getLocationOnScreen(at);at[0]+=service.ball.getWidth()/2;at[1]+=service.ball.getHeight()/2;return at;}
+    static Rect ballBounds(){
+        FloatService service=instance;
+        if(service==null||service.ball==null||!service.ball.isAttachedToWindow())return null;
+        int[] position=new int[2];
+        service.ball.getLocationOnScreen(position);
+        return new Rect(position[0],position[1],position[0]+service.ball.getWidth(),position[1]+service.ball.getHeight());
+    }
     void perform(String action){
         if(action==null||!running||captureInFlight)return;action=Prefs.canonicalAction(action);if("none".equals(action))return;
         int vaultRequest=++vaultStartGeneration;if(passwordFill!=null)passwordFill.cancel();
         if(captures!=null&&captures.isActive()&&!captures.allowsBall()){toast("请先完成或取消当前截图");return;}
-        if("quick".equals(action)){if(touch==null||!touch.pressed)return;closePanel();int[] center=ballCenter();if(center!=null)quickDock.show(center[0],center[1]);return;}
+        if("quick".equals(action)){if(touch==null||!touch.pressed)return;closeToolPanels();int[] center=ballCenter();if(center!=null)quickDock.show(center[0],center[1]);return;}
         if(subtitles.isActive()&&java.util.Set.of("region","longshot","auto_longshot","screenshot","record","gif_record").contains(action)){toast("请先关闭字幕翻译");return;}
-        if("menu".equals(action)){if(panel!=null||browser!=null)closePanel();else showMenu();return;}
-        closePanel();vibrate();if(action.startsWith("edit_slot:")){try{launch(new Intent(this,QuickSettingsActivity.class).putExtra("edit_slot",Integer.parseInt(action.substring(10))));}catch(NumberFormatException ignored){}return;}if(action.startsWith("app:")){launchApp(action.substring(4));return;}
+        if("menu".equals(action)){if(panel!=null||browser!=null&&!browser.isPinned())closeToolPanels();else showMenu();return;}
+        closeToolPanels();vibrate();if(action.startsWith("edit_slot:")){try{launch(new Intent(this,QuickSettingsActivity.class).putExtra("edit_slot",Integer.parseInt(action.substring(10))));}catch(NumberFormatException ignored){}return;}if(action.startsWith("app:")){launchApp(action.substring(4));return;}
         switch(action){
             case "password_fill" -> {if(passwordFill==null)passwordFill=new PasswordFillController(this);handler.postDelayed(()->{if(running&&vaultRequest==vaultStartGeneration)passwordFill.start();},180);}
             case "none" -> {}
@@ -257,17 +264,17 @@ public class FloatService extends Service {
     private void restoreAfterCapture(){captureInFlight=false;if(ball!=null){KeyguardManager km=getSystemService(KeyguardManager.class);applyPolicy();wakeBall();}}
     private LinearLayout showPanel(String title,String subtitle,boolean keyboard){
         ThemePolicy.apply(this);renderedDark=Ui.dark;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);
-        closePanel();wakeBall();
+        closeToolPanels();wakeBall();
         panel=new FrameLayout(this){
             @Override public boolean dispatchKeyEvent(KeyEvent event){
                 if(event.getKeyCode()==KeyEvent.KEYCODE_BACK){
-                    if(event.getAction()==KeyEvent.ACTION_UP){if(browser==null||!browser.goBack())closePanel();}
+                    if(event.getAction()==KeyEvent.ACTION_UP)closeToolPanels();
                     return true;
                 }
                 return super.dispatchKeyEvent(event);
             }
         };
-        panel.setBackgroundColor(Ui.dark?0x99000000:0x44304134);panel.setOnClickListener(v->closePanel());panel.setFocusableInTouchMode(true);
+        panel.setBackgroundColor(Ui.dark?0x99000000:0x44304134);panel.setOnClickListener(v->closeToolPanels());panel.setFocusableInTouchMode(true);
         panel.setOnApplyWindowInsetsListener((view,insets)->{
             int keyboardBottom;
             if(Build.VERSION.SDK_INT>=30)keyboardBottom=Math.max(0,insets.getInsets(WindowInsets.Type.ime()).bottom-insets.getInsets(WindowInsets.Type.navigationBars()).bottom);
@@ -276,7 +283,7 @@ public class FloatService extends Service {
         });
         LinearLayout outer=Ui.card(this);Ui.softShadow(outer);outer.setOnClickListener(v->{});Ui.pad(outer,20,20,20,20);
         int width=Math.min(screenWidth()-dp(28),dp(400));FrameLayout.LayoutParams olp=new FrameLayout.LayoutParams(width,-2,Gravity.CENTER);olp.topMargin=dp(30);olp.bottomMargin=dp(30);ScrollView viewport=new ScrollView(this);viewport.setVerticalScrollBarEnabled(false);viewport.addView(outer);panel.addView(viewport,olp);
-        LinearLayout head=Ui.row(this);LinearLayout titles=Ui.column(this);panelHeading=Ui.text(this,title,18,Ui.INK,true);titles.addView(panelHeading);if(subtitle!=null){Ui.gap(titles,5);titles.addView(Ui.text(this,subtitle,11,Ui.MUTED,false));}head.addView(titles,new LinearLayout.LayoutParams(0,-2,1));head.addView(Ui.tool(this,"close","关闭窗口",this::closePanel),new LinearLayout.LayoutParams(dp(40),dp(40)));outer.addView(head);Ui.gap(outer,14);
+        LinearLayout head=Ui.row(this);LinearLayout titles=Ui.column(this);panelHeading=Ui.text(this,title,18,Ui.INK,true);titles.addView(panelHeading);if(subtitle!=null){Ui.gap(titles,5);titles.addView(Ui.text(this,subtitle,11,Ui.MUTED,false));}head.addView(titles,new LinearLayout.LayoutParams(0,-2,1));head.addView(Ui.tool(this,"close","关闭窗口",this::closeToolPanels),new LinearLayout.LayoutParams(dp(40),dp(40)));outer.addView(head);Ui.gap(outer,14);
         LinearLayout body=Ui.column(this);outer.addView(body,new LinearLayout.LayoutParams(-1,-2));
         int flags=WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
         // The quick menu only handles touch. Keep the underlying app's immersive mode active.
@@ -290,14 +297,22 @@ public class FloatService extends Service {
         return body;
     }
     private void closePanel(){
+        closeTools();
+        closeBrowser();
+    }
+    private void closeToolPanels(){
+        closeTools();
+        if(browser!=null&&!browser.isPinned())closeBrowser();
+    }
+    private void closeTools(){
         if(appLauncher!=null){AppLauncher old=appLauncher;appLauncher=null;old.close();}panelHeading=null;
         if(quickDock!=null)quickDock.close();
         if(panel!=null){InputMethodManager ime=getSystemService(InputMethodManager.class);ime.hideSoftInputFromWindow(panel.getWindowToken(),0);try{windows.removeView(panel);}catch(IllegalArgumentException ignored){}panel=null;}
-        if(browser!=null){FloatingBrowser old=browser;browser=null;old.close();}
         wakeBall();
     }
+    private void closeBrowser(){if(browser!=null){FloatingBrowser old=browser;browser=null;old.close();}}
     private void showMenu(){
-        menuManaging=false;menuSelected=MenuTools.load(this);menuOrder=MenuTools.order(this);LinearLayout body=showPanel("快捷菜单",null,false);LinearLayout outer=(LinearLayout)body.getParent();outer.setBackground(Ui.bg(Ui.SURFACE,32,this));Ui.pad(outer,16,18,16,18);LinearLayout head=(LinearLayout)outer.getChildAt(0);head.removeAllViews();TextView title=Ui.text(this,"快捷菜单",19,Ui.INK,true);Ui.pad(title,4,0,0,0);head.addView(title,new LinearLayout.LayoutParams(0,-2,1));menuManageButton=menuHeaderButton("menu_manage","管理快捷菜单工具",()->{menuManaging=!menuManaging;updateMenuManage();renderMenuGrid();});head.addView(menuManageButton,new LinearLayout.LayoutParams(dp(34),dp(34)));LinearLayout.LayoutParams end=new LinearLayout.LayoutParams(dp(34),dp(34));end.leftMargin=dp(6);head.addView(menuHeaderButton("close","关闭窗口",this::closePanel),end);
+        menuManaging=false;menuSelected=MenuTools.load(this);menuOrder=MenuTools.order(this);LinearLayout body=showPanel("快捷菜单",null,false);LinearLayout outer=(LinearLayout)body.getParent();outer.setBackground(Ui.bg(Ui.SURFACE,32,this));Ui.pad(outer,16,18,16,18);LinearLayout head=(LinearLayout)outer.getChildAt(0);head.removeAllViews();TextView title=Ui.text(this,"快捷菜单",19,Ui.INK,true);Ui.pad(title,4,0,0,0);head.addView(title,new LinearLayout.LayoutParams(0,-2,1));menuManageButton=menuHeaderButton("menu_manage","管理快捷菜单工具",()->{menuManaging=!menuManaging;updateMenuManage();renderMenuGrid();});head.addView(menuManageButton,new LinearLayout.LayoutParams(dp(34),dp(34)));LinearLayout.LayoutParams end=new LinearLayout.LayoutParams(dp(34),dp(34));end.leftMargin=dp(6);head.addView(menuHeaderButton("close","关闭窗口",this::closeToolPanels),end);
         menuManageBar=Ui.row(this);menuManageBar.setContentDescription("快捷菜单原位编辑");Ui.pad(menuManageBar,10,8,10,8);menuManageBar.setBackground(Ui.bg(Ui.dark?Ui.PALE:0xFFEEF3EA,14,this));menuManageBar.addView(Ui.text(this,"点按显隐 · 长按拖动调序",11.5f,Ui.MUTED,false),new LinearLayout.LayoutParams(0,-2,1));for(boolean all:new boolean[]{false,true}){TextView pick=Ui.centeredText(this,all?"全选":"全不选",11,Ui.INK,true);pick.setContentDescription(all?"快捷菜单全选":"快捷菜单全不选");pick.setBackground(Ui.ripple(this,Ui.SURFACE,20));pick.setOnClickListener(v->{menuSelected.clear();if(all)menuSelected.addAll(menuOrder);saveMenuSelection();renderMenuGrid();});LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(all?42:52),dp(26));at.leftMargin=dp(6);menuManageBar.addView(pick,at);}body.addView(menuManageBar);menuGrid=Ui.column(this);menuGrid.setClipChildren(false);menuGrid.setClipToPadding(false);menuGrid.setContentDescription("快捷菜单四列网格");Ui.pad(menuGrid,2,2,2,0);body.addView(menuGrid);updateMenuManage();renderMenuGrid();
     }
     private FrameLayout menuHeaderButton(String icon,String label,Runnable run){FrameLayout v=Ui.tool(this,icon,label,run);v.setMinimumWidth(0);v.setMinimumHeight(0);v.setBackground(Ui.ripple(this,Ui.dark?Ui.PALE:0xFFEEF3EA,12));return v;}
@@ -334,18 +349,18 @@ public class FloatService extends Service {
             getSystemService(android.content.ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("空叶",text));
         }catch(RuntimeException error){toast("复制失败，请重试");return;}
         toast("文字已复制");
-        closePanel();
+        closeToolPanels();
     }
     private void showText(String text){
         LinearLayout body=showPanel("提取界面文字",text.isEmpty()?"当前界面没有可提取的文字":"读取可访问文字 · 不包含图片中的文字",true);
         EditText e=editor("尝试在含文字的页面重新提取。图片、密码框或受保护内容无法读取。",5);e.setText(text);body.addView(e,new LinearLayout.LayoutParams(-1,Math.min(dp(250),screenHeight()/3)));Ui.gap(body,14);
         body.addView(Ui.button(this,"复制文字",true,()->copy(e.getText().toString())));Ui.gap(body,8);body.addView(Ui.button(this,"追加到便签",false,()->{String value=e.getText().toString();if(value.isBlank()){toast("还没有内容");return;}String old=Prefs.of(this).getString("note","");String combined=old.isEmpty()?value:old+"\n\n"+value;if(combined.length()>100000){toast("便签已达字数上限，请先整理");return;}Prefs.of(this).edit().putString("note",combined).apply();showNotes();}));
     }
-    private void showBrowser(){ThemePolicy.apply(this);closePanel();browser=new FloatingBrowser(this,this::closePanel,this::launch);try{browser.show();}catch(RuntimeException e){closePanel();toast("无法打开浏览器");}}
+    private void showBrowser(){ThemePolicy.apply(this);closeToolPanels();if(browser!=null)return;browser=new FloatingBrowser(this,this::closeBrowser,this::launch);try{browser.show();}catch(RuntimeException e){closeBrowser();toast("无法打开浏览器");}}
     private void showApps(){showApps("all");}
     private void showApps(String mode){
         long opened=SystemClock.elapsedRealtime();LinearLayout body=showPanel("应用启动",null,true);
-        appLauncher=new AppLauncher(this,body,mode,title->{if(panelHeading!=null)panelHeading.setText(title);},pkg->{closePanel();launchApp(pkg);},()->{closePanel();launch(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS,Uri.parse("package:"+getPackageName())));},opened);
+        appLauncher=new AppLauncher(this,body,mode,title->{if(panelHeading!=null)panelHeading.setText(title);},pkg->{closeToolPanels();launchApp(pkg);},()->{closeToolPanels();launch(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS,Uri.parse("package:"+getPackageName())));},opened);
     }
     private void launchApp(String pkg){Intent intent=getPackageManager().getLaunchIntentForPackage(pkg);if(intent==null)toast("该应用已卸载或无法启动");else launch(intent);}
     void stopSubtitles(){if(subtitles!=null)subtitles.stop();}

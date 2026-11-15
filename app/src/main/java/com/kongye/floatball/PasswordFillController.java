@@ -35,7 +35,7 @@ final class PasswordFillController {
     private boolean shouldBind,confirmCert,unlockAttempted;
     private Set<String> features=Collections.emptySet();
     private FrameLayout panel;
-    private LinearLayout card,rows;
+    private LinearLayout card,rows;private ScrollView choices;
     private TextView status;
     private Runnable searchTask;
     /** 这次打开时生成好的密码（注册 / 改密码页），点「生成强密码」才填 */
@@ -54,16 +54,25 @@ final class PasswordFillController {
 
     void start(){
         cancel();
+        startAttempt(generation,0);
+    }
+    private void startAttempt(int ticket,int attempt){
+        if(ticket!=generation)return;
         AssistService service=AssistService.instance;
-        if(service==null){Feedback.show(context,"请先开启空叶无障碍服务");return;}
-        PasswordTarget target=PasswordTarget.inspect(service);
-        if(target==null){Feedback.show(context,"这里填不了，请打开登录或注册页面；网页请显示地址栏");return;}
+        PasswordTarget.Inspection inspection=PasswordTarget.inspectResult(service);
+        PasswordTarget target=inspection.target();
+        if(target==null){
+            // Give the underlying page time to regain focus after closing our overlay menu.
+            boolean transientWindow=inspection.problem()==PasswordTarget.Problem.WINDOW||inspection.problem()==PasswordTarget.Problem.SYSTEM_PAGE||inspection.problem()==PasswordTarget.Problem.OWN_APP&&!MainActivity.isVisible();
+            if(transientWindow&&attempt<4){main.postDelayed(()->startAttempt(ticket,attempt+1),120);return;}
+            showHelp(inspection.problem(),null);return;
+        }
         LinkedHashMap<String,String> accounts;
         try{destination=target.snapshot;accounts=target.accountValues();}finally{target.close();}
         active=true;expires=SystemClock.elapsedRealtime()+90000;provider=client.providerPackage();
         main.postDelayed(timeout,90000);
         call("status",null,result->{
-            if(!"ok".equals(result.getString("status"))){finish(VaultClient.message(result.getString("status")));return;}
+            if(!"ok".equals(result.getString("status"))){showHelp(PasswordTarget.Problem.NONE,VaultClient.message(result.getString("status")));return;}
             ArrayList<String> list=result.getStringArrayList("features");
             features=list==null?Collections.emptySet():new HashSet<>(list);
             if(destination.kind()==PageRules.Kind.LOGIN){call("match",matchArgs(),reply->showPanel(reply));return;}
@@ -111,8 +120,8 @@ final class PasswordFillController {
             rows.addView(row("↓","保存这一页到空叶文档",ready?"账号、手机号、邮箱和刚生成的密码":"先生成密码；自己输入的密码请用空叶键盘保存",false,this::savePage));
         }
         if(matches!=null)renderEntries(matches,false);
-        rows.addView(row("⋯","更多密码","搜索空叶文档的密码空间",false,this::enterSearch));
-        status.setText(register?"生成的密码只填进新密码框和确认框，不会自动提交":"只会填入所选账号，不会自动提交");
+        rows.addView(row("⋯","更多密码","",false,this::enterSearch));
+        status.setVisibility(View.GONE);
         place();
     }
 
@@ -127,10 +136,10 @@ final class PasswordFillController {
         String targetLabel=destination.domain().isEmpty()?AppCatalog.label(context,destination.pkg()):destination.domain();
         TextView title=Ui.text(context,"空叶密码空间 · "+targetLabel,12,Ui.MUTED,false);title.setSingleLine();title.setEllipsize(TextUtils.TruncateAt.END);Ui.pad(title,8,0,0,0);
         head.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        head.addView(Ui.tool(context,"close","取消密码填充",this::cancel),new LinearLayout.LayoutParams(dp(32),dp(32)));
+        Ui.pad(head,0,8,0,10);
         card.addView(head);
         rows=Ui.column(context);
-        ScrollView scroller=new ScrollView(context);scroller.addView(rows);
+        ScrollView scroller=new ScrollView(context);choices=scroller;scroller.addView(rows);
         card.addView(scroller,new LinearLayout.LayoutParams(-1,-2));
         status=Ui.text(context,"",11,Ui.MUTED,false);Ui.pad(status,8,4,8,2);card.addView(status);
         panel.addView(card,new FrameLayout.LayoutParams(dp(300),-2));
@@ -149,7 +158,7 @@ final class PasswordFillController {
         Rect b=destination.anchor()==null?new Rect(dp(8),sh/3,sw-dp(8),sh/3):destination.anchor().bounds();
         int w=Math.min(sw-dp(16),Math.max(dp(280),b.width()));
         // 太多行时限制高度，列表可以滚动
-        View scroller=card.getChildAt(1);
+        View scroller=choices;
         scroller.getLayoutParams().height=rows.getChildCount()>5?dp(320):-2;
         card.measure(View.MeasureSpec.makeMeasureSpec(w,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(sh,View.MeasureSpec.AT_MOST));
         int h=card.getMeasuredHeight();
@@ -167,7 +176,7 @@ final class PasswordFillController {
         row.addView(a,new LinearLayout.LayoutParams(dp(36),dp(36)));
         LinearLayout texts=Ui.column(context);Ui.pad(texts,12,0,0,0);
         TextView t1=Ui.text(context,line1,15,Ui.INK,true);t1.setSingleLine();t1.setEllipsize(TextUtils.TruncateAt.END);texts.addView(t1);
-        TextView t2=Ui.text(context,line2,12,warn?0xFFD84A3A:Ui.MUTED,false);t2.setSingleLine();t2.setEllipsize(TextUtils.TruncateAt.END);texts.addView(t2);
+        TextView t2=Ui.text(context,line2,12,warn?0xFFD84A3A:Ui.MUTED,false);t2.setSingleLine();t2.setEllipsize(TextUtils.TruncateAt.END);if(!line2.isEmpty())texts.addView(t2);
         row.addView(texts,new LinearLayout.LayoutParams(0,-2,1));
         row.setContentDescription(line1+"，"+line2);
         row.setOnClickListener(v->click.run());
@@ -189,14 +198,14 @@ final class PasswordFillController {
             rows.addView(row(first,account.isEmpty()?name:account,mismatch?name+" · ⚠ 签名和上次不同":name+" · ********",mismatch,()->{
                 if(mismatch&&!(armed.equals(id)&&SystemClock.elapsedRealtime()<armedUntil)){
                     armed=id;armedUntil=SystemClock.elapsedRealtime()+10000;
-                    status.setText("「"+name+"」关联的 App 签名和现在不同，可能是仿冒 App。确认是正版，再点一次填入");
+                    status.setVisibility(View.VISIBLE);status.setText("「"+name+"」关联的 App 签名和现在不同，可能是仿冒 App。确认是正版，再点一次填入");
                     return;
                 }
                 boolean confirm=mismatch||armed.equals(id)&&SystemClock.elapsedRealtime()<armedUntil;armed="";
                 select(id,searched||!"package".equals(matchedBy)||!destination.domain().isEmpty(),confirm);
             }));
         }
-        if(searched)status.setText(count==0?"没有找到，请换个关键词":"选择后填入当前页面，不会自动提交");
+        if(searched){status.setVisibility(View.GONE);if(count==0)searchNotice("没有找到匹配密码，试试其他关键词");resizeSearch();}
     }
 
     /** 「更多密码」：卡片移到上方，显示搜索框 */
@@ -208,16 +217,21 @@ final class PasswordFillController {
         search.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
         search.setSaveEnabled(false);search.setBackground(Ui.bg(Ui.PALE,12,context));Ui.pad(search,12,8,12,8);
         card.addView(search,1,new LinearLayout.LayoutParams(-1,dp(42)));
-        status.setText("输入关键词搜索");
+        status.setVisibility(View.GONE);
         search.addTextChangedListener(new TextWatcher(){
             public void beforeTextChanged(CharSequence s,int start,int count,int after){}
             public void onTextChanged(CharSequence s,int start,int before,int count){
                 if(searchTask!=null)main.removeCallbacks(searchTask);
                 int request=++searchGeneration;String query=s.toString().trim();
-                rows.removeAllViews();status.setText(query.isEmpty()?"输入关键词搜索":"搜索中…");
-                if(query.isEmpty())return;
+                status.setVisibility(View.GONE);
+                if(query.isEmpty()){
+                    rows.removeAllViews();
+                    resizeSearch();
+                    return;
+                }
+                searchNotice("正在搜索…");
                 searchTask=()->{Bundle args=new Bundle();args.putString("query",query);
-                    call("search",args,reply->{if(panel!=null&&request==searchGeneration){if(!"ok".equals(reply.getString("status"))){finish(VaultClient.message(reply.getString("status")));return;}renderEntries(reply,true);}});};
+                    call("search",args,reply->{if(panel!=null&&request==searchGeneration){if(!"ok".equals(reply.getString("status"))){finish(VaultClient.message(reply.getString("status")));return;}rows.removeAllViews();renderEntries(reply,true);}});};
                 main.postDelayed(searchTask,260);
             }
             public void afterTextChanged(Editable e){}
@@ -225,13 +239,16 @@ final class PasswordFillController {
         // 卡片放到屏幕上方，键盘弹出也不挡住
         DisplayMetrics m=context.getResources().getDisplayMetrics();
         int w=Math.min(m.widthPixels-dp(16),dp(400));
-        card.getChildAt(2).getLayoutParams().height=dp(260);
+        resizeSearch();
         FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(w,-2);lp.leftMargin=(m.widthPixels-w)/2;lp.topMargin=dp(56);card.setLayoutParams(lp);
         WindowManager.LayoutParams p=(WindowManager.LayoutParams)panel.getLayoutParams();
         p.flags&=~WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;p.softInputMode=WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE|WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING;
         windows.updateViewLayout(panel,p);
         search.requestFocus();
     }
+
+    private void searchNotice(String message){rows.removeAllViews();TextView notice=Ui.text(context,message,13,Ui.MUTED,false);Ui.pad(notice,12,14,12,14);rows.addView(notice,new LinearLayout.LayoutParams(-1,-2));resizeSearch();}
+    private void resizeSearch(){if(choices==null)return;choices.getLayoutParams().height=rows.getChildCount()>4?dp(224):-2;choices.requestLayout();if(card!=null)card.requestLayout();}
 
     // ---------- 填充 ----------
 
@@ -268,7 +285,7 @@ final class PasswordFillController {
                 // Transient IPC values: never saved, logged, or sent to the clipboard.
                 filled=current.fill(reply.getString("account",""),reply.getString("password",""));
             }catch(RuntimeException ignored){}finally{if(current!=null)current.close();reply.remove("account");reply.remove("password");}
-            if(!filled){finish("这里填不了");return;}
+            if(!filled){showHelp(PasswordTarget.Problem.UNSUPPORTED,null);return;}
             if(shouldBind){Bundle bind=targetArgs();bind.putString("id",entryId);call("bind",bind,result->finish("ok".equals(result.getString("status"))?"账号密码已填入":"账号密码已填入，应用关联未保存"));}
             else finish("账号密码已填入");
         });
@@ -313,7 +330,7 @@ final class PasswordFillController {
             boolean ok=false;
             try{ok=current!=null&&PasswordTarget.same(destination,current.snapshot)&&current.fillNew(new String(pw));}
             catch(RuntimeException ignored){}finally{if(current!=null)current.close();}
-            if(!ok){Arrays.fill(pw,'\0');finish("这里填不了");return;}
+            if(!ok){Arrays.fill(pw,'\0');showHelp(PasswordTarget.Problem.UNSUPPORTED,null);return;}
             Arrays.fill(filledPassword,'\0');filledPassword=pw;filledScope=scope();filledAt=SystemClock.elapsedRealtime();
             finish("已填入强密码"+(summary.isEmpty()?"":"（"+summary+"）")+"。填好账号等信息后，再点悬浮球「保存这一页」");
         });
@@ -358,6 +375,16 @@ final class PasswordFillController {
         if(searchTask!=null)main.removeCallbacks(searchTask);searchTask=null;
     }
     private int dp(int value){return Ui.dp(context,value);}
+    /** Failure stays over the login page. Help opens only after an explicit tap. */
+    private void showHelp(PasswordTarget.Problem problem,String connection){
+        cancel();ThemePolicy.apply(context);panel=new FrameLayout(context);panel.setOnClickListener(v->cancel());
+        LinearLayout box=Ui.card(context);box.setOnClickListener(v->{});
+        String title=connection!=null?"密码空间暂不可用":problem==PasswordTarget.Problem.BROWSER_AUTOFILL||problem==PasswordTarget.Problem.ADDRESS?"请使用系统自动填充":"当前页面暂时无法填写";
+        box.addView(Ui.text(context,title,16,Ui.INK,true));Ui.gap(box,10);TextView detail=Ui.text(context,connection==null?PasswordHelpActivity.explanation(problem):connection,13,Ui.MUTED,false);detail.setLineSpacing(dp(3),1);box.addView(detail);Ui.gap(box,16);
+        LinearLayout actions=Ui.row(context);actions.addView(Ui.button(context,"返回登录页",true,this::cancel),new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams right=new LinearLayout.LayoutParams(0,-2,1);right.leftMargin=dp(8);actions.addView(Ui.button(context,"查看原因与设置",false,()->{cancel();Intent help=PasswordHelpActivity.intent(context,problem).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP);if(connection!=null)help.putExtra("connection_hint",connection);try{context.startActivity(help);}catch(RuntimeException ignored){Feedback.show(context,"请从设置打开密码填充");}}),right);box.addView(actions);
+        FrameLayout.LayoutParams at=new FrameLayout.LayoutParams(Math.min(context.getResources().getDisplayMetrics().widthPixels-dp(32),dp(400)),-2,Gravity.CENTER);panel.addView(box,at);
+        WindowManager.LayoutParams p=new WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);p.setTitle("空叶密码填充提示");panel.setBackgroundColor(Ui.dark?0x66000000:0x22182A20);try{windows.addView(panel,p);}catch(RuntimeException error){panel=null;Feedback.show(context,detail.getText().toString());}
+    }
     private void finish(String message){cancel();Feedback.show(context,message);}
     void cancel(){active=false;generation++;searchGeneration++;main.removeCallbacksAndMessages(null);removePanel();destination=null;entryId=null;provider=null;unlockAttempted=false;confirmCert=false;wipeOffer();}
     void destroy(){cancel();worker.shutdownNow();Arrays.fill(filledPassword,'\0');filledPassword=new char[0];filledScope="";}

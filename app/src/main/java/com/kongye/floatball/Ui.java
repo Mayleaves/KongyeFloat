@@ -172,16 +172,6 @@ final class Ui {
                 case "status_play" -> {p.setStyle(Paint.Style.FILL);path.moveTo(7,4);path.quadTo(5,3,5,6);path.lineTo(5,18);path.quadTo(5,21,8,19);path.lineTo(20,13);path.quadTo(22,12,20,10.5f);path.close();canvas.drawPath(path,p);}
                 case "scan_text" -> {path.moveTo(3,8);path.lineTo(3,4);path.lineTo(8,4);path.moveTo(16,4);path.lineTo(21,4);path.lineTo(21,8);path.moveTo(21,16);path.lineTo(21,20);path.lineTo(16,20);path.moveTo(8,20);path.lineTo(3,20);path.lineTo(3,16);canvas.drawPath(path,p);canvas.drawLine(7,9,17,9,p);canvas.drawLine(7,13,17,13,p);canvas.drawLine(7,17,13,17,p);}
                 case "browser_lock" -> {canvas.drawRoundRect(4,10,20,21,2,2,p);path.moveTo(7,10);path.lineTo(7,7);path.cubicTo(7,0,17,0,17,7);path.lineTo(17,10);canvas.drawPath(path,p);}
-                case "browser_pin", "browser_pinned" -> {
-                    path.moveTo(8,3);path.lineTo(16,3);path.lineTo(16,6);
-                    path.lineTo(15,7);path.lineTo(15,11);path.quadTo(15,12,16,13);
-                    path.lineTo(19,15);path.lineTo(19,17);path.lineTo(5,17);
-                    path.lineTo(5,15);path.lineTo(8,13);path.quadTo(9,12,9,11);
-                    path.lineTo(9,7);path.lineTo(8,6);path.close();
-                    if(name.equals("browser_pinned"))p.setStyle(Paint.Style.FILL_AND_STROKE);
-                    canvas.drawPath(path,p);p.setStyle(Paint.Style.STROKE);
-                    canvas.drawLine(12,17,12,22,p);
-                }
                 case "compass" -> {canvas.drawCircle(12,12,9,p);path.moveTo(15,8);path.lineTo(13,13);path.lineTo(8,16);path.lineTo(10,11);path.close();canvas.drawPath(path,p);}
                 case "pause" -> {canvas.drawLine(8,5,8,19,p);canvas.drawLine(16,5,16,19,p);}
                 case "play" -> {path.moveTo(7,4);path.lineTo(20,12);path.lineTo(7,20);path.close();canvas.drawPath(path,p);}
@@ -228,6 +218,7 @@ final class Ui {
                 case "rotate" -> {path.moveTo(5,20);path.lineTo(5,11);path.cubicTo(5,7.7f,7.7f,5,11,5);path.lineTo(21,5);path.moveTo(17,1);path.lineTo(21,5);path.lineTo(17,9);canvas.drawPath(path,p);}
                 case "mirror_h", "mirror_v" -> {if(name.equals("mirror_v"))canvas.rotate(90,12,12);canvas.drawLine(12,2,12,22,p);path.moveTo(9,5);path.lineTo(3,19);path.lineTo(9,19);path.close();canvas.drawPath(path,p);path.reset();path.moveTo(15,5);path.lineTo(21,19);path.lineTo(15,19);path.close();canvas.drawPath(path,p);}
                 case "reset" -> {path.moveTo(3,10);path.cubicTo(4,5.5f,7.3f,3,12,3);path.cubicTo(17,3,21,7,21,12);path.cubicTo(21,17,17,21,12,21);path.cubicTo(9,21,6.5f,19.7f,4.8f,17.6f);path.moveTo(3,4);path.lineTo(3,10);path.lineTo(9,10);canvas.drawPath(path,p);}
+                case "refresh" -> {path.moveTo(21,10);path.cubicTo(20,5.5f,16.7f,3,12,3);path.cubicTo(7,3,3,7,3,12);path.cubicTo(3,17,7,21,12,21);path.cubicTo(15,21,17.5f,19.7f,19.2f,17.6f);path.moveTo(21,4);path.lineTo(21,10);path.lineTo(15,10);canvas.drawPath(path,p);}
                 case "select_all" -> {canvas.drawRect(3,3,21,21,p);canvas.drawLine(6,8,18,8,p);canvas.drawLine(12,8,12,18,p);}
                 case "vertical" -> {canvas.drawRoundRect(5,2,19,22,2,2,p);canvas.drawLine(5,9,19,9,p);canvas.drawLine(5,15,19,15,p);}
                 case "horizontal" -> {canvas.drawRoundRect(2,5,22,19,2,2,p);canvas.drawLine(9,5,9,19,p);canvas.drawLine(15,5,15,19,p);}
@@ -238,6 +229,9 @@ final class Ui {
                 case "copy" -> {canvas.drawRoundRect(7,7,21,21,2,2,p);path.moveTo(17,5);path.lineTo(17,3);path.lineTo(3,3);path.lineTo(3,17);path.lineTo(5,17);canvas.drawPath(path,p);}
                 case "save" -> {canvas.drawRoundRect(3,3,21,21,2,2,p);canvas.drawRect(7,3,17,9,p);canvas.drawRect(7,14,17,21,p);}
                 case "zoom" -> {canvas.drawCircle(10,10,6,p);canvas.drawLine(14.5f,14.5f,21,21,p);canvas.drawLine(7,10,13,10,p);canvas.drawLine(10,7,10,13,p);}
+                case "search" -> {canvas.drawCircle(10.5f,10.5f,6.3f,p);canvas.drawLine(15.2f,15.2f,20.5f,20.5f,p);}
+                case "history" -> {canvas.drawArc(3.5f,3.5f,20.5f,20.5f,-62,302,false,p);path.moveTo(3.5f,4.2f);path.lineTo(3.5f,9.2f);path.lineTo(8.5f,9.2f);canvas.drawPath(path,p);canvas.drawLine(12,7.8f,12,12.2f,p);canvas.drawLine(12,12.2f,15.2f,14.2f,p);}
+                case "external" -> {path.moveTo(14,4);path.lineTo(20,4);path.lineTo(20,10);path.moveTo(20,4);path.lineTo(11,13);path.moveTo(10,6);path.lineTo(6,6);path.quadTo(4,6,4,8);path.lineTo(4,18);path.quadTo(4,20,6,20);path.lineTo(16,20);path.quadTo(18,20,18,18);path.lineTo(18,14);canvas.drawPath(path,p);}
                 case "pin", "pinned" -> {canvas.save();canvas.rotate(45,12,12);path.moveTo(8,3);path.lineTo(17,3);path.lineTo(17,6);path.lineTo(15,6);path.lineTo(15,12);path.lineTo(19,16);path.lineTo(6,16);path.lineTo(10,12);path.lineTo(10,6);path.lineTo(8,6);path.close();if(name.equals("pinned"))p.setStyle(Paint.Style.FILL);canvas.drawPath(path,p);p.setStyle(Paint.Style.STROKE);canvas.drawLine(12.5f,16,12.5f,23,p);canvas.restore();}
                 case "collapse" -> {canvas.drawLine(5,15,12,8,p);canvas.drawLine(12,8,19,15,p);}
                 case "expand" -> {canvas.drawLine(5,8,12,15,p);canvas.drawLine(12,15,19,8,p);}

@@ -12,8 +12,12 @@ final class Feedback {
     private static final Handler main=new Handler(Looper.getMainLooper());
     private static View banner;private static WindowManager windows;
     static void show(Context context,String message){
+        show(context,message,null);
+    }
+    static void success(Context context,String message){show(context,message,true);}
+    private static void show(Context context,String message,Boolean successOverride){
         Context app=context.getApplicationContext();
-        if(Looper.myLooper()!=Looper.getMainLooper()){main.post(()->show(app,message));return;}
+        if(Looper.myLooper()!=Looper.getMainLooper()){main.post(()->show(app,message,successOverride));return;}
         clear();
         windows=OverlayWindows.get(app);
         android.util.DisplayMetrics metrics=new android.util.DisplayMetrics();
@@ -36,6 +40,8 @@ final class Feedback {
         }
         FrameLayout badge=new FrameLayout(app);
         boolean success=message.contains("已复制")||message.contains("已保存")||message.contains("已追加")||message.contains("已清空")||message.contains("已填入")||message.contains("已生成")||message.contains("已重置")||message.equals("识别完成")||message.equals("翻译完成");
+        if(successOverride!=null)success=successOverride;
+        if((app.getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(app).edit().putBoolean("qa_feedback_success",success).apply();
         badge.setBackground(Ui.bg(success?0xFF85A867:0xFFF6C945,12,app));
         badge.addView(new StatusGlyph(app,success),new FrameLayout.LayoutParams(Ui.dp(app,14),Ui.dp(app,14),Gravity.CENTER));
         capsule.addView(badge,new LinearLayout.LayoutParams(Ui.dp(app,24),Ui.dp(app,24)));

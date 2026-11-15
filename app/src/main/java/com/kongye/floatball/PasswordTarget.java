@@ -22,6 +22,9 @@ final class PasswordTarget implements AutoCloseable {
     record Field(String path,String viewId,Rect bounds){}
     /** 页面身份：会话中途页面或输入框变了就停下 */
     record Snapshot(String pkg,String domain,int window,PageRules.Kind kind,Field account,Field password,Field newPassword,Field confirm,Field anchor,String ruleText){}
+    enum Problem { NONE, ACCESSIBILITY, LOCKED, WINDOW, OWN_APP, VAULT_APP, SYSTEM_PAGE, NO_FIELDS, NO_LOGIN_FIELDS, UNSUPPORTED, ADDRESS, BROWSER_AUTOFILL, COMPLEX, CHANGED }
+    record Inspection(PasswordTarget target,Problem problem){}
+    private static Inspection unavailable(Problem problem){return new Inspection(null,problem);}
 
     private final AccessibilityNodeInfo root,account,password,newPassword,confirm;
     /** 账号类字段（保存这一页时读取文字） */
@@ -35,16 +38,22 @@ final class PasswordTarget implements AutoCloseable {
     private record Node(AccessibilityNodeInfo node,Field field,String label,int order){}
     private record Item(Node field,PageRules.Text text){}
 
-    static PasswordTarget inspect(AccessibilityService service){
+    static PasswordTarget inspect(AccessibilityService service){return inspectResult(service).target();}
+    static Inspection inspectResult(AccessibilityService service){
+        if(service==null)return unavailable(Problem.ACCESSIBILITY);
         KeyguardManager guard=service.getSystemService(KeyguardManager.class);
-        if(guard!=null&&guard.isKeyguardLocked())return null;
-        AccessibilityNodeInfo root=service.getRootInActiveWindow();
-        if(root==null)return null;
+        if(guard!=null&&guard.isKeyguardLocked())return unavailable(Problem.LOCKED);
+        return inspectRoot(service,service.getRootInActiveWindow());
+    }
+    /** Takes ownership of root. Also used by generated-page instrumentation checks. */
+    static Inspection inspectRoot(Context context,AccessibilityNodeInfo root){
+        if(root==null)return unavailable(Problem.WINDOW);
         String pkg=root.getPackageName()==null?"":root.getPackageName().toString();
-        if(pkg.isEmpty()||pkg.equals(service.getPackageName())||pkg.equals("com.android.systemui")||pkg.startsWith("com.kongye.docs")){root.recycle();return null;}
+        Problem excluded=pkg.isEmpty()?Problem.WINDOW:pkg.equals(context.getPackageName())?Problem.OWN_APP:pkg.equals("com.android.systemui")?Problem.SYSTEM_PAGE:pkg.startsWith("com.kongye.docs")?Problem.VAULT_APP:Problem.NONE;
+        if(excluded!=Problem.NONE){root.recycle();return unavailable(excluded);}
         ArrayList<Item> items=new ArrayList<>();
         try{
-            if(!walk(root,"",items,new int[]{0})){root.recycle();release(items);return null;}
+            if(!walk(root,"",items,new int[]{0})){root.recycle();release(items);return unavailable(Problem.COMPLEX);}
             ArrayList<Node> fields=new ArrayList<>();ArrayList<PageRules.Text> texts=new ArrayList<>();
             for(Item it:items){if(it.field()!=null)fields.add(it.field());else texts.add(it.text());}
             // 标签：输入框自己的提示 / id / 描述，加上紧挨在它前面的一段短文字
@@ -52,7 +61,7 @@ final class PasswordTarget implements AutoCloseable {
             for(int i=0;i<items.size();i++){
                 Item it=items.get(i);if(it.field()==null)continue;
                 String before=i>0&&items.get(i-1).text()!=null&&!items.get(i-1).text().button()&&items.get(i-1).text().text().length()<=40?items.get(i-1).text().text():"";
-                raw.add(PageRules.classify(it.field().label()+" "+before,it.field().node().isPassword(),it.field().node().getInputType()));
+                raw.add(PageRules.classify(it.field().label()+" "+before,secretField(it.field().node()),it.field().node().getInputType()));
             }
             List<PageRules.Type> types=PageRules.classifyAll(raw);
             PageRules.Kind kind=PageRules.kindOf(types,texts);
@@ -67,12 +76,18 @@ final class PasswordTarget implements AutoCloseable {
             }
             if(kind==PageRules.Kind.REGISTER&&neu<0&&login>=0){neu=login;login=-1;}
             if(kind==PageRules.Kind.LOGIN){neu=-1;}
-            if(acc<0&&login<0&&neu<0){root.recycle();release(items);return null;}
+            if(acc<0&&login<0&&neu<0){root.recycle();release(items);return unavailable(fields.isEmpty()?Problem.NO_FIELDS:Problem.NO_LOGIN_FIELDS);}
             String domain="";
-            if(isBrowser(service,pkg)){
+            if(isBrowser(context,pkg)){
                 domain=browserDomain(root,pkg);
-                if(domain.isEmpty()){root.recycle();release(items);return null;}
+                if(domain.isEmpty()){
+                    root.recycle();release(items);
+                    // Via and X can show a website-controlled title in place of the address.
+                    return unavailable(hasTitleOnlyAddressBar(pkg)?Problem.BROWSER_AUTOFILL:Problem.ADDRESS);
+                }
             }
+            // Reject unsupported fields before showing any vault entries or revealing secrets.
+            if((acc>=0&&!supports(fields.get(acc).node()))||(login>=0&&!supports(fields.get(login).node()))||(neu>=0&&!supports(fields.get(neu).node()))||(conf>=0&&!supports(fields.get(conf).node()))){root.recycle();release(items);return unavailable(Problem.UNSUPPORTED);}
             // 新密码框的说明和它后面到下一个框之前的文字（最多 3 段），交给空叶文档解析要求
             StringBuilder rules=new StringBuilder();
             if(neu>=0){
@@ -91,14 +106,14 @@ final class PasswordTarget implements AutoCloseable {
                     acc<0?null:AccessibilityNodeInfo.obtain(fields.get(acc).node()),login<0?null:AccessibilityNodeInfo.obtain(fields.get(login).node()),
                     neu<0?null:AccessibilityNodeInfo.obtain(fields.get(neu).node()),conf<0?null:AccessibilityNodeInfo.obtain(fields.get(conf).node()),accounts,snapshot);
             release(items);
-            return target;
-        }catch(RuntimeException e){root.recycle();release(items);return null;}
+            return new Inspection(target,Problem.NONE);
+        }catch(RuntimeException e){root.recycle();release(items);return unavailable(Problem.WINDOW);}
     }
 
     private static boolean walk(AccessibilityNodeInfo node,String path,ArrayList<Item> items,int[] count){
         if(++count[0]>2500||path.length()>400)return false;
         if(!node.isVisibleToUser())return true;
-        if(node.isEnabled()&&node.isEditable()&&!addressControl(node.getViewIdResourceName())){
+        if(node.isEnabled()&&editableField(node)&&!addressControl(node.getViewIdResourceName())){
             Rect bounds=new Rect();node.getBoundsInScreen(bounds);
             String id=node.getViewIdResourceName();
             StringBuilder label=new StringBuilder();
@@ -106,10 +121,10 @@ final class PasswordTarget implements AutoCloseable {
             if(id!=null)label.append(id.substring(id.indexOf('/')+1)).append(' ');
             if(node.getContentDescription()!=null)label.append(node.getContentDescription()).append(' ');
             // 输入框没内容时，有的 App 把提示放在文字里
-            if(!node.isPassword()&&Build.VERSION.SDK_INT>=26&&node.isShowingHintText()&&node.getText()!=null)label.append(node.getText());
+            if(!secretField(node)&&Build.VERSION.SDK_INT>=26&&node.isShowingHintText()&&node.getText()!=null)label.append(node.getText());
             items.add(new Item(new Node(AccessibilityNodeInfo.obtain(node),new Field(path,id,bounds),label.toString().trim(),items.size()),null));
         }else if(items.size()<400){
-            CharSequence text=node.getText();
+            CharSequence text=secretField(node)?null:node.getText();
             String cls=node.getClassName()==null?"":node.getClassName().toString();
             if(text!=null&&text.toString().trim().length()>0&&!node.isPassword()){
                 String t=text.toString().trim();
@@ -148,16 +163,22 @@ final class PasswordTarget implements AutoCloseable {
         LinkedHashMap<String,String> out=new LinkedHashMap<>();
         for(Map.Entry<PageRules.Type,AccessibilityNodeInfo> e:accounts){
             AccessibilityNodeInfo node=e.getValue();
-            if(!node.refresh()||node.isPassword())continue;
+            if(!node.refresh()||secretField(node))continue;
             if(Build.VERSION.SDK_INT>=26&&node.isShowingHintText())continue;
             CharSequence text=node.getText();
             if(text!=null&&text.toString().trim().length()>0&&text.length()<=200)out.put(e.getKey().key(),text.toString().trim());
         }
         return out;
     }
-    private static boolean supports(AccessibilityNodeInfo node){return node.refresh()&&node.isVisibleToUser()&&node.isEnabled()&&node.isEditable()&&node.getActionList().contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT);}
+    private static boolean secretField(AccessibilityNodeInfo node){return node.isPassword()||PageRules.passwordInput(node.getInputType());}
+    private static boolean hasTitleOnlyAddressBar(String pkg){
+        return Set.of("mark.via","mark.via.gp","com.mmbox.xbrowser","com.xbrowser.play").contains(pkg);
+    }
+    private static boolean editableField(AccessibilityNodeInfo node){String name=node.getClassName()==null?"":node.getClassName().toString();return node.isEditable()||((name.endsWith("EditText")||name.endsWith("AutoCompleteTextView"))&&node.getActionList().contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT));}
+    private static boolean supports(AccessibilityNodeInfo node){return node.refresh()&&node.isVisibleToUser()&&node.isEnabled()&&editableField(node)&&node.getActionList().contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT);}
     private static boolean set(AccessibilityNodeInfo node,String value){Bundle data=new Bundle();data.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,value);try{return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,data);}finally{data.clear();}}
     private static boolean isBrowser(Context c,String pkg){
+        if(hasTitleOnlyAddressBar(pkg))return true;
         if(Set.of("com.android.chrome","com.chrome.beta","com.chrome.dev","com.chrome.canary","com.microsoft.emmx","com.brave.browser","org.mozilla.firefox","org.mozilla.fenix","com.sec.android.app.sbrowser","com.android.browser","com.heytap.browser","com.oplus.browser").contains(pkg))return true;
         // Query the target explicitly: Android may filter non-default web handlers from a global query.
         Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse("https://example.com")).addCategory(Intent.CATEGORY_BROWSABLE).setPackage(pkg);

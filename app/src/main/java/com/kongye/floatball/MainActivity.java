@@ -1,6 +1,7 @@
 package com.kongye.floatball;
 
 import android.app.*;
+import android.Manifest;
 import android.content.*;
 import android.content.res.ColorStateList;
 import android.graphics.*;
@@ -14,11 +15,13 @@ import android.widget.*;
 
 public class MainActivity extends Activity {
     private static final String HIDE_FROM_RECENTS = "hide_from_recents";
+    private static final int REQUEST_NOTIFICATIONS = 12;
     private static boolean createdUi;
     private boolean gestureEntrance,introTouchActive;
     private static java.lang.ref.WeakReference<MainActivity> visible=new java.lang.ref.WeakReference<>(null);
     private View motionContent(){return findViewById(android.R.id.content);}
     static boolean hideIfVisible(){return AppMotion.hideIfVisible();}
+    static boolean isVisible(){MainActivity page=visible.get();return page!=null&&!page.isFinishing()&&!page.isDestroyed();}
     static boolean openFilePicker(Intent intent){MainActivity page=visible.get();if(page==null||page.isFinishing()||page.isDestroyed())return false;page.skipFileResume=true;page.startActivity(intent);page.overridePendingTransition(0,0);return true;}
     private static final String[] TABS={"首页","悬浮球","设置"},TAB_ICONS={"nav_home","leaf","nav_settings"};
     private static final String[] GESTURES={"tap","double","long","up","down"},GESTURE_NAMES={"单击","双击","长按","上划","下划"};
@@ -141,7 +144,9 @@ public class MainActivity extends Activity {
         power.setOnClickListener(v->{if(FloatService.running)startService(new Intent(this,FloatService.class).setAction(FloatService.STOP));else startBall(null);});
         state.addView(power,new LinearLayout.LayoutParams(dp(48),dp(48)));status.addView(state);content.addView(status);
         boolean overlay=Settings.canDrawOverlays(this),assist=AssistService.instance!=null;
-        label("权限");content.addView(new PermissionStrip(this,new boolean[]{overlay,assist},new Runnable[]{this::overlayPermission,this::accessibilityPermission}));
+        label("权限");
+        content.addView(new PermissionStrip(this,new boolean[]{overlay,assist,notificationsAllowed()},
+                new Runnable[]{this::overlayPermission,this::accessibilityPermission,this::manageNotifications}));
         Ui.gap(content,18);LinearLayout toolHead=Ui.row(this);TextView title=Ui.text(this,"工具",13,Ui.MUTED,true);Ui.pad(title,6,0,0,0);toolHead.addView(title,new LinearLayout.LayoutParams(0,-2,1));toolHead.addView(iconButton("tool_sliders","管理首页工具",this::manageHomeTools),new LinearLayout.LayoutParams(dp(44),dp(44)));content.addView(toolHead);
         java.util.ArrayList<String> ids=HomeTools.load(this);LinearLayout tools=group();tools.setContentDescription("首页工具列表");Ui.pad(tools,6,8,6,8);
         tools.addView(new HomeToolGrid(this,ids,id->tool(id,HomeTools.label(id)),order->HomeTools.save(this,order)),new LinearLayout.LayoutParams(-1,-2));
@@ -152,7 +157,7 @@ public class MainActivity extends Activity {
         new UiDialog(this).setTitle("首页工具").setMultiChoiceItems(names,checked,(dialog,index,on)->checked[index]=on).setPositiveButton("确定",(dialog,which)->{java.util.ArrayList<String> result=new java.util.ArrayList<>();for(String id:current)for(int i=0;i<ids.length;i++)if(ids[i].equals(id)&&checked[i])result.add(id);for(int i=0;i<ids.length;i++)if(checked[i]&&!result.contains(ids[i]))result.add(ids[i]);HomeTools.save(this,result);render();}).setNegativeButton("取消",null).setNeutralButton("恢复默认",(dialog,which)->{HomeTools.save(this,java.util.Arrays.asList(HomeTools.DEFAULT));render();}).show();
     }
     private View tool(String id,String name){
-        LinearLayout tile=Ui.column(this);tile.setGravity(Gravity.CENTER_HORIZONTAL);Ui.pad(tile,0,10,0,10);tile.setContentDescription(name);tile.setFocusable(true);tile.setOnClickListener(v->startBall(id));
+        LinearLayout tile=Ui.column(this);tile.setGravity(Gravity.CENTER_HORIZONTAL);Ui.pad(tile,0,10,0,10);tile.setContentDescription(name);tile.setFocusable(true);tile.setOnClickListener(v->{if("password_fill".equals(id)){if(!Settings.canDrawOverlays(this)||AssistService.instance==null){startActivity(PasswordHelpActivity.intent(this,PasswordTarget.Problem.NONE));return;}moveTaskToBack(true);handler.postDelayed(()->startBall(id),320);}else startBall(id);});
         FrameLayout box=new FrameLayout(this);box.setBackground(Ui.bg(Ui.PALE,16,this));box.addView(Ui.icon(this,id,Ui.GREEN,24),new FrameLayout.LayoutParams(dp(24),dp(24),Gravity.CENTER));tile.addView(box,new LinearLayout.LayoutParams(dp(48),dp(48)));
         Ui.gap(tile,8);TextView t=Ui.centeredText(this,name,12,Ui.INK,false);t.setMaxLines(2);t.setMinLines(2);t.setEllipsize(TextUtils.TruncateAt.END);tile.addView(t);return tile;
     }
@@ -207,12 +212,15 @@ public class MainActivity extends Activity {
         boolean schedule="schedule".equals(prefs.getString("theme","system"));int start=prefs.getInt("dark_start",1320),end=prefs.getInt("dark_end",420);
         if(schedule){link(theme,"开始时间",ThemePolicy.time(start),()->pickThemeTime("dark_start",1320));link(theme,"结束时间",ThemePolicy.time(end),()->pickThemeTime("dark_end",420));}
         LinearLayout hide=settingItem(theme,"eye_closed","后台隐藏",null,null);
+        updateRecentsIcon(hide,Prefs.of(this).getBoolean(HIDE_FROM_RECENTS,true));
         addSwitch(hide,HIDE_FROM_RECENTS,true);
         if(VaultClient.debug(this))settingLink(theme,"password_fill","密码空间接口",null,new VaultClient(this).providerPackage(),()->new UiDialog(this).setTitle("密码空间接口（调试）").setItems(VaultClient.PACKAGES,(d,which)->{Prefs.of(this).edit().putString("vault_package",VaultClient.PACKAGES[which]).apply();render();}).setNegativeButton("取消",null).show());
+        settingLink(theme,"password_fill","密码填充",null,null,()->startActivity(PasswordHelpActivity.intent(this,PasswordTarget.Problem.NONE)));
         content.addView(theme);
         if(schedule){Ui.gap(content,10);hint(start==end?"起止时间相同：全天深色。":"按手机本地时间切换，可跨午夜。");}
         label("关于与更新");LinearLayout other=group();
         LinearLayout update=settingItem(other,"update","检查更新",null,this::checkForUpdates);updateRow=update;TextView version=Ui.centeredText(this,"v"+appVersion(),12,Ui.GREEN,true);version.setContentDescription("当前版本 v"+appVersion());version.setBackground(Ui.bg(Ui.dark?Ui.PALE:0xFFE4EEE7,14,this));Ui.pad(version,9,4,9,4);LinearLayout.LayoutParams versionAt=new LinearLayout.LayoutParams(-2,-2);versionAt.leftMargin=dp(12);versionAt.rightMargin=dp(4);updateCapsule=new FrameLayout(this);updateCapsule.setMinimumWidth(dp(64));updateCapsule.addView(version,new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER));update.addView(updateCapsule,versionAt);chevron(update);updateCheckingVisual();
+        settingLink(other,"history","更新历史",null,null,()->startActivity(ReleaseHistoryActivity.intent(this)));
         settingLink(other,"github","GitHub",null,null,()->openWeb(GitHubUpdate.PROJECT));
         settingLink(other,"info","关于空叶",null,null,this::about);content.addView(other);
 
@@ -279,10 +287,19 @@ public class MainActivity extends Activity {
             Prefs.of(this).edit().putBoolean(key,on).apply();
             switch(key){
                 case "enhanced_overlay" -> OverlayWindows.refreshAll();
-                case HIDE_FROM_RECENTS -> updateRecentsVisibility(on);
+                case HIDE_FROM_RECENTS -> {updateRecentsVisibility(on);updateRecentsIcon(row,on);}
                 default -> refreshBall();
             }
         });LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(38),dp(32));at.leftMargin=dp(8);row.addView(sw,at);touchable(row);row.setOnClickListener(v->sw.toggle());
+    }
+    private void updateRecentsIcon(LinearLayout row,boolean hidden){
+        FrameLayout badge=(FrameLayout)row.getChildAt(0);
+        if(badge.getChildCount()==1&&badge.getChildAt(0) instanceof PrivacyEyeView eye){
+            eye.setHidden(hidden);
+            return;
+        }
+        badge.removeAllViews();
+        badge.addView(new PrivacyEyeView(this,hidden),new FrameLayout.LayoutParams(dp(17),dp(17),Gravity.CENTER));
     }
     private void updateRecentsVisibility(boolean hidden) {
         ComponentName main = new ComponentName(this, MainActivity.class);
@@ -308,6 +325,20 @@ public class MainActivity extends Activity {
     private void refreshBall(){if(FloatService.running)startService(new Intent(this,FloatService.class).setAction(FloatService.REFRESH));}
     private void overlayPermission(){safeSettings(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+getPackageName())));}
     private void accessibilityPermission(){safeSettings(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));}
+    private boolean notificationsAllowed(){return getSystemService(NotificationManager.class).areNotificationsEnabled();}
+    private void notificationSettings(){safeSettings(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName()));}
+    private void manageNotifications(){
+        if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},REQUEST_NOTIFICATIONS);
+        }else notificationSettings();
+    }
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
+        super.onRequestPermissionsResult(request,permissions,results);
+        if(request!=REQUEST_NOTIFICATIONS)return;
+        render();
+        if(results.length>0&&!notificationsAllowed()&&Build.VERSION.SDK_INT>=33
+                &&!shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS))notificationSettings();
+    }
     private void safeSettings(Intent i){try{startActivity(i);}catch(ActivityNotFoundException e){startActivity(new Intent(Settings.ACTION_SETTINGS));}}
     private String appVersion(){try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}catch(android.content.pm.PackageManager.NameNotFoundException e){return "1.0";}}
     private void about(){startActivity(new Intent(this,AboutActivity.class));}

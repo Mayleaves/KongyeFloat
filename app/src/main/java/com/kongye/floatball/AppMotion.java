@@ -6,6 +6,7 @@ final class AppMotion {
  static final PathInterpolator SLIDE_CURVE=new PathInterpolator(.25f,.25f,.60f,1);
  private static final Set<Activity> pages=Collections.newSetFromMap(new WeakHashMap<>());private static WeakReference<Activity> visible=new WeakReference<>(null),last=new WeakReference<>(null);private static boolean closing;private static AppExitLayer exitLayer;
  static void resume(Activity page){pages.add(page);prepare(page);if(!closing){show(page);visible=new WeakReference<>(page);last=new WeakReference<>(page);}}
+ static View backdropContent(){Activity page=last.get();return alive(page)?content(page):null;}
  static void pause(Activity page){if(visible.get()==page)visible.clear();}
  static void destroy(Activity page){pages.remove(page);if(visible.get()==page)visible.clear();if(last.get()==page)last.clear();}
  private static boolean alive(Activity a){return a!=null&&!a.isFinishing()&&!a.isDestroyed();}
