@@ -67,9 +67,10 @@ public class MainActivity extends Activity {
     private void animateGestureEntrance(){if(!gestureEntrance)return;gestureEntrance=false;AppMotion.enter(this);}
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);gestureEntrance=intent.getBooleanExtra("gesture_entry",false);}
     @Override public Object onRetainNonConfigurationInstance(){return updateCheck;}
+    @Override protected void onStart(){super.onStart();updateCheck.startAutomatic(appVersion());}
     static void runningChanged(){MainActivity page=visible.get();if(page!=null)page.handler.post(page::animateRunningState);}
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putInt("tab",tab);}
-    @Override protected void onResume(){super.onResume();UpdateRestoreReceiver.resumePending(this);AppMotion.resume(this);if(!gestureEntrance){motionContent().setTranslationY(0);motionContent().setAlpha(1);motionContent().setScaleX(1);motionContent().setScaleY(1);}visible=new java.lang.ref.WeakReference<>(this);boolean keep=(intro!=null||gestureEntrance)||(skipFileResume&&renderedDark==ThemePolicy.isDark(this)&&renderedRunning==FloatService.running);skipFileResume=false;if(!keep)render();animateGestureEntrance();updateCheck.attach((result,error)->{if(isFinishing()||isDestroyed())return;updateCheckingVisual();startActivity(UpdateActivity.checkedIntent(this,result,error));});handler.removeCallbacks(themeTicker);handler.postDelayed(themeTicker,60000-System.currentTimeMillis()%60000);}
+    @Override protected void onResume(){super.onResume();UpdateRestoreReceiver.resumePending(this);AppMotion.resume(this);if(!gestureEntrance){motionContent().setTranslationY(0);motionContent().setAlpha(1);motionContent().setScaleX(1);motionContent().setScaleY(1);}visible=new java.lang.ref.WeakReference<>(this);boolean keep=(intro!=null||gestureEntrance)||(skipFileResume&&renderedDark==ThemePolicy.isDark(this)&&renderedRunning==FloatService.running);skipFileResume=false;if(!keep)render();animateGestureEntrance();updateCheck.attach((result,error)->{if(isFinishing()||isDestroyed())return;if(result!=null)Prefs.of(this).edit().putString("update_latest_version",result.latest).apply();updateCheckingVisual();if(!updateCheck.automatic)startActivity(UpdateActivity.checkedIntent(this,result,error));});handler.removeCallbacks(themeTicker);handler.postDelayed(themeTicker,60000-System.currentTimeMillis()%60000);}
     @Override protected void onPause(){AppMotion.pause(this);updateCheck.detach();if(visible.get()==this)visible.clear();handler.removeCallbacks(themeTicker);super.onPause();}
     @Override protected void onDestroy(){AppMotion.destroy(this);if(!isChangingConfigurations())updateCheck.close();handler.removeCallbacksAndMessages(null);if(powerTint!=null)powerTint.cancel();if(navMotion!=null)navMotion.cancel();if(tabMotion!=null)tabMotion.cancel();super.onDestroy();}
     private int dp(float v){return Ui.dp(this,v);}
@@ -239,12 +240,13 @@ public class MainActivity extends Activity {
     private void settingLink(LinearLayout group,String icon,String title,String subtitle,String value,Runnable action){LinearLayout row=settingItem(group,icon,title,subtitle,action);if(value!=null)value(row,value,Ui.MUTED);chevron(row);}
     private void openWeb(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE));}catch(ActivityNotFoundException|SecurityException e){Feedback.show(this,"没有可用的浏览器，请先安装或启用浏览器");}}
     private void updateCheckingVisual(){
-        if(updateCapsule==null)return;boolean busy=updateCheck.checking;updateRow.setEnabled(!busy);updateRow.setContentDescription(busy?"检查更新，正在检查":"检查更新");
-        View version=updateCapsule.getChildAt(0);version.setVisibility(busy?View.INVISIBLE:View.VISIBLE);
+        if(updateCapsule==null)return;boolean busy=updateCheck.checking&&!updateCheck.automatic;boolean newer=false;String latest=Prefs.of(this).getString("update_latest_version","");try{newer=!latest.isEmpty()&&ReleaseVersion.compare(latest,appVersion())>0;}catch(IllegalArgumentException ignored){}
+        updateRow.setEnabled(!busy);updateRow.setContentDescription(busy?"检查更新，正在检查":newer?"检查更新，发现新版本 "+latest:"检查更新");
+        TextView version=(TextView)updateCapsule.getChildAt(0);version.setTextColor(newer?(Ui.dark?0xFFF2CE72:0xFF8A5A0A):Ui.GREEN);version.setBackground(Ui.bg(newer?(Ui.dark?0xFF443819:0xFFFFF0BD):(Ui.dark?Ui.PALE:0xFFE4EEE7),14,this));version.setContentDescription("当前版本 v"+appVersion()+(newer?"，发现新版本 "+latest:""));version.setVisibility(busy?View.INVISIBLE:View.VISIBLE);
         if(updateCapsule.getChildCount()>1)updateCapsule.removeViewAt(1);
         if(busy){ProgressBar spinner=new ProgressBar(this);spinner.setContentDescription("正在检查更新");spinner.setIndeterminateTintList(ColorStateList.valueOf(Ui.GREEN));updateCapsule.addView(spinner,new FrameLayout.LayoutParams(dp(18),dp(18),Gravity.CENTER));}
     }
-    private void checkForUpdates(){if(updateCheck.checking)return;updateCheck.start(appVersion());updateCheckingVisual();}
+    private void checkForUpdates(){updateCheck.start(appVersion());updateCheckingVisual();}
     private void animateRunningState(){boolean on=FloatService.running;if(on==renderedRunning)return;renderedRunning=on;if(powerControl!=null)showRunningState(on,true);}
     private void showRunningState(boolean on,boolean animate){
         if(powerControl==null)return;long duration=animate&&android.animation.ValueAnimator.areAnimatorsEnabled()?750:0;
