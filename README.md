@@ -2,9 +2,13 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.0 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.0) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.0 验证记录](docs/VALIDATION-3.4.0.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.1 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.1) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.1 验证记录](docs/VALIDATION-3.4.1.md)
 
 v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原有果冻形变、回边、上下轻划和长按。已安装原 v3.0 时请手动重新下载覆盖。详见[索尼验证记录](docs/VALIDATION-3.0-跟手修正.md)。
+
+## 3.4.1 更新
+
+- 删除更新历史搜索框右侧的「搜索」按钮，保留输入框、清空功能和键盘搜索操作。
 
 ## 3.4.0 更新
 
@@ -81,7 +85,7 @@ v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原
 
 「设置 → 增强悬浮层」可在无障碍服务连接时改善悬浮球的显示范围，无需 Root。Android 或目标应用仍可能限制安全页面上的悬浮窗、截图和录音。
 
-Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.0/KongyeFloat-3.4.0-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.0/KongyeFloat-3.4.0-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
+Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.1/KongyeFloat-3.4.1-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.1/KongyeFloat-3.4.1-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
 
 ## 构建
 

@@ -443,26 +443,11 @@ public final class ReleaseHistoryActivity extends Activity {
         clearAt.rightMargin = dp(4);
         capsule.addView(clearBtn, clearAt);
 
-        TextView submitBtn = Ui.centeredText(this, "搜索", 13, Ui.GREEN, true);
-        submitBtn.setContentDescription("搜索");
-        submitBtn.setMinHeight(dp(36));
-        Ui.pad(submitBtn, 14, 0, 14, 0);
-        submitBtn.setFocusable(true);
-        Runnable syncSearchButtonStyle = () -> {
-            String trimmed = input.getText().toString().trim();
-            boolean activeCta = !trimmed.isEmpty() && !trimmed.equals(model.query);
-            submitBtn.setTextColor(activeCta ? (Ui.dark ? 0xFF102E21 : Color.WHITE) : Ui.GREEN);
-            submitBtn.setBackground(Ui.ripple(this, activeCta ? Ui.GREEN : Ui.PALE, 13));
-            clearBtn.setVisibility(!input.getText().toString().isEmpty() || searching() ? View.VISIBLE : View.GONE);
-        };
-        syncSearchButtonStyle.run();
-
         Runnable submit = () -> {
             InputMethodManager keyboard = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
             if (keyboard != null) keyboard.hideSoftInputFromWindow(input.getWindowToken(), 0);
             startSearch(input.getText().toString());
         };
-        submitBtn.setOnClickListener(v -> submit.run());
         clearBtn.setOnClickListener(v -> {
             input.setText("");
             InputMethodManager keyboard = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
@@ -481,12 +466,11 @@ public final class ReleaseHistoryActivity extends Activity {
             @Override public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence text, int start, int before, int count) {
                 model.draft = text.toString();
-                syncSearchButtonStyle.run();
+                clearBtn.setVisibility(!model.draft.isEmpty() || searching() ? View.VISIBLE : View.GONE);
             }
             @Override public void afterTextChanged(Editable text) { }
         });
 
-        capsule.addView(submitBtn, new LinearLayout.LayoutParams(-2, dp(36)));
         content.addView(capsule);
     }
 
