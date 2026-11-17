@@ -39,6 +39,9 @@ public final class SubtitleLayoutCheck {
         check(exam.get(1).text().endsWith("business successfully.") && exam.get(3).text().endsWith("their capabilities.")
                 && exam.get(4).text().endsWith("the expected promotion."),"indented continuations join their own answer");
         check(exam.stream().allMatch(b -> b.lineHeight()==exam.get(1).lineHeight()),"similar source sizes normalize to a shared glyph height");
+        var shaded=SubtitleLayout.blocks(List.of(line("I need to escape that Gold",10,5,420,30,0xFFFCFAF7),
+                line("bitch.)",10,29,88,49,0xFFD9C4BB)),450,80);
+        check(shaded.size()==1&&shaded.get(0).text().endsWith("Gold bitch.)"),"a short shadowed final word remains in its paragraph");
         int width=120,height=50;
         int[] pixels=new int[width*height]; Arrays.fill(pixels,0xFF171217);
         for(int y=14;y<33;y++)for(int x=14;x<99;x++)if(x%8<4)pixels[y*width+x]=pink;

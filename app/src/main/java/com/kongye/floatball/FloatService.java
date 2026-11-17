@@ -20,6 +20,7 @@ import java.util.*;
 public class FloatService extends Service {
     public static boolean running;static FloatService instance;private String foreground="",appMode="normal";private boolean captureVisible=true,customBallArt;
     static final String REFRESH="com.kongye.floatball.REFRESH",STOP="com.kongye.floatball.STOP",RECOVER="com.kongye.floatball.RECOVER";private long recoveryUntil;
+    SubtitleSession subtitleSession(){return subtitles;}
     private WindowManager windows;
     private WindowManager.LayoutParams ballParams;
     private FrameLayout ball,panel;

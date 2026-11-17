@@ -62,7 +62,7 @@ final class SubtitleLayout {
         int gap = next.top - last.bottom;
         if (gap < -size * .25f || gap > size * .95f
                 || next.height() < size * .60f || next.height() > size * 1.58f
-                || distance(line.color, previous.color) >= 60) return false;
+                || !sameParagraphColor(line.color, previous.color)) return false;
 
         int indent = next.left - last.left;
         if (startsListItem(previous.text)) {
@@ -76,6 +76,18 @@ final class SubtitleLayout {
         // Follow the adjacent line, allowing the first line to start at a paragraph indent.
         if (indent < -size * 2.5f || indent > size * 1.15f) return false;
         return Math.min(last.right, next.right) > Math.max(last.left, next.left);
+    }
+
+    private static boolean sameParagraphColor(int a,int b) {
+        int difference=distance(a,b);
+        if(difference<60)return true;
+        // Short anti-aliased words pick up more of a game's shadow/background than a full line.
+        return difference<125&&lightNeutral(a)&&lightNeutral(b);
+    }
+
+    private static boolean lightNeutral(int color) {
+        int r=color>>16&255,g=color>>8&255,b=color&255;
+        return Math.min(r,Math.min(g,b))>=160&&Math.max(r,Math.max(g,b))-Math.min(r,Math.min(g,b))<=64;
     }
 
     private static List<Block> normalizeLineHeights(List<Block> blocks) {

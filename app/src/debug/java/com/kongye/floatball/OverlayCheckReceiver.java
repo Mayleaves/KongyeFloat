@@ -10,6 +10,8 @@ import org.json.*;
 /** Own-view metadata for tests which must keep the real accessibility service connected. */
 public class OverlayCheckReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context c,Intent intent){try{
+        String subtitle344=intent.getStringExtra("command");if(subtitle344!=null&&subtitle344.startsWith("qa_subtitle344_")){Subtitle344Checks.run(c,subtitle344.substring(15));return;}
+        String subtitle343=intent.getStringExtra("command");if(subtitle343!=null&&subtitle343.startsWith("qa_subtitle343_")){Subtitle343Checks.run(c,subtitle343.substring(15));return;}
         String update342=intent.getStringExtra("command");if(update342!=null&&update342.startsWith("qa_update342_")){Update342Checks.run(c,update342.substring(13));return;}
         String browserIme = intent.getStringExtra("command");
         if (browserIme != null && browserIme.startsWith("qa_browser_ime_")) {

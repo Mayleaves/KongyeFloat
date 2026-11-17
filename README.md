@@ -2,9 +2,15 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.2 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.2) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.2 验证记录](docs/VALIDATION-3.4.2.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.4 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.4) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.4 验证记录](docs/VALIDATION-3.4.4.md)
 
 v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原有果冻形变、回边、上下轻划和长按。已安装原 v3.0 时请手动重新下载覆盖。详见[索尼验证记录](docs/VALIDATION-3.0-跟手修正.md)。
+
+## 3.4.4 更新
+
+- 字幕弹窗新增「重新识别」和「翻译 App」。可以把当前选区的原文交给已安装的翻译应用，接收或粘贴译文后显示到当前对白。
+- 英文长段改为分句翻译再合并，改善后半段漏译及中文译文残留英文人称「I」的问题。
+- 默认关闭虚线框，译文字号设为 90%。关闭译文覆盖时默认靠左，字幕背景不透明度为 50%。已有设置可通过「重置」应用新默认值。
 
 ## 3.4.2 更新
 
@@ -78,7 +84,7 @@ v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原
 - **个性化**：导入图片或透明 GIF 作为悬浮球，调整尺寸（30%–500%）、透明度和边距；支持深色、浅色、跟随系统和定时切换。
 - **植物主题界面**：首页时段盆栽、随机问候气泡、悬浮导航和动态关于页；控制项与结果窗口采用统一的绿色风格。
 - **文字翻译**：区域截图识别的文字可选择语言翻译，首次使用通过 Wi-Fi 下载语言模型，下载后在设备上翻译；支持自动检测语言、交换双方，提供英文、中文、日文、韩文。
-- **字幕翻译**：选定区域后连续识别并翻译屏幕字幕，按段落保留姓名与对话，可跟随画面字色、位置与背景，实时调整字号和不透明度，或将译文放在选区上方/下方。中文译文自动换行并整理标点。可从首页工具、快捷菜单或手势启动，需要 Android 11 及以上和空叶无障碍服务。
+- **字幕翻译**：选定区域后连续识别并翻译屏幕字幕，按段落保留姓名与对话，可跟随画面字色、位置与背景，实时调整字号和不透明度，或将译文放在选区上方/下方。中文译文自动换行并整理标点。操作弹窗可重新识别，也可将本次原文交给翻译 App、确认或粘贴外部译文后显示。可从首页工具、快捷菜单或手势启动，需要 Android 11 及以上和空叶无障碍服务。
 - **更新与项目主页**：打开应用界面时静默检查 GitHub 最新正式版本，发现更新后将设置中的版本气泡标为黄色；点击「检查更新」查看详情，项目主页入口在更新历史右上角。检测到更新时在应用内下载 APK、显示进度并校验，然后由系统确认安装。记录开关状态后，更新完成会尝试恢复原先开启的悬浮球。
 - **其他工具**：常用应用、最近应用、便签、悬浮浏览器，以及针对特定应用的显示规则。首页工具与快捷菜单提供相同的完整工具目录，两者的选项和拖动顺序独立保存。
 
@@ -91,11 +97,11 @@ v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原
 
 「设置 → 增强悬浮层」可在无障碍服务连接时改善悬浮球的显示范围，无需 Root。Android 或目标应用仍可能限制安全页面上的悬浮窗、截图和录音。
 
-Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.2/KongyeFloat-3.4.2-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.2/KongyeFloat-3.4.2-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装；其他架构包在发布页提供。
+Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.4/KongyeFloat-3.4.4-arm64-v8a.apk)。不确定架构时可选 [通用版（约 159 MB）](https://github.com/Mayleaves/KongyeFloat/releases/download/v3.4.4/KongyeFloat-3.4.4-all-universal.apk)。两者功能及识别模型相同，可使用同一签名覆盖安装。其他架构包在发布页提供。
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.3.14。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.4.4。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 
@@ -113,7 +119,7 @@ Windows 上可运行 `gradlew.bat assembleDebug`。项目里的 `scripts/build.p
 
 ## 数据与保存
 
-截图识别使用随应用打包的 Google ML Kit 中文模型及 PaddleOCR PP-OCRv5 移动模型，在手机上处理，模型不需要另行下载；ML Kit SDK 可能发送性能和使用统计，详见 [ML Kit 条款](https://developers.google.com/ml-kit/terms)。便签和配置保存在设备本地。浏览器访问用户打开的网站，网站按其自身政策处理请求和 Cookie。打开应用界面或手动点击检查更新时，应用会请求本项目的 GitHub Releases API。翻译使用 Google ML Kit，首次使用时通过 Wi-Fi 下载语言模型，识别文字在设备上翻译。
+截图识别使用随应用打包的 Google ML Kit 中文模型及 PaddleOCR PP-OCRv5 移动模型；英文字幕另使用打包的 ML Kit 英文模型，在手机上处理，模型不需要另行下载；ML Kit SDK 可能发送性能和使用统计，详见 [ML Kit 条款](https://developers.google.com/ml-kit/terms)。便签和配置保存在设备本地。浏览器访问用户打开的网站，网站按其自身政策处理请求和 Cookie。打开应用界面或手动点击检查更新时，应用会请求本项目的 GitHub Releases API。翻译使用 Google ML Kit，首次使用时通过 Wi-Fi 下载语言模型，连续字幕的识别文字在设备上翻译。主动选择「翻译 App」后，只将本次选区原文交给所选应用，是否联网及数据处理由该应用决定；复制与粘贴均由用户主动操作。
 
 区域截图、整屏截图、手动长图和录制先进入预览，点击保存后写入相册；滚动截图确认后也进入预览，点击保存才写入相册。分享使用应用私有的临时文件和系统选择器。使用细节、权限说明与功能限制见[详细使用说明](docs/USER_GUIDE.md)。
 
