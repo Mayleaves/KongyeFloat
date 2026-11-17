@@ -79,14 +79,6 @@ final class SubtitleSession {
     private boolean languageChanged, followBackground, followTextColor;
     private int sampledBackground;
     private long retryAt;
-    static final int EXTERNAL_TEXT_LIMIT = 6000;
-    record ExternalRequest(String id, SubtitleFrame frame, String packageName, String source, String target) {}
-    private boolean freshCaptureRequested, externalCaptureRequested, externalPaused;
-    private Runnable freshCaptureTimeout;
-    private ExternalRequest externalRequest;
-    private String pendingExternalText = "", awaitingSourcePackage = "", overrideKey = "";
-    private SubtitleFrame overrideFrame;
-    private List<String> overrideBlocks = List.of();
 
     SubtitleSession(Context context, BooleanSupplier blocked) {
         this.context = context;
@@ -280,11 +272,8 @@ final class SubtitleSession {
         renderPreview();
         if (layer == null || caption == null) return;
         layer.invalidate();
-        boolean manual = overrideFrame != null && overrideKey.equals(latestFrame.key);
-        SubtitleFrame displayFrame = manual ? overrideFrame : latestFrame;
-        List<String> displayBlocks = manual ? overrideBlocks : translatedBlocks;
-        boolean visible = (manual || !translation.isEmpty() && displayedKey.equals(latestFrame.key)
-                && translatedBlocks.size() == latestFrame.blocks.size()) && !area.isEmpty();
+        boolean visible = !translation.isEmpty() && displayedKey.equals(latestFrame.key)
+                && translatedBlocks.size() == latestFrame.blocks.size() && !area.isEmpty();
         int visibility = !visible ? View.GONE : presentationHidden ? View.INVISIBLE : View.VISIBLE;
         int[] origin = new int[2];
         layer.getLocationOnScreen(origin);
@@ -295,7 +284,7 @@ final class SubtitleSession {
             FrameLayout.LayoutParams at = new FrameLayout.LayoutParams(area.width(), area.height());
             at.leftMargin = area.left - origin[0]; at.topMargin = area.top - origin[1];
             styledCaption.setLayoutParams(at);
-            styledCaption.show(displayFrame, displayBlocks, target, subtitleBackground(coverOpacity), fontScale, textColorOverride());
+            styledCaption.show(latestFrame, translatedBlocks, target, subtitleBackground(coverOpacity), fontScale, textColorOverride());
             return;
         }
         styledCaption.setVisibility(View.GONE);
@@ -303,7 +292,7 @@ final class SubtitleSession {
         if (!visible) return;
         Rect region = new Rect(area);
         region.offset(-origin[0], -origin[1]);
-        renderFloating(caption, displayFrame, displayBlocks, region, screen.bottom - origin[1], false);
+        renderFloating(caption, latestFrame, translatedBlocks, region, screen.bottom - origin[1], false);
     }
 
     private void renderFloating(TextView text, SubtitleFrame frame, List<String> blocks, Rect region,
@@ -354,18 +343,13 @@ final class SubtitleSession {
 
     private void schedule(long delay) {
         main.removeCallbacks(poll);
-        if (active && live && panel == null && !externalPaused) main.postDelayed(poll, delay);
+        if (active && live && panel == null) main.postDelayed(poll, delay);
     }
 
-    private boolean ready() { return active && live && panel == null && !externalPaused && !blocked.getAsBoolean(); }
+    private boolean ready() { return active && live && panel == null && !blocked.getAsBoolean(); }
 
     private void capture() {
         if (!active || !live) return;
-        if (externalPaused) return;
-        if (!awaitingSourcePackage.isEmpty()) {
-            if (!awaitingSourcePackage.equals(AssistService.foregroundPackage)) { schedule(400); return; }
-            awaitingSourcePackage = "";
-        }
         if (assist != AssistService.instance || context.getSystemService(KeyguardManager.class).isKeyguardLocked()) {
             stop();
             return;
@@ -426,9 +410,7 @@ final class SubtitleSession {
     private void read(Bitmap bitmap, String error, int token) {
         if (bitmap == null || token != epoch || !ready()) {
             if (bitmap != null) bitmap.recycle();
-            if (token == epoch && freshCaptureRequested) {
-                freshCaptureFailed(error == null ? "未能重新读取选区，请返回原页面重试" : error);
-            } else if (error != null && token == epoch && ready()) {
+            if (error != null && token == epoch && ready()) {
                 clearText();
                 status = error;
             }
@@ -446,36 +428,25 @@ final class SubtitleSession {
                         if (detected != 0 && (sampledBackground == 0 || SubtitleLayout.distance(sampledBackground, detected) >= 14))
                             sampledBackground = detected;
                         latest = latestFrame.text;
-                        if (!pendingExternalText.isEmpty()) acceptPendingExternal();
                         if (latest.isEmpty()) {
                             clearText();
-                            if (freshCaptureRequested) { freshCaptureFailed("选区内未识别到文字，请调整识别区域后重试"); return; }
                             if (!translating) status = "";
                         } else {
-                            if (freshCaptureRequested) {
-                                boolean external = externalCaptureRequested;
-                                clearFreshRequest();
-                                if (external) { openExternalTranslation(); return; }
-                                Feedback.success(context, "已重新识别，正在翻译");
-                            }
                             render();
                             translateLatest();
                         }
                     } else {
                         clearText();
                         status = "字幕识别失败，正在重试";
-                        if (freshCaptureRequested) freshCaptureFailed("重新识别失败，请重试");
                     }
                 }
                 } catch (RuntimeException failure) {
                     clearText(); status = "字幕识别失败，正在重试";
-                    if (freshCaptureRequested) freshCaptureFailed("重新识别失败，请重试");
                 } finally { bitmap.recycle(); finishFrame(); }
             });
         } catch (RuntimeException errorDuringRead) {
             bitmap.recycle();
             status = "字幕识别失败，正在重试";
-            if (freshCaptureRequested) freshCaptureFailed("重新识别失败，请重试");
             finishFrame();
         }
     }
@@ -486,7 +457,6 @@ final class SubtitleSession {
     }
 
     private void clearText() {
-        overrideKey = ""; overrideFrame = null; overrideBlocks = List.of();
         latest = "";
         latestFrame = SubtitleFrame.EMPTY;
         sampledBackground = 0;
@@ -496,7 +466,6 @@ final class SubtitleSession {
     }
 
     private void translateLatest() {
-        if (overrideFrame != null && overrideKey.equals(latestFrame.key)) return;
         if (translating || latest.isEmpty() || latestFrame.key.equals(displayedKey) || SystemClock.uptimeMillis() < retryAt) return;
         translating = true;
         int token = ++translationJob;
@@ -642,9 +611,6 @@ final class SubtitleSession {
     }
 
     private void invalidateWork() {
-        clearFreshRequest();
-        externalRequest = null; externalPaused = false; pendingExternalText = ""; awaitingSourcePackage = "";
-        if (layer != null) layer.setVisibility(View.VISIBLE);
         ++epoch;
         ++translationJob;
         translating = false;
@@ -658,8 +624,6 @@ final class SubtitleSession {
 
     void showActions() {
         if (!live) return;
-        if (freshCaptureRequested) { clearFreshRequest(); status = ""; }
-        if (externalPaused && externalRequest != null) cancelExternal(externalRequest.id());
         LinearLayout card = makePanel(false);
         LinearLayout header = Ui.row(context);
         header.addView(badge("translate", PANEL_GREEN, Color.WHITE, 40));
@@ -691,106 +655,12 @@ final class SubtitleSession {
             Ui.gap(card, 8);
         }
         card.addView(settingsAction());
-        Ui.gap(card, 10);
-        LinearLayout retries = Ui.row(context);
-        LinearLayout recognize = Ui.action(context, "refresh", "重新识别", "重新识别当前选区", () -> recognizeAgain(false));
-        LinearLayout external = Ui.action(context, "external", "翻译 App", "用翻译 App 重译当前选区", () -> recognizeAgain(true));
-        recognize.setGravity(Gravity.CENTER); external.setGravity(Gravity.CENTER);
-        recognize.setBackground(Ui.ripple(context, cardColor(), 14)); external.setBackground(Ui.ripple(context, cardColor(), 14));
-        retries.addView(recognize, new LinearLayout.LayoutParams(0, dp(44), 1));
-        LinearLayout.LayoutParams externalAt = new LinearLayout.LayoutParams(0, dp(44), 1); externalAt.leftMargin = dp(8);
-        retries.addView(external, externalAt); card.addView(retries);
         Ui.gap(card, 12);
         card.addView(primaryButton("subtitle_exit", "退出翻译", this::stop));
     }
 
     private void showSettings() {
         populateSettings(makePanel(true));
-    }
-
-    private void recognizeAgain(boolean external) {
-        if (!active || !live || area.isEmpty()) return;
-        removePanel(); invalidateWork(); clearText(); translatedCache.clear();
-        freshCaptureRequested = true; externalCaptureRequested = external;
-        status = "正在重新识别选区…";
-        freshCaptureTimeout = () -> freshCaptureFailed("重新识别超时，请返回原页面重试");
-        main.postDelayed(freshCaptureTimeout, 12000); schedule(160);
-    }
-
-    private void clearFreshRequest() {
-        freshCaptureRequested = externalCaptureRequested = false;
-        if (freshCaptureTimeout != null) main.removeCallbacks(freshCaptureTimeout);
-        freshCaptureTimeout = null;
-    }
-
-    private void freshCaptureFailed(String message) {
-        clearFreshRequest(); status = message;
-        Feedback.show(context, message);
-        if (active && live) showActions();
-    }
-
-    private void openExternalTranslation() {
-        ++translationJob; translating = false; clearTimeout(); closeTranslator();
-        status = "";
-        String from = "auto".equals(source) ? detectedSource : source;
-        if (from.isEmpty()) from = TranslationPolicy.scriptLanguage(latest);
-        externalRequest = new ExternalRequest(UUID.randomUUID().toString(), latestFrame, AssistService.foregroundPackage, from, target);
-        externalPaused = true; main.removeCallbacks(poll);
-        if (layer != null) layer.setVisibility(View.INVISIBLE);
-        try {
-            context.startActivity(new android.content.Intent(context, SubtitleExternalActivity.class)
-                    .putExtra("request_id", externalRequest.id()).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (RuntimeException unavailable) {
-            String id = externalRequest.id(); cancelExternal(id); status = "无法打开翻译面板，请重试";
-            showActions(); Feedback.show(context, status);
-        }
-    }
-
-    ExternalRequest externalRequest(String id) {
-        return active && externalPaused && externalRequest != null && externalRequest.id().equals(id) ? externalRequest : null;
-    }
-
-    boolean submitExternal(String id, String text) {
-        if (externalRequest(id) == null || text == null || text.isBlank() || text.length() > EXTERNAL_TEXT_LIMIT) return false;
-        pendingExternalText = text.strip();
-        finishExternalPause(); return true;
-    }
-
-    void cancelExternal(String id) {
-        if (externalRequest(id) == null) return;
-        pendingExternalText = ""; finishExternalPause(); externalRequest = null;
-    }
-
-    private void finishExternalPause() {
-        awaitingSourcePackage = externalRequest.packageName(); externalPaused = false;
-        if (layer != null) layer.setVisibility(View.VISIBLE);
-        schedule(350);
-    }
-
-    private void acceptPendingExternal() {
-        String text = pendingExternalText; pendingExternalText = "";
-        ExternalRequest request = externalRequest; externalRequest = null;
-        if (request == null || !request.frame().key.equals(latestFrame.key) || !request.target().equals(target)) {
-            Feedback.show(context, "当前对白已变化，未覆盖旧译文，请重新识别"); return;
-        }
-        String[] paragraphs = text.strip().split("\\n+");
-        overrideKey = latestFrame.key;
-        if (paragraphs.length == latestFrame.blocks.size()) {
-            ArrayList<String> values = new ArrayList<>();
-            for (String paragraph : paragraphs) values.add(OcrPunctuation.formatTranslatedSubtitle(paragraph, target));
-            overrideFrame = latestFrame; overrideBlocks = List.copyOf(values);
-        } else {
-            int left=latestFrame.width, top=latestFrame.height, right=0, bottom=0;
-            SubtitleLayout.Block style=latestFrame.blocks.get(0);
-            for (SubtitleLayout.Block block:latestFrame.blocks) {
-                left=Math.min(left,block.left()); top=Math.min(top,block.top()); right=Math.max(right,block.right()); bottom=Math.max(bottom,block.bottom());
-                if (block.text().length()>style.text().length()) style=block;
-            }
-            overrideFrame=new SubtitleFrame(latestFrame.width,latestFrame.height,List.of(new SubtitleLayout.Block(latestFrame.text,
-                    left,top,right,bottom,style.color(),style.lineHeight())));
-            overrideBlocks=List.of(OcrPunctuation.formatTranslatedSubtitle(text,target));
-        }
-        status=""; Feedback.success(context,"译文已显示，下一段对白继续自动翻译");
     }
 
     private void populateSettings(LinearLayout card) {
@@ -1419,7 +1289,6 @@ final class SubtitleSession {
 
     void displayChanged() {
         if (!active) return;
-        String returnPackage = externalPaused && externalRequest != null ? externalRequest.packageName() : awaitingSourcePackage;
         Rect next = displayBounds();
         if (next.equals(screen)) return;
         float sx = next.width() / (float) screen.width(), sy = next.height() / (float) screen.height();
@@ -1429,7 +1298,6 @@ final class SubtitleSession {
         removePanel();
         invalidateWork();
         clearText();
-        awaitingSourcePackage = returnPackage;
         render();
         schedule(150);
     }
