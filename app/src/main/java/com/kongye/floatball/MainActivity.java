@@ -69,8 +69,9 @@ public class MainActivity extends Activity {
     @Override public Object onRetainNonConfigurationInstance(){return updateCheck;}
     @Override protected void onStart(){super.onStart();updateCheck.startAutomatic(appVersion());}
     static void runningChanged(){MainActivity page=visible.get();if(page!=null)page.handler.post(page::animateRunningState);}
+    static void accessibilityChanged(){MainActivity page=visible.get();if(page!=null)page.handler.post(()->{if(visible.get()==page&&page.tab==0&&page.intro==null)page.render();});}
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putInt("tab",tab);}
-    @Override protected void onResume(){super.onResume();UpdateRestoreReceiver.resumePending(this);AppMotion.resume(this);if(!gestureEntrance){motionContent().setTranslationY(0);motionContent().setAlpha(1);motionContent().setScaleX(1);motionContent().setScaleY(1);}visible=new java.lang.ref.WeakReference<>(this);boolean keep=(intro!=null||gestureEntrance)||(skipFileResume&&renderedDark==ThemePolicy.isDark(this)&&renderedRunning==FloatService.running);skipFileResume=false;if(!keep)render();animateGestureEntrance();updateCheck.attach((result,error)->{if(isFinishing()||isDestroyed())return;if(result!=null)Prefs.of(this).edit().putString("update_latest_version",result.latest).apply();updateCheckingVisual();if(!updateCheck.automatic)startActivity(UpdateActivity.checkedIntent(this,result,error));});handler.removeCallbacks(themeTicker);handler.postDelayed(themeTicker,60000-System.currentTimeMillis()%60000);}
+    @Override protected void onResume(){super.onResume();updateRecentsVisibility(Prefs.of(this).getBoolean(HIDE_FROM_RECENTS,true));UpdateRestoreReceiver.resumeOnOpen(this);handler.postDelayed(()->{if(visible.get()==this)UpdateRestoreReceiver.resumeOnOpen(this);},350);AppMotion.resume(this);if(!gestureEntrance){motionContent().setTranslationY(0);motionContent().setAlpha(1);motionContent().setScaleX(1);motionContent().setScaleY(1);}visible=new java.lang.ref.WeakReference<>(this);boolean keep=(intro!=null||gestureEntrance)||(skipFileResume&&renderedDark==ThemePolicy.isDark(this)&&renderedRunning==FloatService.running);skipFileResume=false;if(!keep)render();animateGestureEntrance();updateCheck.attach((result,error)->{if(isFinishing()||isDestroyed())return;if(result!=null)Prefs.of(this).edit().putString("update_latest_version",result.latest).apply();updateCheckingVisual();if(!updateCheck.automatic)startActivity(UpdateActivity.checkedIntent(this,result,error));});handler.removeCallbacks(themeTicker);handler.postDelayed(themeTicker,60000-System.currentTimeMillis()%60000);}
     @Override protected void onPause(){AppMotion.pause(this);updateCheck.detach();if(visible.get()==this)visible.clear();handler.removeCallbacks(themeTicker);super.onPause();}
     @Override protected void onDestroy(){AppMotion.destroy(this);if(!isChangingConfigurations())updateCheck.close();handler.removeCallbacksAndMessages(null);if(powerTint!=null)powerTint.cancel();if(navMotion!=null)navMotion.cancel();if(tabMotion!=null)tabMotion.cancel();super.onDestroy();}
     private int dp(float v){return Ui.dp(this,v);}
@@ -142,7 +143,7 @@ public class MainActivity extends Activity {
         FrameLayout power=new FrameLayout(this);powerControl=power;power.setFocusable(true);power.setBackground(Ui.bg(on?Ui.GREEN:0xFFA8CC7C,26,this));
         playGlyph=Ui.icon(this,"status_play",0xFF1E3327,23);pauseGlyph=Ui.icon(this,"status_pause",Color.WHITE,23);power.addView(playGlyph,new FrameLayout.LayoutParams(dp(23),dp(23),Gravity.CENTER));power.addView(pauseGlyph,new FrameLayout.LayoutParams(dp(23),dp(23),Gravity.CENTER));
         showRunningState(on,false);
-        power.setOnClickListener(v->{if(FloatService.running)startService(new Intent(this,FloatService.class).setAction(FloatService.STOP));else startBall(null);});
+        power.setOnClickListener(v->{if(FloatService.running){UpdateRestoreReceiver.remember(this,false);startService(new Intent(this,FloatService.class).setAction(FloatService.STOP));}else startBall(null);});
         state.addView(power,new LinearLayout.LayoutParams(dp(48),dp(48)));status.addView(state);content.addView(status);
         boolean overlay=Settings.canDrawOverlays(this),assist=AssistService.instance!=null;
         label("权限");
@@ -217,6 +218,7 @@ public class MainActivity extends Activity {
         addSwitch(hide,HIDE_FROM_RECENTS,true);
         if(VaultClient.debug(this))settingLink(theme,"password_fill","密码空间接口",null,new VaultClient(this).providerPackage(),()->new UiDialog(this).setTitle("密码空间接口（调试）").setItems(VaultClient.PACKAGES,(d,which)->{Prefs.of(this).edit().putString("vault_package",VaultClient.PACKAGES[which]).apply();render();}).setNegativeButton("取消",null).show());
         settingLink(theme,"password_fill","密码填充",null,null,()->startActivity(PasswordHelpActivity.intent(this,PasswordTarget.Problem.NONE)));
+        settingLink(theme,"backup_archive","备份与恢复",null,null,()->startActivity(new Intent(this,BackupActivity.class)));
         content.addView(theme);
         if(schedule){Ui.gap(content,10);hint(start==end?"起止时间相同：全天深色。":"按手机本地时间切换，可跨午夜。");}
         label("关于与更新");LinearLayout other=group();
@@ -321,11 +323,11 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==71&&result==RESULT_OK&&data!=null&&data.getData()!=null){Uri uri=data.getData();new Thread(()->{String error=null;try{BallArt.importFile(this,uri);}catch(java.io.IOException e){error=e.getMessage();}final String message=error;runOnUiThread(()->{if(isDestroyed())return;if(message!=null)Feedback.show(this,message);else{refreshBall();render();Feedback.show(this,"自定义悬浮球已更新");}});},"Kongye-Art-Import").start();}}
     private void startBall(String action){
         if(!Settings.canDrawOverlays(this)){new UiDialog(this).setTitle("让空叶出现在屏幕上").setMessage("先允许「显示在其他应用上层」，空叶就能陪你在应用之间自由切换。授权后请返回这里，再次点击开启。").setPositiveButton("去授权",(d,w)->overlayPermission()).setNegativeButton("稍后",null).show();return;}
-        boolean changed=!FloatService.running;Intent intent=new Intent(this,FloatService.class);if(action!=null)intent.putExtra("action",action);startForegroundService(intent);if(changed)handler.postDelayed(this::animateRunningState,100);
+        boolean changed=!FloatService.running;Intent intent=new Intent(this,FloatService.class);if(action!=null)intent.putExtra("action",action);UpdateRestoreReceiver.remember(this,true);try{startForegroundService(intent);}catch(IllegalStateException|SecurityException restricted){Feedback.show(this,"悬浮球暂未启动，请稍后重试");return;}if(changed)handler.postDelayed(this::animateRunningState,100);
     }
     private void refreshBall(){if(FloatService.running)startService(new Intent(this,FloatService.class).setAction(FloatService.REFRESH));}
     private void overlayPermission(){safeSettings(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:"+getPackageName())));}
-    private void accessibilityPermission(){safeSettings(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));}
+    private void accessibilityPermission(){AccessibilityAccess.openSettings(this);}
     private boolean notificationsAllowed(){return getSystemService(NotificationManager.class).areNotificationsEnabled();}
     private void notificationSettings(){safeSettings(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName()));}
     private void manageNotifications(){

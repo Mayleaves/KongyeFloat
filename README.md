@@ -2,9 +2,36 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.5 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.5) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.5 验证记录](docs/VALIDATION-3.4.5.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.11 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.11) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.11 验证记录](docs/VALIDATION-3.4.11.md)
 
 v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原有果冻形变、回边、上下轻划和长按。已安装原 v3.0 时请手动重新下载覆盖。详见[索尼验证记录](docs/VALIDATION-3.0-跟手修正.md)。
+
+## 3.4.11 更新
+
+- 开关操作立即保存悬浮球启停意愿；更新后若未收到恢复广播，再次打开应用按原开关状态恢复，原先关闭则保持关闭。
+- 无障碍状态区分「未开启」「已开启，等待连接」和「已连接」，连接变化后首页及时刷新，并说明系统关闭后的处理方式。
+
+## 3.4.10 更新
+
+- 「自动备份」使用循环箭头图标，「备份频率」使用日历图标，便于区分。
+
+## 3.4.9 更新
+
+- 统一本地「自动备份」与 WebDAV「备份选项」卡片的标题和设置行高度、图标尺寸与左右对齐，修正行间距不一致。
+
+## 3.4.8 更新
+
+- 「备份与恢复」采用双层圆角方框加号图标，重新整理备份操作、自动备份设置和文件列表。
+- 本地备份与 WebDAV 备份支持左右滑动切换，保留各自滚动位置及当前填写的服务器信息。
+
+## 3.4.7 更新
+
+- 「备份与恢复」分为本地备份和 WebDAV 备份，支持服务器配置、连接测试、上传、备份列表及下载恢复。文件名包含 `KongyeFloat`，WebDAV 账号配置加密保存在本机。
+- 两种备份分别设置自动备份频率，并支持从备份列表确认删除文件。WebDAV 目录固定为 `KongyeFloat`。
+
+## 3.4.6 更新
+
+- 设置新增「备份与恢复」，支持导出设置、自定义悬浮球图片及可选的便签内容。文件名采用 `KongyeFloat_日期_时间.zip`，恢复前显示备份内容并确认覆盖。
 
 ## 3.4.5 更新
 
@@ -105,7 +132,7 @@ Ace2、索尼 A202SO 等 ARM64 手机推荐 [ARM64 安装包（约 54 MB）](htt
 
 ## 构建
 
-需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.4.5。
+需要 Android SDK、JDK 17 或更新版本。当前项目使用 Gradle 9.8.2、Android Gradle Plugin 9.4.1、compile SDK 37、target SDK 36，源码版本为 3.4.7。
 
 在 Android Studio 中打开项目，配置本机 Android SDK；也可以使用 Gradle Wrapper 构建调试版：
 

@@ -17,9 +17,9 @@ import java.util.function.Consumer;
 
 public class AssistService extends AccessibilityService {
     public static AssistService instance;static volatile String foregroundPackage="";
-    @Override protected void onServiceConnected(){super.onServiceConnected();instance=this;OverlayWindows.refreshAll();}
-    @Override public boolean onUnbind(Intent intent){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();return super.onUnbind(intent);}
-    @Override public void onDestroy(){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();foregroundPackage="";if(FloatService.instance!=null)FloatService.instance.foregroundChanged("");super.onDestroy();}
+    @Override protected void onServiceConnected(){super.onServiceConnected();instance=this;OverlayWindows.refreshAll();UpdateRestoreReceiver.resumePending(this);MainActivity.accessibilityChanged();}
+    @Override public boolean onUnbind(Intent intent){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();MainActivity.accessibilityChanged();return super.onUnbind(intent);}
+    @Override public void onDestroy(){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();MainActivity.accessibilityChanged();foregroundPackage="";if(FloatService.instance!=null)FloatService.instance.foregroundChanged("");super.onDestroy();}
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         if(event.getEventType()!=AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)return;
         CharSequence name=event.getPackageName(),clazz=event.getClassName();String pkg=name==null?null:name.toString();

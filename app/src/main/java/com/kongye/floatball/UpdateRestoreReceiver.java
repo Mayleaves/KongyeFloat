@@ -41,4 +41,11 @@ public final class UpdateRestoreReceiver extends BroadcastReceiver {
             android.util.Log.w("KongyeUpdate", "Floating ball restoration deferred", restricted);
         }
     }
+
+    /** The replacement broadcast can be delayed or missed by a device's installer. */
+    static void resumeOnOpen(Context context) {
+        if (!enabled(context) || FloatService.running) return;
+        Prefs.of(context).edit().putBoolean(PENDING, true).commit();
+        resumePending(context);
+    }
 }

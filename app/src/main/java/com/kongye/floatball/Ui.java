@@ -107,6 +107,16 @@ final class Ui {
                     canvas.drawPath(path,p);
                 }
                 case "recover" -> {path.moveTo(4,9);path.cubicTo(6,3,15,2,19,7);path.cubicTo(26,16,16,26,8,20);path.lineTo(6,18);canvas.drawPath(path,p);path.reset();path.moveTo(4,3);path.lineTo(4,9);path.lineTo(10,9);canvas.drawPath(path,p);}
+                case "backup_archive" -> {
+                    path.moveTo(18,7); path.lineTo(20,7);
+                    path.quadTo(22,7,22,9); path.lineTo(22,20);
+                    path.quadTo(22,22,20,22); path.lineTo(9,22);
+                    path.quadTo(7,22,7,20); path.lineTo(7,18);
+                    canvas.drawPath(path,p);
+                    canvas.drawRoundRect(2,2,17,17,3.5f,3.5f,p);
+                    canvas.drawLine(9.5f,5.5f,9.5f,13.5f,p);
+                    canvas.drawLine(5.5f,9.5f,13.5f,9.5f,p);
+                }
                 case "position" -> {canvas.drawCircle(12,12,7,p);canvas.drawCircle(12,12,2,p);canvas.drawLine(12,1,12,6,p);canvas.drawLine(12,18,12,23,p);canvas.drawLine(1,12,6,12,p);canvas.drawLine(18,12,23,12,p);}
                 case "update" -> {canvas.drawLine(12,2,12,16,p);canvas.drawLine(7,11,12,16,p);canvas.drawLine(12,16,17,11,p);path.moveTo(4,17);path.lineTo(4,21);path.lineTo(20,21);path.lineTo(20,17);canvas.drawPath(path,p);}
                 case "info" -> {p.setStrokeWidth(1.7f);canvas.drawCircle(12,12,9,p);canvas.drawLine(12,11,12,17,p);canvas.drawLine(10,11,12,11,p);canvas.drawLine(10,17,14,17,p);p.setStyle(Paint.Style.FILL);canvas.drawCircle(12,7,.9f,p);}
@@ -269,6 +279,27 @@ final class Ui {
                 case "close" -> {canvas.drawLine(6,6,18,18,p);canvas.drawLine(18,6,6,18,p);}
                 case "plus" -> {canvas.drawLine(5,12,19,12,p);canvas.drawLine(12,5,12,19,p);}
                 case "copy" -> {canvas.drawRoundRect(7,7,21,21,2,2,p);path.moveTo(17,5);path.lineTo(17,3);path.lineTo(3,3);path.lineTo(3,17);path.lineTo(5,17);canvas.drawPath(path,p);}
+                case "backup_auto" -> {
+                    path.moveTo(4,9); path.cubicTo(6,1,18,1,20,9);
+                    path.moveTo(20,4); path.lineTo(20,9); path.lineTo(15,9);
+                    path.moveTo(20,15); path.cubicTo(18,23,6,23,4,15);
+                    path.moveTo(4,20); path.lineTo(4,15); path.lineTo(9,15);
+                    canvas.drawPath(path,p);
+                }
+                case "backup_calendar" -> {
+                    canvas.drawRoundRect(3,5,21,22,2,2,p);
+                    canvas.drawLine(8,2,8,7,p); canvas.drawLine(16,2,16,7,p);
+                    canvas.drawLine(3,10,21,10,p);
+                    p.setStyle(Paint.Style.FILL);
+                    for (int x = 8; x <= 16; x += 8) for (int y = 14; y <= 18; y += 4) canvas.drawCircle(x,y,.9f,p);
+                }
+                case "cloud_backup" -> {path.moveTo(6,18);path.cubicTo(0,18,0,10,5,9);path.cubicTo(6,1,18,1,19,9);path.cubicTo(25,9,25,18,20,18);canvas.drawPath(path,p);canvas.drawLine(12,21,12,11,p);canvas.drawLine(8,15,12,11,p);canvas.drawLine(12,11,16,15,p);}
+                case "trash" -> {
+                    canvas.drawLine(4,6,20,6,p);
+                    path.moveTo(9,6); path.lineTo(9,3); path.lineTo(15,3); path.lineTo(15,6);
+                    path.moveTo(6,6); path.lineTo(7,21); path.lineTo(17,21); path.lineTo(18,6);
+                    canvas.drawPath(path,p); canvas.drawLine(10,10,10.5f,17,p); canvas.drawLine(14,10,13.5f,17,p);
+                }
                 case "save" -> {canvas.drawRoundRect(3,3,21,21,2,2,p);canvas.drawRect(7,3,17,9,p);canvas.drawRect(7,14,17,21,p);}
                 case "zoom" -> {canvas.drawCircle(10,10,6,p);canvas.drawLine(14.5f,14.5f,21,21,p);canvas.drawLine(7,10,13,10,p);canvas.drawLine(10,7,10,13,p);}
                 case "search" -> {canvas.drawCircle(10.5f,10.5f,6.3f,p);canvas.drawLine(15.2f,15.2f,20.5f,20.5f,p);}

@@ -12,8 +12,8 @@ android {
         applicationId = "com.kongye.floatball"
         minSdk = 26
         targetSdk = 36
-        versionCode = 109
-        versionName = "3.4.5"
+        versionCode = 115
+        versionName = "3.4.11"
     }
     // Keep a universal build and emit smaller, functionally identical device builds.
     splits {
@@ -49,6 +49,8 @@ android {
 }
 
 dependencies {
+    implementation("androidx.viewpager:viewpager:1.0.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(project(":paddle-ocr"))
     // Bundled model: screenshot pixels are recognized on the phone, no cloud OCR.
     implementation("com.google.mlkit:text-recognition:16.0.1")
