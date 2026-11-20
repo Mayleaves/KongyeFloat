@@ -2,9 +2,13 @@
 
 一款 Android 悬浮球工具，让常用应用、截图、录屏和快捷操作随手可用。项目采用原生 Android 开发，界面交互参考 FV 悬浮球，项目独立实现，与其无隶属关系。
 
-[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.11 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.11) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.11 验证记录](docs/VALIDATION-3.4.11.md)
+[下载最新 APK](https://github.com/Mayleaves/KongyeFloat/releases/latest) · [3.4.12 发布页](https://github.com/Mayleaves/KongyeFloat/releases/tag/v3.4.12) · [详细使用说明](docs/USER_GUIDE.md) · [3.4.12 验证记录](docs/VALIDATION-3.4.12.md)
 
 v3.0 已更新横向拉出响应：超过误触范围即跟随手指，保留原有果冻形变、回边、上下轻划和长按。已安装原 v3.0 时请手动重新下载覆盖。详见[索尼验证记录](docs/VALIDATION-3.0-跟手修正.md)。
+
+## 3.4.12 更新
+
+- 自动检查发现更新时，设置页气泡显示「新版本 v版本号」并使用黄色提示；没有更新时显示当前版本。长版本号保持单行，不挤占更新入口。
 
 ## 3.4.11 更新
 

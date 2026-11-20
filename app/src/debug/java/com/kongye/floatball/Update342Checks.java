@@ -52,6 +52,7 @@ final class Update342Checks {
             return;
         }
         if(command.equals("manual")){V126Checks.call(page,"checkForUpdates");return;}
+        if(command.equals("automatic")){check.startAutomatic(page.getPackageManager().getPackageInfo(page.getPackageName(),0).versionName);V126Checks.call(page,"updateCheckingVisual");return;}
         if(command.equals("rotate")){page.recreate();return;}
         JSONObject report=new JSONObject().put("checking",check.checking).put("automatic",check.automatic)
             .put("requests",requests).put("page",top==null?"":top.getClass().getSimpleName())
@@ -60,6 +61,7 @@ final class Update342Checks {
         if(capsule!=null&&capsule.getChildAt(0) instanceof TextView label) {
             report.put("badge_color",String.format("#%08X",((GradientDrawable)label.getBackground()).getColor().getDefaultColor()))
                 .put("badge_visible",label.getVisibility()==View.VISIBLE)
+                .put("badge_text",label.getText()).put("badge_lines",label.getLineCount()).put("badge_width",label.getWidth())
                 .put("badge_description",label.getContentDescription());
         }
         if(top instanceof UpdateActivity) {
