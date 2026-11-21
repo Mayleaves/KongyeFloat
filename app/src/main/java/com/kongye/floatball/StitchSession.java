@@ -3,6 +3,7 @@ package com.kongye.floatball;
 import android.content.*;
 import android.graphics.*;
 import android.os.*;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.*;
 import android.widget.*;
@@ -14,9 +15,11 @@ final class StitchSession {
     private static final class Part {final int id;final Bitmap image;Part(int id,Bitmap image){this.id=id;this.image=image;}}
     private final java.util.function.BiConsumer<Bitmap,Boolean> completed;private final Context context;private final ExecutorService worker;private final Runnable finished;private final CaptureWindow page;private final WindowManager wm;
     private final Handler main=new Handler(Looper.getMainLooper());private final ArrayList<Part> parts=new ArrayList<>();private final ArrayList<View> liveViews=new ArrayList<>();private final ArrayList<View> handles=new ArrayList<>();
-    private ResizableCropView crop;private RectF area;private Bitmap composite,thumbnail;private ImageView thumbnailView;private LinearLayout thumbnailBox;private TextView thumbnailCaption;private TextView count;private FrameLayout done;
+    private ResizableCropView crop;private RectF area;private Bitmap composite,thumbnail;private ImageView thumbnailView;private LinearLayout thumbnailBox;private TextView thumbnailCaption;private FrameLayout done;
     private int width,height,nextId=1,jobs,token;private boolean horizontal,closed,busy,resizing;
-    private View verticalButton,horizontalButton;private AutoScrollCapture autoScroll;private int autoAdded;
+    private FrameLayout verticalButton,horizontalButton;private View compactPlus,toolbar;private AutoScrollCapture autoScroll;private int autoAdded;
+    private boolean toolsExpanded,liveVisible;
+    private final Runnable collapseTools=()->{if(!closed&&liveVisible&&!busy&&!resizing)setToolsExpanded(false);else if(!closed&&toolsExpanded)deferCollapse();};
     StitchSession(Context c,ExecutorService worker,Runnable finished,java.util.function.BiConsumer<Bitmap,Boolean> completed){this.completed=completed;context=c;this.worker=worker;this.finished=finished;wm=OverlayWindows.get(c);page=new CaptureWindow(c);horizontal="horizontal".equals(Prefs.of(c).getString("stitch_axis","vertical"));}
     private int dp(float value){return Ui.dp(context,value);}
     private void toast(String message){if(!closed)Feedback.show(context,message);}
@@ -29,11 +32,26 @@ final class StitchSession {
     }
     private void addLive(View view,WindowManager.LayoutParams p){p.setTitle("空叶长截图:"+(view.getContentDescription()==null?"工具栏":view.getContentDescription()));wm.addView(view,p);liveViews.add(view);}
     private void clearLive(){
+        main.removeCallbacks(collapseTools);liveVisible=false;compactPlus=null;toolbar=null;
         // removeView detaches on a later traversal. Clear the drawable before recycling its pixels.
         if(thumbnailView!=null){thumbnailView.setImageDrawable(null);thumbnailView=null;}
+        thumbnailBox=null;thumbnailCaption=null;
         for(View v:liveViews)try{wm.removeView(v);}catch(IllegalArgumentException ignored){}liveViews.clear();handles.clear();crop=null;
     }
-    private void visibleLive(boolean visible){for(View view:liveViews)view.setVisibility(visible?View.VISIBLE:View.INVISIBLE);}
+    private void visibleLive(boolean visible){liveVisible=visible;updateLiveVisibility();}
+    private void updateLiveVisibility(){
+        for(View view:liveViews){boolean show=liveVisible;
+            if(view==toolbar)show&=toolsExpanded;
+            if(view==compactPlus)show&=!toolsExpanded;
+            if(view==thumbnailBox)show&=!parts.isEmpty()&&thumbnail!=null;
+            view.setVisibility(show?View.VISIBLE:View.INVISIBLE);
+        }
+    }
+    private void deferCollapse(){main.postDelayed(collapseTools,1000);}
+    private void setToolsExpanded(boolean expanded){
+        toolsExpanded=expanded;main.removeCallbacks(collapseTools);updateLiveVisibility();
+        if(expanded&&!parts.isEmpty())main.postDelayed(collapseTools,7000);
+    }
     private void showLive(){
         if(closed)return;page.remove();clearLive();recycleComposite();ThemePolicy.apply(context);
         crop=new ResizableCropView(context,null,true);crop.setInitial(new Rect(Math.round(area.left),Math.round(area.top),Math.round(area.right),Math.round(area.bottom)),width,height);crop.setChanged(rect->{area.set(rect);if(!resizing)positionHandles();});addLive(crop,params(-1,-1,0,0,true));
@@ -41,27 +59,115 @@ final class StitchSession {
         String[] labels={"调整左上角","调整上边","调整右上角","调整右边","调整右下角","调整下边","调整左下角","调整左边","移动截图区域"};
         for(int i=0;i<modes.length;i++){View handle=new View(context);handle.setContentDescription(labels[i]);handle.setClickable(true);if(Build.VERSION.SDK_INT>=29)handle.setSystemGestureExclusionRects(Collections.singletonList(new Rect(0,0,dp(48),dp(48))));int mode=modes[i];handle.setOnTouchListener(new View.OnTouchListener(){float downX,downY;float[] original;public boolean onTouch(View view,MotionEvent event){switch(event.getActionMasked()){case MotionEvent.ACTION_DOWN->{if(busy)return false;resizing=true;downX=event.getRawX();downY=event.getRawY();original=new float[]{area.left,area.top,area.right,area.bottom};return true;}case MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP->{if(original==null)return false;float[] result=CropGeometry.adjust(original,mode,event.getRawX()-downX,event.getRawY()-downY,width,height,dp(40));area.set(result[0],result[1],result[2],result[3]);crop.area.set(area);crop.invalidate();if(event.getActionMasked()==MotionEvent.ACTION_UP){resizing=false;positionHandles();view.performClick();receipt();}return true;}case MotionEvent.ACTION_CANCEL->{resizing=false;positionHandles();return true;}}return true;}});handles.add(handle);addLive(handle,params(dp(48),dp(48),0,0,false));}
         positionHandles();
-        done=round(parts.isEmpty()?"back":"check",parts.isEmpty()?"取消截图":"完成截图",parts.isEmpty()?Ui.toolbar():Ui.GREEN,()->{if(parts.isEmpty())close();else preview();});addLive(done,params(dp(48),dp(48),dp(12),dp(42),false));
-        LinearLayout bar=Ui.row(context);bar.setContentDescription("手动长截图工具栏");Ui.pad(bar,8,8,8,8);bar.setBackground(Ui.bg(Ui.toolbar(),32,context));
-        verticalButton=axisButton("竖拼接",false);horizontalButton=axisButton("横拼接",true);bar.addView(verticalButton,new LinearLayout.LayoutParams(0,dp(54),1));bar.addView(horizontalButton,new LinearLayout.LayoutParams(0,dp(54),1));
-        count=Ui.centeredText(context,"+",34,Ui.GREEN,true);count.setContentDescription("添加截图");count.setBackground(Ui.bg(Ui.PALE,100,context));count.setOnClickListener(v->capture());bar.addView(count,new LinearLayout.LayoutParams(dp(68),dp(68)));
-        View automatic=barIcon("auto_longshot","滚动截图",this::startAutoScroll);bar.addView(automatic,new LinearLayout.LayoutParams(0,dp(54),1));View exit=barIcon("close","取消长截图",this::close);bar.addView(exit,new LinearLayout.LayoutParams(0,dp(54),1));addLive(bar,params(width-dp(24),dp(88),dp(12),height-dp(218),false));
-        LinearLayout thumbBox=Ui.column(context);thumbnailBox=thumbBox;thumbBox.setContentDescription("长截图缩略预览");Ui.pad(thumbBox,5,5,5,5);thumbBox.setBackground(Ui.bg(Ui.toolbar(),12,context));thumbnailView=new ImageView(context);thumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);thumbnailView.setContentDescription("长截图缩略预览，点击放大");thumbBox.addView(thumbnailView,new LinearLayout.LayoutParams(-1,dp(144)));TextView caption=Ui.centeredText(context,parts.size()+" 张",11,Color.WHITE,true);thumbnailCaption=caption;thumbBox.addView(caption);thumbBox.setOnClickListener(v->composePreview(false));addLive(thumbBox,params(dp(128),dp(176),width-dp(140),dp(46),false));thumbBox.setVisibility(parts.isEmpty()?View.GONE:View.VISIBLE);updateThumbnail();receipt();
+        done=new FrameLayout(context);
+        done.setOnClickListener(v->{if(parts.isEmpty())close();else preview();});
+        done.setFocusable(true);
+        updateDoneButton();
+        addLive(done,params(dp(48),dp(48),dp(12),dp(42),false));
+        createToolbar();
+        createThumbnail();
+        compactPlus=round("plus","添加截图，长按展开长截图工具",Ui.toolbar(),this::capture);compactPlus.setElevation(0);
+        compactPlus.setOnLongClickListener(v->{setToolsExpanded(true);return true;});
+        WindowManager.LayoutParams plusAt=params(dp(52),dp(52),(width-dp(52))/2,height-dp(200),false);plusAt.alpha=.55f;addLive(compactPlus,plusAt);
+        toolsExpanded=parts.isEmpty();updateThumbnail();visibleLive(true);receipt();
     }
+
+    private void createToolbar() {
+        LinearLayout bar = Ui.row(context);
+        toolbar = bar;
+        bar.setContentDescription("手动长截图工具栏");
+        Ui.pad(bar, 6, 4, 6, 4);
+        bar.setBackground(Ui.bg(Ui.toolbar(), 22, context));
+
+        LinearLayout axes = Ui.row(context);
+        verticalButton = axisButton("竖拼接", false);
+        horizontalButton = axisButton("横拼接", true);
+        axes.addView(verticalButton, new LinearLayout.LayoutParams(0, -1, 1));
+        axes.addView(horizontalButton, new LinearLayout.LayoutParams(0, -1, 1));
+        bar.addView(axes, new LinearLayout.LayoutParams(0, dp(48), 1));
+
+        FrameLayout add = new FrameLayout(context);
+        add.setContentDescription("添加截图，长按收起工具");
+        add.setFocusable(true);
+        add.setBackground(new android.graphics.drawable.InsetDrawable(
+                Ui.ripple(context, Ui.GREEN, 14), dp(8), dp(4), dp(8), dp(4)));
+        add.addView(Ui.icon(context, "plus", primaryIconTint(), 24),
+                new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER));
+        add.setOnClickListener(v -> capture());
+        add.setOnLongClickListener(v -> { setToolsExpanded(false); return true; });
+        bar.addView(add, new LinearLayout.LayoutParams(dp(58), dp(48)));
+
+        LinearLayout actions = Ui.row(context);
+        actions.addView(Ui.tool(context, "auto_longshot", "滚动截图", Color.WHITE, this::startAutoScroll),
+                new LinearLayout.LayoutParams(0, -1, 1));
+        actions.addView(Ui.tool(context, "close", "取消长截图", Color.WHITE, this::close),
+                new LinearLayout.LayoutParams(0, -1, 1));
+        bar.addView(actions, new LinearLayout.LayoutParams(0, dp(48), 1));
+
+        int barWidth = Math.min(dp(278), width - dp(24));
+        addLive(bar, params(barWidth, dp(56), (width - barWidth) / 2, height - dp(202), false));
+    }
+
+    private void createThumbnail() {
+        thumbnailBox = Ui.column(context);
+        thumbnailBox.setGravity(Gravity.CENTER_HORIZONTAL);
+        thumbnailBox.setBackground(Ui.bg(Ui.toolbar(), 14, context));
+        Ui.pad(thumbnailBox, 5, 5, 5, 5);
+        thumbnailBox.setFocusable(true);
+        thumbnailBox.setOnClickListener(v -> composePreview(false));
+        thumbnailView = new ImageView(context);
+        thumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        Ui.frame(thumbnailView, 0x1A000000, 5);
+        thumbnailView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        thumbnailBox.addView(thumbnailView, new LinearLayout.LayoutParams(dp(48), dp(28)));
+        thumbnailCaption = Ui.centeredText(context, "", 11, Color.WHITE, true);
+        thumbnailCaption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        thumbnailBox.addView(thumbnailCaption, new LinearLayout.LayoutParams(-1, dp(20)));
+        thumbnailBox.setContentDescription("长截图缩略预览");
+        addLive(thumbnailBox, params(dp(58), dp(58), width - dp(70), dp(42), false));
+    }
+
+    private void updateDoneButton() {
+        boolean ready = !parts.isEmpty();
+        String label = ready ? "完成截图" : "取消截图";
+        if (TextUtils.equals(label, done.getContentDescription())) return;
+        done.setContentDescription(label);
+        done.setBackground(new android.graphics.drawable.InsetDrawable(
+                Ui.ripple(context, ready ? Ui.GREEN : Ui.toolbar(), 14), dp(3)));
+        done.removeAllViews();
+        done.addView(Ui.icon(context, ready ? "check" : "back", ready ? primaryIconTint() : Color.WHITE, 22),
+                new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
+    }
+
+    private int primaryIconTint() { return Ui.dark ? 0xFF102E21 : Color.WHITE; }
     /** Round dark button matching the capture toolbar. */
     private FrameLayout round(String icon,String description,int fill,Runnable action){FrameLayout view=new FrameLayout(context);view.setContentDescription(description);view.setBackground(Ui.bg(fill,100,context));view.setElevation(dp(4));view.addView(new Ui.Icon(context,icon,Color.WHITE),new FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));view.setOnClickListener(v->action.run());return view;}
     /** Yellow confirm pill, the same accent as the add button. */
     private TextView pill(String title,String description,Runnable action){TextView view=Ui.centeredText(context,title,14,Ui.GREEN,true);view.setContentDescription(description);view.setBackground(Ui.bg(Ui.PALE,22,context));view.setElevation(dp(4));Ui.pad(view,20,0,20,0);view.setOnClickListener(v->action.run());return view;}
-    private View barIcon(String icon,String description,Runnable action){FrameLayout view=new FrameLayout(context);view.setContentDescription(description);view.addView(Ui.icon(context,icon,Color.WHITE,24),new FrameLayout.LayoutParams(dp(24),dp(24),Gravity.CENTER));view.setOnClickListener(v->action.run());return view;}
-    private View axisButton(String title,boolean value){FrameLayout view=new FrameLayout(context);view.setContentDescription("选择"+title);view.setSelected(horizontal==value);if(horizontal==value)view.setBackground(new android.graphics.drawable.InsetDrawable(Ui.bg(Ui.PALE,18,context),dp(3),0,dp(3),0));view.addView(Ui.icon(context,value?"horizontal":"vertical",horizontal==value?Ui.GREEN:Color.WHITE,24),new FrameLayout.LayoutParams(dp(24),dp(24),Gravity.CENTER));view.setOnClickListener(v->setAxis(value));return view;}
+    private FrameLayout axisButton(String title, boolean value) {
+        FrameLayout button = new FrameLayout(context);
+        button.setContentDescription("选择" + title);
+        button.setFocusable(true);
+        button.setOnClickListener(v -> setAxis(value));
+        updateAxis(button, value);
+        return button;
+    }
     private void positionHandles(){if(crop==null||handles.size()!=9)return;float[][] edges=crop.points();float[][] points=java.util.Arrays.copyOf(edges,9);points[8]=new float[]{area.centerX(),area.centerY()};for(int i=0;i<handles.size();i++){View handle=handles.get(i);WindowManager.LayoutParams p=(WindowManager.LayoutParams)handle.getLayoutParams();p.x=Math.max(0,Math.min(width-dp(48),Math.round(points[i][0])-dp(24)));p.y=Math.max(dp(26),Math.min(height-dp(48),Math.round(points[i][1])-dp(24)));try{wm.updateViewLayout(handle,p);}catch(IllegalArgumentException ignored){}}}
     private void setAxis(boolean value){if(horizontal==value)return;if(busy){toast("请等待当前操作完成");return;}boolean old=horizontal;horizontal=value;try{if(!parts.isEmpty())layout(parts);}catch(IllegalArgumentException e){horizontal=old;toast("该方向图片尺寸过大，请删除部分截图");return;}Prefs.of(context).edit().putString("stitch_axis",horizontal?"horizontal":"vertical").apply();recycleComposite();updateAxis(verticalButton,false);updateAxis(horizontalButton,true);updateThumbnail();receipt();}
-    private void updateAxis(View view,boolean value){if(!(view instanceof FrameLayout box))return;box.setSelected(horizontal==value);box.setBackground(horizontal==value?new android.graphics.drawable.InsetDrawable(Ui.bg(Ui.PALE,18,context),dp(3),0,dp(3),0):null);box.removeAllViews();box.addView(Ui.icon(context,value?"horizontal":"vertical",horizontal==value?Ui.GREEN:Color.WHITE,24),new FrameLayout.LayoutParams(dp(24),dp(24),Gravity.CENTER));}
+    private void updateAxis(FrameLayout box, boolean value) {
+        boolean selected = horizontal == value;
+        box.setSelected(selected);
+        box.setBackground(new android.graphics.drawable.InsetDrawable(
+                Ui.ripple(context, selected ? Ui.PALE : 0, 11), dp(3), dp(4), dp(3), dp(4)));
+        box.removeAllViews();
+        box.addView(Ui.icon(context, value ? "horizontal" : "vertical", selected ? Ui.GREEN : Color.WHITE, 22),
+                new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
+    }
     private CompositionLayout layout(java.util.List<Part> source){int[] w=new int[source.size()],h=new int[source.size()];for(int i=0;i<source.size();i++){w[i]=source.get(i).image.getWidth();h[i]=source.get(i).image.getHeight();}return CompositionLayout.create(w,h,horizontal);}
     private Bitmap compose(java.util.List<Part> source,int maximum){CompositionLayout plan=layout(source);float scale=maximum>0?Math.min(1f,maximum/(float)Math.max(plan.width,plan.height)):1;Bitmap image=Bitmap.createBitmap(Math.max(1,Math.round(plan.width*scale)),Math.max(1,Math.round(plan.height*scale)),Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(image);canvas.drawColor(Color.WHITE);canvas.scale(scale,scale);Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);for(int i=0;i<source.size();i++)canvas.drawBitmap(source.get(i).image,plan.left[i],plan.top[i],paint);return image;}
     private void capture(){
         if(closed||busy)return;if(parts.size()>=20){toast("最多添加 20 张，请编辑或完成");return;}AssistService service=AssistService.instance;if(service==null){toast("请开启空叶无障碍服务");return;}
-        busy=true;int current=++token;RectF chosen=new RectF(area);visibleLive(false);
+        setToolsExpanded(false);Feedback.clear();busy=true;int current=++token;RectF chosen=new RectF(area);visibleLive(false);
         main.postDelayed(()->{if(!closed&&busy&&current==token){++token;busy=false;visibleLive(true);toast("截图等待超时，可重试或完成已有截图");}},8000);
         main.postDelayed(()->{if(closed||current!=token)return;AssistService now=AssistService.instance;if(now==null){++token;busy=false;visibleLive(true);toast("无障碍服务已断开");return;}
             try{now.captureBitmap((image,error)->{if(closed||current!=token){if(image!=null)image.recycle();return;}++token;busy=false;visibleLive(true);if(image==null){toast(error);return;}
@@ -71,10 +177,41 @@ final class StitchSession {
         },300);
     }
     private void startAutoScroll(){
-        if(closed||busy)return;if(AssistService.instance==null){toast("请开启空叶无障碍服务");return;}if(parts.size()>=20){toast("最多添加 20 张，请预览或整理");return;}if(horizontal){setAxis(false);if(horizontal)return;}busy=true;autoAdded=0;visibleLive(false);Rect chosen=new Rect(Math.round(area.left),Math.round(area.top),Math.round(area.right),Math.round(area.bottom));Bitmap baseline=parts.isEmpty()?null:parts.get(parts.size()-1).image;
-        autoScroll=new AutoScrollCapture(context,chosen,width,height,baseline,worker,new AutoScrollCapture.Listener(){public boolean append(Bitmap image){if(closed||parts.size()>=20){image.recycle();return false;}Part part=new Part(nextId++,image);parts.add(part);try{layout(parts);}catch(IllegalArgumentException error){parts.remove(parts.size()-1);image.recycle();return false;}autoAdded++;updateThumbnail();visibleLive(false);receipt();return true;}public void finished(String reason){autoScroll=null;if(closed)return;busy=false;visibleLive(true);if(thumbnailBox!=null)thumbnailBox.setVisibility(parts.isEmpty()?View.GONE:View.VISIBLE);receipt();if(reason!=null)toast(reason);}});receipt();autoScroll.start();
+        if(closed||busy)return;if(AssistService.instance==null){toast("请开启空叶无障碍服务");return;}if(parts.size()>=20){toast("最多添加 20 张，请预览或整理");return;}if(horizontal){setAxis(false);if(horizontal)return;}Feedback.clear();busy=true;autoAdded=0;visibleLive(false);Rect chosen=new Rect(Math.round(area.left),Math.round(area.top),Math.round(area.right),Math.round(area.bottom));Bitmap baseline=parts.isEmpty()?null:parts.get(parts.size()-1).image;
+        autoScroll=new AutoScrollCapture(context,chosen,width,height,baseline,worker,new AutoScrollCapture.Listener(){public boolean append(Bitmap image){if(closed||parts.size()>=20){image.recycle();return false;}Part part=new Part(nextId++,image);parts.add(part);try{layout(parts);}catch(IllegalArgumentException error){parts.remove(parts.size()-1);image.recycle();return false;}autoAdded++;updateThumbnail();visibleLive(false);receipt();return true;}public void finished(String reason){autoScroll=null;if(closed)return;busy=false;visibleLive(true);setToolsExpanded(false);receipt();if(reason!=null)toast(reason);}});receipt();autoScroll.start();
     }
-    private void updateThumbnail(){if(parts.isEmpty()){if(thumbnailView!=null)thumbnailView.setImageDrawable(null);if(thumbnail!=null){thumbnail.recycle();thumbnail=null;}return;}try{Bitmap next=compose(new ArrayList<>(parts),240);if(thumbnailView!=null)thumbnailView.setImageBitmap(next);if(thumbnail!=null)thumbnail.recycle();thumbnail=next;if(thumbnailBox!=null)thumbnailBox.setVisibility(View.VISIBLE);if(thumbnailCaption!=null)thumbnailCaption.setText(parts.size()+" 张");done.removeAllViews();done.addView(new Ui.Icon(context,"check",Color.WHITE),new FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));done.setBackground(Ui.bg(Ui.GREEN,100,context));done.setContentDescription("完成截图");count.setText("+");}catch(RuntimeException|OutOfMemoryError e){toast("缩略预览暂不可用，仍可完成保存");}}
+    private void updateThumbnail() {
+        updateDoneButton();
+        if (parts.isEmpty()) {
+            thumbnailView.setImageDrawable(null);
+            if (thumbnail != null) thumbnail.recycle();
+            thumbnail = null;
+            updateLiveVisibility();
+            return;
+        }
+        String caption = parts.size() + " 张";
+        thumbnailCaption.setText(caption);
+        thumbnailBox.setContentDescription("长截图缩略预览，" + caption + "，点击放大");
+        try {
+            Bitmap next = compose(parts, 320);
+            thumbnailView.setImageBitmap(next);
+            if (thumbnail != null) thumbnail.recycle();
+            thumbnail = next;
+
+            float scale = Math.min(dp(96) / (float) next.getWidth(), dp(94) / (float) next.getHeight());
+            int imageWidth = Math.max(dp(40), Math.round(next.getWidth() * scale));
+            int imageHeight = Math.max(dp(24), Math.round(next.getHeight() * scale));
+            thumbnailView.setLayoutParams(new LinearLayout.LayoutParams(imageWidth, imageHeight));
+            WindowManager.LayoutParams frame = (WindowManager.LayoutParams) thumbnailBox.getLayoutParams();
+            frame.width = imageWidth + dp(5) * 2;
+            frame.height = imageHeight + dp(20) + dp(5) * 2;
+            frame.x = width - dp(12) - frame.width;
+            wm.updateViewLayout(thumbnailBox, frame);
+        } catch (RuntimeException | OutOfMemoryError error) {
+            toast("缩略预览暂不可用，仍可完成保存");
+        }
+        updateLiveVisibility();
+    }
     private void receipt(){StringBuilder ids=new StringBuilder();for(Part part:parts){if(ids.length()>0)ids.append(',');ids.append(part.id);}Prefs.of(context).edit().putInt("manual_count",parts.size()).putString("manual_order",ids.toString()).putString("manual_axis",horizontal?"horizontal":"vertical").putInt("manual_left",Math.round(area.left)).putInt("manual_top",Math.round(area.top)).putInt("manual_right",Math.round(area.right)).putInt("manual_bottom",Math.round(area.bottom)).putBoolean("manual_auto_running",autoScroll!=null).putInt("manual_auto_added",autoAdded).apply();}
     private void preview(){composePreview(true);}
     private void composePreview(boolean finish){

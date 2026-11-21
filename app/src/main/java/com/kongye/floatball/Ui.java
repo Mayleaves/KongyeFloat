@@ -41,7 +41,8 @@ final class Ui {
     static int toolbar(){return dark?0xFF304B3D:0xFF2C473E;}
     static int toolTint(){return dark?0xFFC3CFC7:0xFF5C7467;}
     /** Bare header button: no tile, only a round touch ripple. */
-    static FrameLayout tool(Context c,String icon,String description,Runnable action){FrameLayout v=new FrameLayout(c);v.setContentDescription(description);v.setFocusable(true);v.setBackground(ripple(c,0,20));v.addView(new Icon(c,icon,toolTint()),new FrameLayout.LayoutParams(dp(c,22),dp(c,22),Gravity.CENTER));v.setOnClickListener(w->action.run());v.setMinimumWidth(dp(c,40));v.setMinimumHeight(dp(c,40));return v;}
+    static FrameLayout tool(Context c,String icon,String description,Runnable action){return tool(c,icon,description,toolTint(),action);}
+    static FrameLayout tool(Context c,String icon,String description,int tint,Runnable action){FrameLayout v=new FrameLayout(c);v.setContentDescription(description);v.setFocusable(true);v.setBackground(ripple(c,0,20));v.addView(new Icon(c,icon,tint),new FrameLayout.LayoutParams(dp(c,22),dp(c,22),Gravity.CENTER));v.setOnClickListener(w->action.run());v.setMinimumWidth(dp(c,40));v.setMinimumHeight(dp(c,40));return v;}
     /** Tonal pill with an icon and a short label, for action rows under results. */
     static LinearLayout action(Context c,String icon,String label,String description,Runnable action){LinearLayout v=row(c);v.setGravity(Gravity.CENTER);v.setContentDescription(description);v.setFocusable(true);v.setBackground(ripple(c,PALE,14));v.addView(icon(c,icon,GREEN,18));TextView t=text(c,label,13,GREEN,true);t.setSingleLine();pad(t,6,0,0,0);v.addView(t);v.setOnClickListener(w->action.run());v.setMinimumHeight(dp(c,42));return v;}
     /** Single-line input on a soft filled background. */
@@ -279,6 +280,10 @@ final class Ui {
                 case "close" -> {canvas.drawLine(6,6,18,18,p);canvas.drawLine(18,6,6,18,p);}
                 case "plus" -> {canvas.drawLine(5,12,19,12,p);canvas.drawLine(12,5,12,19,p);}
                 case "copy" -> {canvas.drawRoundRect(7,7,21,21,2,2,p);path.moveTo(17,5);path.lineTo(17,3);path.lineTo(3,3);path.lineTo(3,17);path.lineTo(5,17);canvas.drawPath(path,p);}
+                case "assist" -> {
+                    canvas.drawCircle(12,4,2,p);canvas.drawLine(4,9,20,9,p);
+                    canvas.drawLine(12,7,12,14,p);canvas.drawLine(12,14,7,21,p);canvas.drawLine(12,14,17,21,p);
+                }
                 case "backup_auto" -> {
                     path.moveTo(4,9); path.cubicTo(6,1,18,1,20,9);
                     path.moveTo(20,4); path.lineTo(20,9); path.lineTo(15,9);

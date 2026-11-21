@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 /** Four edges, four corners and a move handle. Background can be frozen or live. */
 final class ResizableCropView extends View {
+    private static final float TAN_HALF_ARROW_ANGLE = 0.41421356f; // tan(22.5°)
     private final Bitmap background;private final boolean live;
     final RectF area=new RectF();private final Paint paint=new Paint(3);private final Path dash=new Path();
     private int handle=-1;private float downX,downY;private float[] original;private boolean creating;
@@ -81,12 +82,33 @@ final class ResizableCropView extends View {
         paint.setColor(Ui.GREEN);paint.setStrokeWidth(d(2));paint.setStyle(Paint.Style.STROKE);paint.setPathEffect(live?new DashPathEffect(new float[]{d(5),d(4)},0):null);canvas.drawRect(area,paint);paint.setPathEffect(null);paint.setStyle(Paint.Style.FILL);
         float[][] handles=points();
         if(live){paint.setStrokeWidth(d(1));canvas.drawLine(area.centerX(),area.top,handles[1][0],handles[1][1],paint);canvas.drawLine(area.right,area.centerY(),handles[3][0],handles[3][1],paint);canvas.drawLine(area.centerX(),area.bottom,handles[5][0],handles[5][1],paint);canvas.drawLine(area.left,area.centerY(),handles[7][0],handles[7][1],paint);}
-                for(int i=0;i<handles.length;i++){if(live&&i%2==0)continue;float[] point=handles[i];canvas.drawCircle(point[0],point[1],d(live?10:7),paint);if(live){paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(d(2));float cx=point[0],cy=point[1],r=d(3);if(i==1){canvas.drawLine(cx-r,cy-r,cx,cy+r,paint);canvas.drawLine(cx,cy+r,cx+r,cy-r,paint);}else if(i==5){canvas.drawLine(cx-r,cy+r,cx,cy-r,paint);canvas.drawLine(cx,cy-r,cx+r,cy+r,paint);}else if(i==3){canvas.drawLine(cx+r,cy-r,cx-r,cy,paint);canvas.drawLine(cx-r,cy,cx+r,cy+r,paint);}else{canvas.drawLine(cx-r,cy-r,cx+r,cy,paint);canvas.drawLine(cx+r,cy,cx-r,cy+r,paint);}paint.setStyle(Paint.Style.FILL);paint.setColor(Ui.GREEN);}}
+        for (int i = 0; i < handles.length; i++) {
+            if (live && i % 2 == 0) continue;
+            float x = handles[i][0], y = handles[i][1];
+            paint.setColor(live ? Ui.BRAND : Ui.GREEN);
+            canvas.drawCircle(x, y, d(live ? 10 : 7), paint);
+            if (live) drawEdgeArrow(canvas, x, y, (i / 2) * 90);
+        }
         float cx=area.centerX(),cy=area.centerY(),radius=d(13);
         paint.setColor(Ui.toolbar());
         canvas.drawCircle(cx,cy,d(19),paint);
         moveIcon.setBounds(Math.round(cx-radius),Math.round(cy-radius),Math.round(cx+radius),Math.round(cy+radius));
         moveIcon.draw(canvas);
+    }
+
+    private void drawEdgeArrow(Canvas canvas, float x, float y, int rotation) {
+        float halfLength = d(4);
+        float halfWidth = 2 * halfLength * TAN_HALF_ARROW_ANGLE;
+        dash.reset();
+        dash.moveTo(x - halfWidth, y - halfLength);
+        dash.lineTo(x, y + halfLength);
+        dash.lineTo(x + halfWidth, y - halfLength);
+        dash.close();
+        canvas.save();
+        canvas.rotate(rotation, x, y);
+        paint.setColor(Color.WHITE);
+        canvas.drawPath(dash, paint);
+        canvas.restore();
     }
     private void drawRegionFrame(Canvas canvas){
         float radius=Math.min(d(18),Math.min(area.width(),area.height())/3);

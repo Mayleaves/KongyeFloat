@@ -19,7 +19,7 @@ public final class PasswordHelpActivity extends Activity {
  private int dp(float n){return Ui.dp(this,n);}
  @Override public void onCreate(Bundle state){super.onCreate(state);if(state!=null){connectionState=state.getInt("connectionState",-1);connectionText=state.getString("connection",connectionText);}}
  @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);render();}
- @Override protected void onResume(){super.onResume();render();}
+ @Override protected void onResume(){super.onResume();AccessibilityAccess.returnedTo(this);render();}
  @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putInt("connectionState",connectionState);out.putString("connection",connectionText);}
     static String explanation(PasswordTarget.Problem reason){return switch(reason){
         case ACCESSIBILITY->"空叶无障碍服务尚未连接。请先开启服务，再返回登录页面使用悬浮球。";

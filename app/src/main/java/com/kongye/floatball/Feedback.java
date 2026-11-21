@@ -91,7 +91,7 @@ final class Feedback {
             },2800);
         }catch(RuntimeException failure){clear();Toast.makeText(app,message,Toast.LENGTH_LONG).show();receipt(app,message,false);}
     }
-    private static void clear(){if(banner!=null){banner.animate().cancel();if(windows!=null)try{windows.removeViewImmediate(banner);}catch(IllegalArgumentException ignored){}}banner=null;windows=null;}
+    static void clear(){if(banner!=null){banner.animate().cancel();if(windows!=null)try{windows.removeViewImmediate(banner);}catch(IllegalArgumentException ignored){}}banner=null;windows=null;}
     private static final class StatusGlyph extends View {
         private final boolean success;
         private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
