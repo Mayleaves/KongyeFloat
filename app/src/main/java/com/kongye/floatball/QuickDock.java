@@ -19,9 +19,10 @@ final class QuickDock {
     private int dp(float value){return Ui.dp(context,value);}
     void show(int anchorX,int anchorY){
         close();DisplayMetrics m=new DisplayMetrics();wm.getDefaultDisplay().getRealMetrics(m);
-        int w=m.widthPixels,h=m.heightPixels;boolean left=anchorX<w/2;int diameter=Math.max(1,Math.round(QuickOrbitLayout.diameter(w,h,anchorX,anchorY,m.density))),bubbleDp=Math.max(1,Math.round(diameter/m.density));
+        float unit = Ui.density(context);
+        int w=m.widthPixels,h=m.heightPixels;boolean left=anchorX<w/2;int diameter=Math.max(1,Math.round(QuickOrbitLayout.diameter(w,h,anchorX,anchorY,unit))),bubbleDp=Math.max(1,Math.round(diameter/unit));
         root=new FrameLayout(context);root.setContentDescription("按住显示的环形快捷菜单");root.setBackgroundColor(0x66304134);
-        float[][] points=QuickOrbitLayout.positions(w,h,anchorX,anchorY,m.density);
+        float[][] points=QuickOrbitLayout.positions(w,h,anchorX,anchorY,unit);
         ArrayList<String> entries=QuickActions.load(context);entries.addAll(QuickActions.recent(context));
         for(int i=0;i<entries.size();i++){
             String id=entries.get(i);if(id.isEmpty()&&i==12)id="recent_apps";String target=id.isEmpty()?"edit_slot:"+i:id;
@@ -41,7 +42,7 @@ final class QuickDock {
         root.addOnLayoutChangeListener((view,l,t,r,b,ol,ot,or,ob)->{
             if(view!=root)return;
             int[] origin=new int[2];view.getLocationOnScreen(origin);int width=view.getWidth(),height=view.getHeight();if(width<=0||height<=0)return;
-            float x=anchorX-origin[0],y=anchorY-origin[1];float[][] centers=QuickOrbitLayout.positions(width,height,x,y,m.density);int size=Math.max(1,Math.round(QuickOrbitLayout.diameter(width,height,x,y,m.density)));
+            float x=anchorX-origin[0],y=anchorY-origin[1];float[][] centers=QuickOrbitLayout.positions(width,height,x,y,unit);int size=Math.max(1,Math.round(QuickOrbitLayout.diameter(width,height,x,y,unit)));
             for(int i=0;i<entries.size();i++){View bubble=root.getChildAt(i);FrameLayout.LayoutParams bp=(FrameLayout.LayoutParams)bubble.getLayoutParams();int bx=Math.round(centers[i][0])-size/2,by=Math.round(centers[i][1])-size/2;
                 if(bp.leftMargin!=bx||bp.topMargin!=by||bp.width!=size||bp.height!=size){bp.leftMargin=bx;bp.topMargin=by;bp.width=bp.height=size;bubble.setLayoutParams(bp);}
                 View icon=((FrameLayout)bubble).getChildAt(0);if(icon!=null){int iconSize=entries.get(i).startsWith("app:")?size:Math.round(size*.57f);FrameLayout.LayoutParams ip=(FrameLayout.LayoutParams)icon.getLayoutParams();if(ip.width!=iconSize){ip.width=ip.height=iconSize;icon.setLayoutParams(ip);}}

@@ -108,7 +108,7 @@ final class V141Checks {
                     .remove("subtitle_follow_text_color")
                     .putBoolean("subtitle_frame", true).putInt("subtitle_opacity", 15)
                     .putInt("subtitle_font_scale", 100).apply();
-            activity.startForegroundService(new android.content.Intent(activity, FloatService.class));
+            activity.startService(new android.content.Intent(activity, FloatService.class));
             return;
         }
         if (command.startsWith("game_") && !command.equals("game_select")) {

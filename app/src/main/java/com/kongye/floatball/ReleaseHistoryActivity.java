@@ -419,7 +419,7 @@ public final class ReleaseHistoryActivity extends Activity {
         input.setHint("搜索版本、标题或更新说明");
         input.setTextColor(Ui.INK);
         input.setHintTextColor(Ui.MUTED);
-        input.setTextSize(14);
+        Ui.textSize(input,14);
         input.setSingleLine();
         input.setBackground(null);
         Ui.pad(input, 10, 0, 6, 0);
@@ -528,7 +528,6 @@ public final class ReleaseHistoryActivity extends Activity {
         boolean playTransition = animateTransition;
         animateTransition = false;
 
-        FrameLayout root = new FrameLayout(this); root.setBackgroundColor(Ui.BG);
         LinearLayout content = Ui.column(this); Ui.pad(content, 16, 10, 16, 14);
 
         LinearLayout header = Ui.row(this);
@@ -667,7 +666,7 @@ public final class ReleaseHistoryActivity extends Activity {
             if (playTransition) settleView(viewport);
         }
 
-        root.addView(content, new FrameLayout.LayoutParams(-1, -1)); setContentView(root);
+        FrameLayout root = Ui.page(this, content); setContentView(root);
         getWindow().setStatusBarColor(Ui.BG); getWindow().setNavigationBarColor(Ui.BG);
         getWindow().getDecorView().setSystemUiVisibility(Ui.dark ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);

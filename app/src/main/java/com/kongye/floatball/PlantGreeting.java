@@ -17,7 +17,7 @@ final class PlantGreeting extends TextView {
     private long nextGreetingAt;
     private ValueAnimator motion;
     private final Runnable occasional=new Runnable(){public void run(){scheduled=false;if(anchor!=null&&anchor.isShown()&&getWindowVisibility()==VISIBLE)showGreeting();schedule(35000,90000);}};
-    PlantGreeting(Context c,View anchor){super(c);this.anchor=anchor;setTextSize(11);setTextColor(0xFFFFFFFF);setBackground(Ui.bg(0xFF23533D,12,c));Ui.pad(this,10,4,10,4);setElevation(Ui.dp(c,3));setSingleLine();setEllipsize(TextUtils.TruncateAt.END);setMaxWidth(c.getResources().getDisplayMetrics().widthPixels-Ui.dp(c,110));setAlpha(0);setVisibility(INVISIBLE);setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);}
+    PlantGreeting(Context c,View anchor){super(c);this.anchor=anchor;Ui.textSize(this,11);setTextColor(0xFFFFFFFF);setBackground(Ui.bg(0xFF23533D,12,c));Ui.pad(this,10,4,10,4);setElevation(Ui.dp(c,3));setSingleLine();setEllipsize(TextUtils.TruncateAt.END);setMaxWidth(c.getResources().getDisplayMetrics().widthPixels-Ui.dp(c,110));setAlpha(0);setVisibility(INVISIBLE);setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);}
     private void schedule(int min,int max){if(scheduled||getWindowVisibility()!=VISIBLE)return;int delay=min+random.nextInt(max-min+1);scheduled=true;nextGreetingAt=android.os.SystemClock.uptimeMillis()+delay;postDelayed(occasional,delay);}
     void maybeGreet(){schedule(8000,24000);}
     void showGreeting(){

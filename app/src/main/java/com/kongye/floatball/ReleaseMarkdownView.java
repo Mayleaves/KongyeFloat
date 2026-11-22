@@ -37,7 +37,7 @@ final class ReleaseMarkdownView {
 
     static TextView create(Context context, String source, float size, int color) {
         MarkdownTextView view = new MarkdownTextView(context);
-        view.setTextSize(size);
+        Ui.textSize(view, size);
         view.setTextColor(color);
         view.setFontFeatureSettings("kern");
         view.setIncludeFontPadding(false);

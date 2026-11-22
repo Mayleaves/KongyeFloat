@@ -12,7 +12,7 @@ final class Recovery3411Checks {
     static void run(Context context, String command) throws Exception {
         if (command.equals("on")) {
             UpdateRestoreReceiver.remember(context, true);
-            UpdateRestoreReceiver.resumeOnOpen(context);
+            UpdateRestoreReceiver.resumeIfEnabled(context);
         } else if (command.equals("off")) {
             UpdateRestoreReceiver.remember(context, false);
             if (FloatService.running) context.startService(new Intent(context, FloatService.class).setAction(FloatService.STOP));

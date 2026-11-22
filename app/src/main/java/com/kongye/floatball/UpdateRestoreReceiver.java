@@ -7,6 +7,7 @@ import android.provider.Settings;
 
 /** Restores only a ball the user left enabled before an app update. */
 public final class UpdateRestoreReceiver extends BroadcastReceiver {
+    static final String RESTORE = "com.kongye.floatball.RESTORE_AFTER_UPDATE";
     private static final String ENABLED = "ball_enabled";
     private static final String PENDING = "ball_update_restore_pending";
 
@@ -29,21 +30,21 @@ public final class UpdateRestoreReceiver extends BroadcastReceiver {
         resumePending(context);
     }
 
-    static void resumePending(Context context) {
+    private static void resumePending(Context context) {
         var preferences = Prefs.of(context);
         if (!preferences.getBoolean(PENDING, false) || !preferences.getBoolean(ENABLED, false)) return;
         if (FloatService.running) { remember(context, true); return; }
         if (!Settings.canDrawOverlays(context)) return;
         try {
-            context.startForegroundService(new Intent(context, FloatService.class));
+            context.startService(new Intent(context, FloatService.class).setAction(RESTORE));
         } catch (IllegalStateException | SecurityException restricted) {
             // Retry when the user opens the app if the device blocks background restoration.
             android.util.Log.w("KongyeUpdate", "Floating ball restoration deferred", restricted);
         }
     }
 
-    /** The replacement broadcast can be delayed or missed by a device's installer. */
-    static void resumeOnOpen(Context context) {
+    /** The replacement broadcast can be delayed or missed. Retry on service connection or app open. */
+    static void resumeIfEnabled(Context context) {
         if (!enabled(context) || FloatService.running) return;
         Prefs.of(context).edit().putBoolean(PENDING, true).commit();
         resumePending(context);

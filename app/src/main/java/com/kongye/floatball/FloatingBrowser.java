@@ -104,7 +104,7 @@ final class FloatingBrowser {
         addressRow.addView(Ui.icon(context, "browser_lock", toolColor(), 14));
         address = Ui.field(context, "搜索或输入 HTTPS 网址");
         address.setContentDescription("浏览器地址或搜索");
-        address.setTextSize(12);
+        Ui.textSize(address,12);
         address.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
         address.setBackground(null);

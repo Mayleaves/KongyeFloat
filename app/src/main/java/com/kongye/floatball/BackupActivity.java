@@ -70,8 +70,9 @@ public final class BackupActivity extends Activity {
 
     private void render() {
         ThemePolicy.apply(this); setTheme(Ui.dark ? R.style.AppMotionThemeDark : R.style.AppMotionTheme);
-        LinearLayout page = Ui.column(this); page.setBackgroundColor(Ui.BG);
-        page.setOnApplyWindowInsetsListener((v, insets) -> {
+        LinearLayout page = Ui.column(this);
+        FrameLayout root = Ui.page(this, page);
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
             v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
                     insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets.consumeSystemWindowInsets();
@@ -124,7 +125,7 @@ public final class BackupActivity extends Activity {
         page.addView(pager, new LinearLayout.LayoutParams(-1, 0, 1));
         page.setFocusableInTouchMode(true);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-        setContentView(page); page.requestFocus(); page.requestApplyInsets(); renderBody();
+        setContentView(root); page.requestFocus(); root.requestApplyInsets(); renderBody();
     }
 
     private void moveIndicator(float position) {
@@ -299,7 +300,7 @@ public final class BackupActivity extends Activity {
 
     private TextView actionButton(String text, boolean primary, Runnable action) {
         TextView button = Ui.button(this, text, primary, () -> { hideKeyboard(); action.run(); });
-        button.setTextSize(13); button.setEnabled(!work.busy); return button;
+        Ui.textSize(button,13); button.setEnabled(!work.busy); return button;
     }
 
     private void button(LinearLayout parent, String text, boolean primary, Runnable action) {
@@ -308,7 +309,7 @@ public final class BackupActivity extends Activity {
 
     private void field(LinearLayout parent, String label, String hint, String value, int type, java.util.function.Consumer<String> change) {
         Ui.gap(parent, 12); parent.addView(Ui.text(this, label, 12, Ui.MUTED, false)); Ui.gap(parent, 7);
-        EditText input = new EditText(this); input.setContentDescription(label); input.setTextSize(14);
+        EditText input = new EditText(this); input.setContentDescription(label); Ui.textSize(input,14);
         input.setTextColor(Ui.INK); input.setHintTextColor(Ui.MUTED); input.setSingleLine(true); input.setInputType(type);
         input.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI); input.setSaveEnabled(false);
         input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(4000)});

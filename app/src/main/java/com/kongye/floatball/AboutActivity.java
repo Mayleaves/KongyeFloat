@@ -14,10 +14,11 @@ public final class AboutActivity extends Activity {
     @Override public void onCreate(Bundle state){
         super.onCreate(state);ThemePolicy.apply(this);setTheme(Ui.dark?R.style.AppMotionThemeDark:R.style.AppMotionTheme);
         getWindow().setBackgroundDrawableResource(android.R.color.transparent);getWindow().getDecorView().setBackgroundColor(android.graphics.Color.TRANSPARENT);getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);getWindow().getDecorView().setSystemUiVisibility(Ui.dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        FrameLayout root=new FrameLayout(this);root.setBackgroundColor(Ui.BG);root.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i.consumeSystemWindowInsets();});
-        web=new WebView(this);web.setContentDescription("关于空叶：小叶的一天");web.setBackgroundColor(Ui.BG);WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setBlockNetworkLoads(true);settings.setTextZoom(100);
+        web=new WebView(this);web.setContentDescription("关于空叶：小叶的一天");web.setBackgroundColor(Ui.BG);WebSettings settings=web.getSettings();settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);settings.setAllowFileAccess(false);settings.setAllowContentAccess(false);settings.setBlockNetworkLoads(true);settings.setTextZoom(Math.round(100 * Ui.layoutScale(this) * getResources().getConfiguration().fontScale));
         web.setWebViewClient(new WebViewClient(){@Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){if(!request.isForMainFrame())return true;android.net.Uri uri=request.getUrl();if("about.kongye.local".equals(uri.getHost())){if("/back".equals(uri.getPath()))finish();}return true;}});
-        root.addView(web,new FrameLayout.LayoutParams(-1,-1));setContentView(root);root.requestApplyInsets();
+        FrameLayout root = Ui.page(this, web);
+        root.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i.consumeSystemWindowInsets();});
+        setContentView(root);root.requestApplyInsets();
         try(java.io.InputStream in=getAssets().open("about.html")){
             String version=getPackageManager().getPackageInfo(getPackageName(),0).versionName;
             java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();byte[] block=new byte[8192];int n;while((n=in.read(block))!=-1)bytes.write(block,0,n);

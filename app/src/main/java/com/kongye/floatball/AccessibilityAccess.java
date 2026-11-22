@@ -1,6 +1,7 @@
 package com.kongye.floatball;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ActivityManager;
 import android.content.ComponentName;
@@ -18,7 +19,7 @@ import android.widget.*;
 
 /** Distinguishes system authorization from the asynchronous service connection. */
 final class AccessibilityAccess {
-    enum State { OFF, WAITING, CONNECTED }
+    enum State { OFF, SYSTEM_OFF, WAITING, CONNECTED }
     private static final Handler main=new Handler(Looper.getMainLooper());
     private record ReturnTarget(int taskId,Intent intent,long started){}
     private static ReturnTarget pendingReturn;
@@ -76,7 +77,9 @@ final class AccessibilityAccess {
     static State state(Context context) {
         if (AssistService.instance != null) return State.CONNECTED;
         String enabled = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        return contains(enabled, new ComponentName(context, AssistService.class)) ? State.WAITING : State.OFF;
+        if (!contains(enabled, new ComponentName(context, AssistService.class))) return State.OFF;
+        return Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 0
+                ? State.SYSTEM_OFF : State.WAITING;
     }
 
     static boolean contains(String enabled, ComponentName ownService) {
@@ -87,15 +90,9 @@ final class AccessibilityAccess {
         return false;
     }
 
-    static String guidance(State state) {
-        return state == State.WAITING
-                ? "无障碍已开启，正在等待系统连接。长时间未恢复时，请在系统设置中关闭后重新开启。"
-                : "请在系统无障碍设置中开启空叶悬浮球。\n\n如果开关是灰色，或提示“受限制的设置”：先打开应用信息，点击右上角菜单中的“允许受限制的设置”，再返回开启无障碍。";
-    }
-
     static void openSettings(Activity activity) {
         State state = state(activity);
-        boolean connected = state == State.CONNECTED;
+        boolean xiaomi = isBrand("Xiaomi") || isBrand("Redmi") || isBrand("POCO");
         ThemePolicy.apply(activity);
         Dialog dialog = new Dialog(activity); dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         ScrollView scroll = new ScrollView(activity); scroll.setVerticalScrollBarEnabled(false);
@@ -104,62 +101,86 @@ final class AccessibilityAccess {
         FrameLayout badge = new FrameLayout(activity); badge.setBackground(Ui.bg(Ui.PALE, 14, activity));
         badge.addView(Ui.icon(activity, "assist", Ui.GREEN, 23), new FrameLayout.LayoutParams(Ui.dp(activity,23), Ui.dp(activity,23), Gravity.CENTER));
         header.addView(badge, new LinearLayout.LayoutParams(Ui.dp(activity,44), Ui.dp(activity,44)));
-        LinearLayout titles = Ui.column(activity); Ui.pad(titles, 12, 0, 8, 0);
         String title = switch (state) {
             case OFF -> "开启无障碍";
-            case WAITING -> "等待无障碍连接";
+            case SYSTEM_OFF -> "系统无障碍已关闭";
+            case WAITING -> "无障碍尚未连接";
             case CONNECTED -> "无障碍已连接";
         };
-        titles.addView(Ui.text(activity, title, 18, Ui.INK, true));
-        Ui.gap(titles, 5); titles.addView(Ui.text(activity, "用于返回、截图与字幕翻译", 11, Ui.MUTED, false));
-        header.addView(titles, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView heading = Ui.text(activity, title, 18, Ui.INK, true);
+        Ui.pad(heading, 12, 0, 8, 0);
+        header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
         header.addView(Ui.tool(activity, "close", "关闭授权说明", dialog::dismiss), new LinearLayout.LayoutParams(Ui.dp(activity,36), Ui.dp(activity,36)));
-        body.addView(header); Ui.gap(body, 20);
-        if (!connected) {
-            TextView intro = Ui.text(activity, state == State.WAITING
-                    ? "服务已开启，正在等待系统连接。若长时间未恢复，可关闭后重新开启。"
-                    : "在系统辅助功能中找到「#空叶悬浮球」，开启后会自动返回这里。", 13, Ui.MUTED, false);
-            intro.setLineSpacing(Ui.dp(activity, 4), 1);
-            body.addView(intro);
-            Ui.gap(body, 16);
-        }
-
-        LinearLayout help = Ui.column(activity);
-        Ui.pad(help, 14, 13, 14, 13);
-        help.setBackground(Ui.bg(Ui.BG, 16, activity));
-        if (state == State.OFF) {
-            addHelpText(help, "开关灰色或提示受限制？",
-                    "应用信息 → 右上角菜单 → 允许受限制的设置，再返回开启无障碍。");
-            Ui.gap(help, 14);
-        }
-        boolean onePlus = "OnePlus".equalsIgnoreCase(Build.BRAND) || "OnePlus".equalsIgnoreCase(Build.MANUFACTURER);
-        String backgroundPath = onePlus
-                ? "应用信息 → 耗电管理 → 完全允许后台行为。"
-                : "打开应用信息，在电池设置中允许空叶悬浮球在后台运行。";
-        addHelpText(help, "无障碍在后台经常断开？", backgroundPath + "\n允许后台运行可减少因系统省电而断开。");
-        body.addView(help);
+        body.addView(header);
+        Ui.gap(body, 12);
+        String message = switch (state) {
+            case OFF -> "请开启「#空叶悬浮球」。";
+            case SYSTEM_OFF -> "请在系统设置中重新开启「#空叶悬浮球」。";
+            case WAITING -> "若持续未连接，请关闭后重新开启。";
+            case CONNECTED -> xiaomi ? "后台容易断开时，可将省电策略设为「无限制」。"
+                    : "后台容易断开时，可在应用信息中调整电池设置。";
+        };
+        body.addView(Ui.text(activity, message, 13, Ui.MUTED, false));
         Ui.gap(body, 20);
         body.addView(Ui.button(activity, "前往无障碍设置", true, () -> {
             dialog.dismiss();
             launchSettings(activity, new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
         }), new LinearLayout.LayoutParams(-1, Ui.dp(activity, 46)));
         Ui.gap(body,6);
-        TextView info=Ui.centeredText(activity,"打开应用信息  ›",13,Ui.GREEN,true);
-        info.setBackground(Ui.ripple(activity,0,14)); info.setFocusable(true); info.setOnClickListener(view->{
-            dialog.dismiss();
-            launchSettings(activity,new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + activity.getPackageName())));
-        }); body.addView(info,new LinearLayout.LayoutParams(-1,Ui.dp(activity,42)));
+        addLink(body, xiaomi ? "省电设置  ›" : "后台运行设置  ›", () -> {
+            if (openBatterySettings(activity, xiaomi)) dialog.dismiss();
+        });
+        if (state == State.OFF || state == State.SYSTEM_OFF) {
+            addLink(body, "开关置灰？", () -> new AlertDialog.Builder(activity)
+                    .setTitle("开关置灰？")
+                    .setMessage("在应用信息右上角菜单中，选择「允许受限制的设置」。")
+                    .setNegativeButton("返回", null)
+                    .setPositiveButton("应用信息", (prompt, button) -> {
+                        dialog.dismiss();
+                        launchSettings(activity, appInfoIntent(activity));
+                    }).show());
+        }
         dialog.setContentView(scroll); dialog.setCanceledOnTouchOutside(true);
         Window window=dialog.getWindow(); if(window!=null){window.setBackgroundDrawable(Ui.bg(Ui.SURFACE,26,activity));window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);window.setDimAmount(.28f);}
         dialog.show(); if(window!=null){android.util.DisplayMetrics metrics=activity.getResources().getDisplayMetrics();window.setLayout(Math.min(Ui.dp(activity,420),metrics.widthPixels-Ui.dp(activity,40)),-2);}
     }
 
-    private static void addHelpText(LinearLayout card, String title, String message) {
-        Context context = card.getContext();
-        card.addView(Ui.text(context, title, 12, Ui.INK, true));
-        Ui.gap(card, 7);
-        TextView detail = Ui.text(context, message, 12, Ui.MUTED, false);
-        detail.setLineSpacing(Ui.dp(context, 3), 1);
-        card.addView(detail);
+    private static void addLink(LinearLayout body, String title, Runnable action) {
+        Context context = body.getContext();
+        TextView link = Ui.centeredText(context, title, 13, Ui.GREEN, true);
+        link.setBackground(Ui.ripple(context, 0, 14));
+        link.setFocusable(true);
+        link.setOnClickListener(view -> action.run());
+        body.addView(link, new LinearLayout.LayoutParams(-1, Ui.dp(context, 44)));
+    }
+
+    private static boolean isBrand(String brand) {
+        return brand.equalsIgnoreCase(Build.BRAND) || brand.equalsIgnoreCase(Build.MANUFACTURER);
+    }
+
+    private static Intent appInfoIntent(Activity activity) {
+        return new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", activity.getPackageName(), null));
+    }
+
+    private static boolean openBatterySettings(Activity activity, boolean xiaomi) {
+        if (xiaomi) {
+            Intent battery = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, appInfoIntent(activity).getData())
+                    .setPackage("com.miui.securitycenter");
+            try {
+                activity.startActivity(battery);
+                return true;
+            } catch (ActivityNotFoundException | SecurityException unavailable) {
+                // On versions without the direct entry, App info still offers Battery settings.
+            }
+        }
+        try {
+            activity.startActivity(appInfoIntent(activity));
+        } catch (ActivityNotFoundException | SecurityException unavailable) {
+            Feedback.show(activity, "请在系统设置中打开空叶悬浮球的应用信息");
+            return false;
+        }
+        Feedback.show(activity, isBrand("OnePlus") ? "耗电管理 → 完全允许后台行为"
+                : xiaomi ? "省电策略 → 无限制" : "在电池设置中允许后台运行");
+        return true;
     }
 }

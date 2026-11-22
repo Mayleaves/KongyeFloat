@@ -54,7 +54,7 @@ final class TranslationPane extends LinearLayout implements AutoCloseable {
  }
  private void addAction(LinearLayout row,String icon,String text,Runnable run){LayoutParams p=new LayoutParams(0,Ui.dp(getContext(),40),1);p.setMargins(Ui.dp(getContext(),3),0,Ui.dp(getContext(),3),0);row.addView(Ui.action(getContext(),icon,text,text,run),p);}
  private String name(String code){int i=Arrays.asList(codes).indexOf(code);return code.equals("auto")?AUTO_LANGUAGE:i<0?code:names.get(i);}
- private void labels(){from.setText(name(source));from.setTextSize(14);to.setText(name(target));}
+ private void labels(){from.setText(name(source));Ui.textSize(from,14);to.setText(name(target));}
  private void choose(boolean first){if(picker!=null)picker.close();picker=new OverlayPicker(getContext(),first?"源语言":"目标语言");int selected=first?(source.equals("auto")?0:Arrays.asList(codes).indexOf(source)+1):Arrays.asList(codes).indexOf(target);picker.choices(languageOptions(first),selected,i->{if(first)source=i==0?"auto":codes[i-1];else{target=codes[i];targetChosen=true;}initialAuto=false;labels();run();});}
  private void swap(){initialAuto=false;targetChosen=true;String actual=source.equals("auto")?detected:source;if(!Arrays.asList(codes).contains(actual)){status.setText("请先选择源语言");return;}String old=target;target=actual;source=old;if(!output.getText().toString().isBlank()){String before=input.getText().toString();input.setText(output.getText());output.setText(before);}labels();run();}
  private void stopClients(){if(translator!=null){translator.close();translator=null;}if(identifier!=null){identifier.close();identifier=null;}}

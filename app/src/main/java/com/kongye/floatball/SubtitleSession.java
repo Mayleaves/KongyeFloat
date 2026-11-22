@@ -858,7 +858,7 @@ final class SubtitleSession {
         hex.setFocusable(false);
         hex.setOnClickListener(view -> editColor(hex));
         hex.setTypeface(Typeface.MONOSPACE);
-        hex.setTextSize(12);
+        Ui.textSize(hex, 12);
         hex.setText(hexColor(background));
         View dot = new View(context);
         LinearLayout[] swatches = new LinearLayout[COLORS.length];
@@ -914,7 +914,7 @@ final class SubtitleSession {
             saveStyle();
         });
         Ui.pad(apply, 10, 0, 10, 0);
-        apply.setTextSize(12);
+        Ui.textSize(apply, 12);
         LinearLayout.LayoutParams applyAt = new LinearLayout.LayoutParams(-2, dp(38));
         applyAt.leftMargin = dp(8);
         colorField.addView(apply, applyAt);

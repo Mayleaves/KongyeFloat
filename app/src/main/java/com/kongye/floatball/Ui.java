@@ -1,8 +1,11 @@
 package com.kongye.floatball;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
+import android.util.DisplayMetrics;
+import android.util.TypedValue;
 import android.view.*;
 import android.widget.*;
 
@@ -11,12 +14,45 @@ final class Ui {
     static boolean dark;
     static int BG=0xFFF5F8F5, INK=0xFF1E3327, MUTED=0xFF688073, SURFACE=Color.WHITE;
     static int GREEN=BRAND, PALE=0xFFEBF2EC, LINE=0xFFE6EFE7;
-    static int dp(Context c, float v) { return Math.round(v * c.getResources().getDisplayMetrics().density); }
+    static float layoutScale(Context c) {
+        Configuration config = c.getResources().getConfiguration();
+        DisplayMetrics metrics = c.getResources().getDisplayMetrics();
+        float width = config.screenWidthDp > 0 ? config.screenWidthDp : metrics.widthPixels / metrics.density;
+        float height = config.screenHeightDp > 0 ? config.screenHeightDp : metrics.heightPixels / metrics.density;
+        return ResponsiveLayout.scale(width, height);
+    }
+
+    static float density(Context c) { return c.getResources().getDisplayMetrics().density * layoutScale(c); }
+    static int dp(Context c, float v) { return Math.round(v * density(c)); }
+
+    static float sp(Context c, float size) {
+        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, size, c.getResources().getDisplayMetrics()) * layoutScale(c);
+    }
+
+    static void textSize(TextView view, float size) {
+        view.setTextSize(TypedValue.COMPLEX_UNIT_PX, sp(view.getContext(), size));
+    }
+
+    static FrameLayout page(Context c, View content) {
+        FrameLayout root = new FrameLayout(c);
+        root.setBackgroundColor(BG);
+        FrameLayout column = new FrameLayout(c) {
+            @Override protected void onMeasure(int widthSpec, int heightSpec) {
+                int mode = MeasureSpec.getMode(widthSpec);
+                int limit = dp(c, 560);
+                int width = mode == MeasureSpec.UNSPECIFIED ? limit : Math.min(MeasureSpec.getSize(widthSpec), limit);
+                super.onMeasure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), heightSpec);
+            }
+        };
+        column.addView(content, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(column, new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER_HORIZONTAL));
+        return root;
+    }
     static GradientDrawable bg(int color, float radius, Context c) {
         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(c,radius)); return d;
     }
     static TextView text(Context c, String value, float size, int color, boolean bold) {
-        TextView t = new TextView(c); t.setText(value); t.setTextSize(size); t.setTextColor(color);
+        TextView t = new TextView(c); t.setText(value); textSize(t,size); t.setTextColor(color);
         t.setFontFeatureSettings("kern"); t.setIncludeFontPadding(false);
         if (bold) t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         return t;
@@ -46,7 +82,7 @@ final class Ui {
     /** Tonal pill with an icon and a short label, for action rows under results. */
     static LinearLayout action(Context c,String icon,String label,String description,Runnable action){LinearLayout v=row(c);v.setGravity(Gravity.CENTER);v.setContentDescription(description);v.setFocusable(true);v.setBackground(ripple(c,PALE,14));v.addView(icon(c,icon,GREEN,18));TextView t=text(c,label,13,GREEN,true);t.setSingleLine();pad(t,6,0,0,0);v.addView(t);v.setOnClickListener(w->action.run());v.setMinimumHeight(dp(c,42));return v;}
     /** Single-line input on a soft filled background. */
-    static EditText field(Context c,String hint){EditText e=new EditText(c);e.setHint(hint);e.setTextColor(INK);e.setHintTextColor(MUTED);e.setTextSize(14);e.setSingleLine();e.setBackground(bg(BG,14,c));pad(e,14,0,14,0);e.setGravity(Gravity.CENTER_VERTICAL);return e;}
+    static EditText field(Context c,String hint){EditText e=new EditText(c);e.setHint(hint);e.setTextColor(INK);e.setHintTextColor(MUTED);textSize(e,14);e.setSingleLine();e.setBackground(bg(BG,14,c));pad(e,14,0,14,0);e.setGravity(Gravity.CENTER_VERTICAL);return e;}
     /** Segmented choice: the selected option sits on a raised surface chip. */
     static LinearLayout segmented(Context c,String[] labels,int selected,java.util.function.IntConsumer pick){LinearLayout bar=row(c);bar.setBackground(bg(BG,14,c));pad(bar,3,3,3,3);for(int i=0;i<labels.length;i++){int at=i;boolean on=i==selected;TextView t=centeredText(c,labels[i],13,on?INK:MUTED,on);t.setSelected(on);t.setContentDescription(labels[i]+(on?"，已选择":""));if(on){t.setBackground(bg(SURFACE,11,c));t.setElevation(dp(c,1));}t.setOnClickListener(v->{for(int j=0;j<bar.getChildCount();j++){TextView option=(TextView)bar.getChildAt(j);boolean active=j==at;option.setSelected(active);option.setContentDescription(labels[j]+(active?"，已选择":""));option.setTextColor(active?INK:MUTED);option.setTypeface(Typeface.create(active?"sans-serif-medium":"sans-serif",Typeface.NORMAL));option.setBackground(active?bg(SURFACE,11,c):null);option.setElevation(active?dp(c,1):0);}pick.accept(at);});bar.addView(t,new LinearLayout.LayoutParams(0,dp(c,32),1));}return bar;}
     /** Soft frame that clips media to rounded corners. */

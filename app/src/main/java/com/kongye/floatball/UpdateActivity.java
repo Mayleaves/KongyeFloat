@@ -137,7 +137,7 @@ public final class UpdateActivity extends Activity {
         history.setGravity(Gravity.LEFT|Gravity.CENTER_VERTICAL);
         history.setSingleLine();
         history.setEllipsize(TextUtils.TruncateAt.END);
-        history.setTextSize(13);
+        Ui.textSize(history,13);
         Ui.pad(history,2,0,8,0);
         actions.addView(history,new LinearLayout.LayoutParams(0,dp(42),1));
         if(phase.equals("available")&&newer&&release.downloadable()||phase.equals("ready")||phase.equals("error")||phase.equals("downloading")){

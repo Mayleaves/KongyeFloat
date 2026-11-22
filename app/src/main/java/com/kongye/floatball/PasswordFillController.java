@@ -212,7 +212,7 @@ final class PasswordFillController {
     private void enterSearch(){
         if(panel==null)return;
         rows.removeAllViews();
-        EditText search=new EditText(context);search.setSingleLine();search.setTextSize(14);search.setTextColor(Ui.INK);search.setHintTextColor(Ui.MUTED);search.setHint("搜索名称、账号、网址");search.setContentDescription("搜索密码空间");
+        EditText search=new EditText(context);search.setSingleLine();Ui.textSize(search,14);search.setTextColor(Ui.INK);search.setHintTextColor(Ui.MUTED);search.setHint("搜索名称、账号、网址");search.setContentDescription("搜索密码空间");
         search.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         search.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
         search.setSaveEnabled(false);search.setBackground(Ui.bg(Ui.PALE,12,context));Ui.pad(search,12,8,12,8);

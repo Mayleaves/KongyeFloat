@@ -181,7 +181,7 @@ final class ResizableCropView extends View {
         Rect source=sourceRect(background==null?getWidth():background.getWidth(),background==null?getHeight():background.getHeight());
         String label="区域截图 · "+source.width()+" × "+source.height()+" px";
         paint.setTypeface(Typeface.create("monospace",Typeface.NORMAL));
-        paint.setTextSize(11*getResources().getDisplayMetrics().scaledDensity);
+        paint.setTextSize(Ui.sp(getContext(), 11));
         float width=paint.measureText(label)+d(30),height=d(24);
         float x=Math.max(d(6),Math.min(getWidth()-width-d(6),area.left+d(2)));
         float y=area.top-d(30);

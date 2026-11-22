@@ -15,7 +15,7 @@ final class DragSelectTextView extends TextView {
     private final Handler main=new Handler(Looper.getMainLooper());private final MultiTextSelection selection;
     private final ArrayList<BackgroundColorSpan> highlights=new ArrayList<>();private List<int[]> before;
     private int anchor;private boolean touching,moved,subtract;private float downX,downY,rawX,rawY;
-    DragSelectTextView(Context c,String value){super(c);setText(value,BufferType.SPANNABLE);selection=new MultiTextSelection(value);setTextColor(Ui.INK);setTextSize(21);setIncludeFontPadding(false);setFocusable(true);setFocusableInTouchMode(true);setContentDescription("可跳选的识别文字，无选择句柄");}
+    DragSelectTextView(Context c,String value){super(c);setText(value,BufferType.SPANNABLE);selection=new MultiTextSelection(value);setTextColor(Ui.INK);Ui.textSize(this,21);setIncludeFontPadding(false);setFocusable(true);setFocusableInTouchMode(true);setContentDescription("可跳选的识别文字，无选择句柄");}
     String selectedText(){return selection.selectedText();}
     int rangeCount(){return selection.count();}
     void selectAll(){selection.add(0,getText().length());highlight();}
