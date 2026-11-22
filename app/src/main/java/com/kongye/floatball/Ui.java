@@ -79,6 +79,17 @@ final class Ui {
     /** Bare header button: no tile, only a round touch ripple. */
     static FrameLayout tool(Context c,String icon,String description,Runnable action){return tool(c,icon,description,toolTint(),action);}
     static FrameLayout tool(Context c,String icon,String description,int tint,Runnable action){FrameLayout v=new FrameLayout(c);v.setContentDescription(description);v.setFocusable(true);v.setBackground(ripple(c,0,20));v.addView(new Icon(c,icon,tint),new FrameLayout.LayoutParams(dp(c,22),dp(c,22),Gravity.CENTER));v.setOnClickListener(w->action.run());v.setMinimumWidth(dp(c,40));v.setMinimumHeight(dp(c,40));return v;}
+
+    static void addPreviewBack(FrameLayout preview, Runnable action) {
+        Context context = preview.getContext();
+        FrameLayout back = tool(context, "back", "返回", dark ? 0xFF102E21 : Color.WHITE, action);
+        back.setBackground(ripple(context, GREEN, 26));
+        back.setElevation(dp(context, 6));
+        FrameLayout.LayoutParams at = new FrameLayout.LayoutParams(dp(context, 44), dp(context, 44),
+                Gravity.TOP | Gravity.LEFT);
+        at.setMargins(dp(context, 16), dp(context, 42), 0, 0);
+        preview.addView(back, at);
+    }
     /** Tonal pill with an icon and a short label, for action rows under results. */
     static LinearLayout action(Context c,String icon,String label,String description,Runnable action){LinearLayout v=row(c);v.setGravity(Gravity.CENTER);v.setContentDescription(description);v.setFocusable(true);v.setBackground(ripple(c,PALE,14));v.addView(icon(c,icon,GREEN,18));TextView t=text(c,label,13,GREEN,true);t.setSingleLine();pad(t,6,0,0,0);v.addView(t);v.setOnClickListener(w->action.run());v.setMinimumHeight(dp(c,42));return v;}
     /** Single-line input on a soft filled background. */

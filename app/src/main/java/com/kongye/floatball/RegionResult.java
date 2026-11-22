@@ -122,10 +122,7 @@ final class RegionResult {
         FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(-1,-1);
         ip.setMargins(dp(8),dp(44),dp(8),dp(44));
         root.addView(large,ip);
-        FrameLayout back=fab("back","返回",this::show);
-        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(dp(44),dp(44),Gravity.TOP|Gravity.LEFT);
-        bp.setMargins(dp(16),dp(42),0,0);
-        root.addView(back,bp);
+        Ui.addPreviewBack(root, this::show);
         FrameLayout pen=fab("edit","编辑图片",this::editImage);
         FrameLayout.LayoutParams pp=new FrameLayout.LayoutParams(dp(52),dp(52),Gravity.BOTTOM|Gravity.RIGHT);
         pp.setMargins(0,0,dp(22),dp(44));

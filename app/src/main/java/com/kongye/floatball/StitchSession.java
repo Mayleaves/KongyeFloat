@@ -117,7 +117,7 @@ final class StitchSession {
         thumbnailBox.setOnClickListener(v -> composePreview(false));
         thumbnailView = new ImageView(context);
         thumbnailView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        Ui.frame(thumbnailView, 0x1A000000, 5);
+        Ui.frame(thumbnailView, Color.TRANSPARENT, 5);
         thumbnailView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         thumbnailBox.addView(thumbnailView, new LinearLayout.LayoutParams(dp(48), dp(28)));
         thumbnailCaption = Ui.centeredText(context, "", 11, Color.WHITE, true);
@@ -164,7 +164,26 @@ final class StitchSession {
                 new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
     }
     private CompositionLayout layout(java.util.List<Part> source){int[] w=new int[source.size()],h=new int[source.size()];for(int i=0;i<source.size();i++){w[i]=source.get(i).image.getWidth();h[i]=source.get(i).image.getHeight();}return CompositionLayout.create(w,h,horizontal);}
-    private Bitmap compose(java.util.List<Part> source,int maximum){CompositionLayout plan=layout(source);float scale=maximum>0?Math.min(1f,maximum/(float)Math.max(plan.width,plan.height)):1;Bitmap image=Bitmap.createBitmap(Math.max(1,Math.round(plan.width*scale)),Math.max(1,Math.round(plan.height*scale)),Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(image);canvas.drawColor(Color.WHITE);canvas.scale(scale,scale);Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);for(int i=0;i<source.size();i++)canvas.drawBitmap(source.get(i).image,plan.left[i],plan.top[i],paint);return image;}
+    private Bitmap compose(java.util.List<Part> source, int maximum) {
+        CompositionLayout plan = layout(source);
+        float scale = maximum > 0 ? Math.min(1f, maximum / (float) Math.max(plan.width, plan.height)) : 1;
+        Bitmap image = Bitmap.createBitmap(Math.max(1, Math.round(plan.width * scale)),
+                Math.max(1, Math.round(plan.height * scale)), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(image);
+        canvas.drawColor(Color.WHITE);
+        Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+        Rect target = new Rect();
+        for (int i = 0; i < source.size(); i++) {
+            Bitmap part = source.get(i).image;
+            int left = Math.round(plan.left[i] * scale);
+            int top = Math.round(plan.top[i] * scale);
+            int right = Math.round((plan.left[i] + part.getWidth()) * scale);
+            int bottom = Math.round((plan.top[i] + part.getHeight()) * scale);
+            target.set(left, top, Math.max(left + 1, right), Math.max(top + 1, bottom));
+            canvas.drawBitmap(part, null, target, paint);
+        }
+        return image;
+    }
     private void capture(){
         if(closed||busy)return;if(parts.size()>=20){toast("最多添加 20 张，请编辑或完成");return;}AssistService service=AssistService.instance;if(service==null){toast("请开启空叶无障碍服务");return;}
         setToolsExpanded(false);Feedback.clear();busy=true;int current=++token;RectF chosen=new RectF(area);visibleLive(false);

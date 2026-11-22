@@ -44,7 +44,29 @@ public class ScreenRecordingService extends Service {
     private void togglePause(){if(!running||ending||started==0||engine==null)return;engine.setPaused(!engine.isPaused());Prefs.of(this).edit().putString("recording_state",engine.isPaused()?"paused":"recording").apply();if(control!=null)showControl(true);updateRunningNotification(engine.isPaused()?"已暂停":"继续录制");}
     private void edit(){if(!running||ending||started==0)return;removeControl();ink.edit();main.postDelayed(()->{if(running&&!ending)showControl(true);},180);}
     private void stopRecording(){if(ending||released)return;ending=true;main.removeCallbacksAndMessages(null);removeControl();if(ink!=null)ink.close();if(started==0){release();if(exitRequested&&!destroyed)returnToSetup();stopSelf();}else if(engine!=null)engine.requestStop();else{release();if(exitRequested&&!destroyed)returnToSetup();stopSelf();}}
-    private void completed(RecordingEngine.Result result){release();if(exitRequested&&!destroyed){returnToSetup();stopSelf();return;}if(!destroyed&&result.file!=null){Intent preview=new Intent(this,RecordingResultActivity.class).putExtra("path",result.file.getPath()).putExtra("auto_gif",spec.gif).putExtra("gif_fps",spec.fps).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_MULTIPLE_TASK);if(!exitRequested)try{startActivity(preview);}catch(RuntimeException ignored){}}else if(!destroyed)Feedback.show(this,"录制未完成："+result.error);stopSelf();}
+    private void completed(RecordingEngine.Result result) {
+        release();
+        if (!destroyed) {
+            if (exitRequested) {
+                returnToSetup();
+            } else if (result.file == null) {
+                Feedback.show(this, "录制未完成：" + result.error);
+            } else {
+                RecordingPreviewFallback.offer(this, result.file, spec);
+                Intent preview = new Intent(this, RecordingResultActivity.class)
+                        .putExtra("path", result.file.getPath())
+                        .putExtra("auto_gif", spec.gif)
+                        .putExtra("gif_fps", spec.fps)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                try {
+                    startActivity(preview);
+                } catch (RuntimeException unavailable) {
+                    android.util.Log.w("KongyeRecorder", "Preview activity unavailable", unavailable);
+                }
+            }
+        }
+        stopSelf();
+    }
     private void returnToSetup(){if(spec==null)return;Intent setup=spec.write(new Intent(this,ScreenRecordingActivity.class)).putExtra("resume_setup",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);try{startActivity(setup);}catch(RuntimeException e){Feedback.show(this,"无法返回录制准备，请重新打开录制");}}
     private void release(){if(released)return;released=true;running=false;ending=true;if(FloatService.instance!=null)FloatService.instance.recordingChanged();main.removeCallbacksAndMessages(null);removeControl();if(ink!=null)ink.close();Prefs.of(this).edit().putString("recording_state","idle").apply();if(projection!=null){MediaProjection p=projection;projection=null;p.stop();}stopForeground(STOP_FOREGROUND_REMOVE);}
     @Override public void onConfigurationChanged(Configuration config){super.onConfigurationChanged(config);if(running&&recordWindows.getDefaultDisplay().getRotation()!=rotation)stopRecording();}

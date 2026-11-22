@@ -17,7 +17,15 @@ final class RecordingPlayer extends LinearLayout implements TextureView.SurfaceT
     private float zoom=1,panX,panY,downX,downY,lastX,lastY,lastSpan,lastFocusX,lastFocusY;private boolean moving,multi;private long lastTap;
     RecordingPlayer(Context context,File file,boolean large,int initialPosition,boolean playing,Runnable enlarge){
         super(context);this.file=file;this.large=large;this.position=initialPosition;desiredPlaying=playing;this.enlarge=enlarge;setOrientation(VERTICAL);
-        picture=new FrameLayout(context);Ui.frame(picture,0xFF101412,14);texture=new TextureView(context);texture.setContentDescription(large?"放大录屏画面，可双指缩放移动":"录屏视频预览，点击放大");picture.addView(texture,new FrameLayout.LayoutParams(-1,-1));addView(picture,new LinearLayout.LayoutParams(-1,0,1));texture.setSurfaceTextureListener(this);texture.setOnTouchListener((v,e)->touch(e));
+        picture = new FrameLayout(context);
+        Ui.frame(picture, large ? Color.TRANSPARENT : Ui.BG, 14);
+        texture = new TextureView(context);
+        texture.setOpaque(false);
+        texture.setContentDescription(large ? "放大录屏画面，可双指缩放移动" : "录屏视频预览，点击放大");
+        picture.addView(texture, new FrameLayout.LayoutParams(-1, -1));
+        addView(picture, new LinearLayout.LayoutParams(-1, 0, 1));
+        texture.setSurfaceTextureListener(this);
+        texture.setOnTouchListener((view, event) -> touch(event));
         LinearLayout controls=Ui.row(context);Ui.pad(controls,0,6,0,0);play=Ui.symbol(context,"play","播放或暂停录屏预览",this::toggle);play.setBackground(Ui.ripple(context,Ui.PALE,20));controls.addView(play,new LinearLayout.LayoutParams(dp(40),dp(40)));
         seek=new SeekBar(context);seek.setContentDescription("录屏预览进度");seek.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.GREEN));seek.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.GREEN));controls.addView(seek,new LinearLayout.LayoutParams(0,dp(44),1));time=Ui.text(context,"00:00 / 00:00",11,Ui.MUTED,false);controls.addView(time);addView(controls,new LinearLayout.LayoutParams(-1,dp(50)));
         seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int value,boolean user){if(user){completed=false;position=value;if(ready)player.seekTo(value,MediaPlayer.SEEK_CLOSEST);updateLabel();}}public void onStartTrackingTouch(SeekBar s){seeking=true;}public void onStopTrackingTouch(SeekBar s){seeking=false;}});
