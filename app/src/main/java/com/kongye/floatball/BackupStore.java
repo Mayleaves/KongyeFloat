@@ -28,7 +28,7 @@ final class BackupStore {
             "subtitle_frame", "subtitle_cover", "subtitle_follow_original", "subtitle_caption_below",
             "subtitle_follow_background", "subtitle_follow_text_color");
     private static final Set<String> INTEGERS = Set.of(
-            "color", "size", "size_percent", "opacity", "edge_gap", "edge_percent", "x", "y",
+            "color", "size", "size_percent", "opacity", "edge_gap", "edge_percent", BallSettings.EDGE_REFERENCE_SIZE, "x", "y",
             "dark_start", "dark_end", "quick_opacity", "record_resolution", "gif_resolution", "gif_fps",
             "record_bitrate", "subtitle_alignment", "subtitle_background", "subtitle_opacity",
             "subtitle_cover_opacity", "subtitle_original_opacity", "subtitle_font_scale");
@@ -161,7 +161,7 @@ final class BackupStore {
         int minimum = 0, maximum = 100000;
         switch (key) {
             case "color", "subtitle_background" -> { return; }
-            case "size_percent" -> { minimum = 30; maximum = 500; }
+            case "size_percent", BallSettings.EDGE_REFERENCE_SIZE -> { minimum = 30; maximum = 500; }
             case "edge_percent" -> { minimum = 30; maximum = 200; }
             case "opacity", "quick_opacity", "subtitle_opacity", "subtitle_cover_opacity", "subtitle_original_opacity" -> maximum = 100;
             case "subtitle_font_scale" -> { minimum = 60; maximum = 160; }

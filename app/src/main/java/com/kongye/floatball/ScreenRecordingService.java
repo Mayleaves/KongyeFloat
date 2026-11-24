@@ -13,11 +13,11 @@ import java.util.*;
 
 public class ScreenRecordingService extends Service {
     static final String STOP="com.kongye.floatball.STOP_RECORDING",PAUSE="com.kongye.floatball.PAUSE_RECORDING",SHOW="com.kongye.floatball.SHOW_RECORDING",EDIT="com.kongye.floatball.EDIT_RECORDING",EXIT="com.kongye.floatball.EXIT_RECORDING";public static boolean running;private WindowManager recordWindows;
-    private final Handler main=new Handler(Looper.getMainLooper());private MediaProjection projection;private RecordingEngine engine;private RecordingSpec spec;private View control;private TextView clock;private RecordingInk ink;private boolean ending,released,destroyed,expanded,exitRequested;private int rotation,x,y;private long started;
+    private final Handler main=new Handler(Looper.getMainLooper());private MediaProjection projection;private RecordingEngine engine;private RecordingSpec spec;private View control,regionBoundary;private TextView clock;private RecordingInk ink;private boolean ending,released,destroyed,expanded,exitRequested;private int rotation,x,y;private long started;
     private final BroadcastReceiver screenOff=new BroadcastReceiver(){public void onReceive(Context c,Intent i){stopRecording();}};
     @Override public void onCreate(){super.onCreate();recordWindows=OverlayWindows.get(this);NotificationManager n=getSystemService(NotificationManager.class);n.createNotificationChannel(new NotificationChannel("recording","空叶录屏",NotificationManager.IMPORTANCE_LOW));if(Build.VERSION.SDK_INT>=33)registerReceiver(screenOff,new IntentFilter(Intent.ACTION_SCREEN_OFF),Context.RECEIVER_NOT_EXPORTED);else registerReceiver(screenOff,new IntentFilter(Intent.ACTION_SCREEN_OFF));}
     @Override public int onStartCommand(Intent intent,int flags,int id){if(intent==null||STOP.equals(intent.getAction())){stopRecording();return START_NOT_STICKY;}if(EXIT.equals(intent.getAction())){exitRequested=true;stopRecording();return START_NOT_STICKY;}if(PAUSE.equals(intent.getAction())){togglePause();return START_NOT_STICKY;}if(SHOW.equals(intent.getAction())){if(running){expanded=true;showControl(true);}return START_NOT_STICKY;}if(EDIT.equals(intent.getAction())){edit();return START_NOT_STICKY;}if(running)return START_NOT_STICKY;
-        try{spec=RecordingSpec.read(intent);spec.hide=spec.hide&&getSystemService(NotificationManager.class).areNotificationsEnabled();int type=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;if((spec.audio.equals("microphone")||spec.audio.equals("both"))&&Build.VERSION.SDK_INT>=30)type|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;if(Build.VERSION.SDK_INT>=29)startForeground(1002,notification("准备录制，3 秒后开始"),type);else startForeground(1002,notification("准备录制，3 秒后开始"));Intent data=intent.getParcelableExtra("projection");if(data==null)throw new IllegalArgumentException("缺少系统授权");projection=getSystemService(MediaProjectionManager.class).getMediaProjection(intent.getIntExtra("result_code",Activity.RESULT_CANCELED),data);if(projection==null)throw new IllegalStateException("录制授权无效");projection.registerCallback(new MediaProjection.Callback(){public void onStop(){stopRecording();}},main);rotation=recordWindows.getDefaultDisplay().getRotation();engine=new RecordingEngine(this,projection,spec);ink=new RecordingInk(this);running=true;ending=false;released=false;exitRequested=false;started=0;int[] anchor=FloatService.instance==null?new int[]{screenWidth()-dp(58),dp(100)}:FloatService.instance.recordingAnchor();x=anchor[0];y=anchor[1];if(FloatService.instance!=null)FloatService.instance.recordingChanged();expanded=false;showControl(false);Prefs.of(this).edit().putString("recording_state","countdown").apply();for(int second=0;second<3;second++){int remaining=3-second;main.postDelayed(()->{if(running&&!ending){if(clock!=null)clock.setText(""+remaining);updateRunningNotification("倒计时 "+remaining+" 秒");}},second*1000L);}main.postDelayed(()->{if(ending||!running)return;started=SystemClock.elapsedRealtime();Prefs.of(this).edit().putString("recording_state","recording").putString("recording_audio",spec.audio).apply();if(spec.hide)removeControl();new Thread(()->engine.run(result->main.post(()->completed(result))),"Kongye-Recorder").start();tick.run();},3000);
+        try{spec=RecordingSpec.read(intent);spec.hide=spec.hide&&getSystemService(NotificationManager.class).areNotificationsEnabled();int type=ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;if((spec.audio.equals("microphone")||spec.audio.equals("both"))&&Build.VERSION.SDK_INT>=30)type|=ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;if(Build.VERSION.SDK_INT>=29)startForeground(1002,notification("准备录制，3 秒后开始"),type);else startForeground(1002,notification("准备录制，3 秒后开始"));Intent data=intent.getParcelableExtra("projection");if(data==null)throw new IllegalArgumentException("缺少系统授权");projection=getSystemService(MediaProjectionManager.class).getMediaProjection(intent.getIntExtra("result_code",Activity.RESULT_CANCELED),data);if(projection==null)throw new IllegalStateException("录制授权无效");projection.registerCallback(new MediaProjection.Callback(){public void onStop(){stopRecording();}},main);rotation=recordWindows.getDefaultDisplay().getRotation();engine=new RecordingEngine(this,projection,spec);ink=new RecordingInk(this);running=true;ending=false;released=false;exitRequested=false;started=0;int[] anchor=FloatService.instance==null?new int[]{screenWidth()-dp(58),dp(100)}:FloatService.instance.recordingAnchor();x=anchor[0];y=anchor[1];if(FloatService.instance!=null)FloatService.instance.recordingChanged();expanded=false;showRegionBoundary();showControl(false);Prefs.of(this).edit().putString("recording_state","countdown").apply();for(int second=0;second<3;second++){int remaining=3-second;main.postDelayed(()->{if(running&&!ending){if(clock!=null)clock.setText(""+remaining);updateRunningNotification("倒计时 "+remaining+" 秒");}},second*1000L);}main.postDelayed(()->{if(ending||!running)return;started=SystemClock.elapsedRealtime();Prefs.of(this).edit().putString("recording_state","recording").putString("recording_audio",spec.audio).apply();if(spec.hide)removeControl();new Thread(()->engine.run(result->main.post(()->completed(result))),"Kongye-Recorder").start();tick.run();},3000);
         }catch(RuntimeException e){Feedback.show(this,"无法开始录制："+e.getMessage());release();stopSelf();}return START_NOT_STICKY;}
     private int dp(float n){return Ui.dp(this,n);}
     private int screenWidth(){android.util.DisplayMetrics m=new android.util.DisplayMetrics();recordWindows.getDefaultDisplay().getRealMetrics(m);return m.widthPixels;}
@@ -40,10 +40,39 @@ public class ScreenRecordingService extends Service {
     }
     private void addControl(FrameLayout root,String icon,String label,int color,Runnable action,int x,int y){View view=bubble(icon,label,color,action);FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(dp(48),dp(48));p.leftMargin=dp(x);p.topMargin=dp(y);root.addView(view,p);}
     private void receipt(WindowManager.LayoutParams p,int cx,int cy){if((getApplicationInfo().flags&android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putInt("qa_record_control_x",p.x).putInt("qa_record_control_y",p.y).putInt("qa_record_anchor_x",x).putInt("qa_record_anchor_y",y).putInt("qa_record_core_x",cx).putInt("qa_record_core_y",cy).putBoolean("qa_record_expanded",expanded).apply();}
+    private void showRegionBoundary() {
+        removeRegionBoundary();
+        if (spec.crop.equals(new Rect(0, 0, spec.screenW, spec.screenH))) return;
+        RecordingRegionView boundary = new RecordingRegionView(this, spec.crop);
+        WindowManager.LayoutParams at = new WindowManager.LayoutParams(
+                -1, -1, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT);
+        at.gravity = Gravity.TOP | Gravity.LEFT;
+        at.alpha = .65f;
+        at.setTitle("空叶正在录制的区域");
+        if (Build.VERSION.SDK_INT >= 30) at.setFitInsetsTypes(0);
+        if (Build.VERSION.SDK_INT >= 28) {
+            at.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+        recordWindows.addView(boundary, at);
+        regionBoundary = boundary;
+    }
+
+    private void removeRegionBoundary() {
+        if (regionBoundary == null) return;
+        try { recordWindows.removeView(regionBoundary); }
+        catch (IllegalArgumentException ignored) {}
+        regionBoundary = null;
+    }
+
     private void removeControl(){if(control!=null){try{recordWindows.removeView(control);}catch(IllegalArgumentException ignored){}control=null;clock=null;}}
     private void togglePause(){if(!running||ending||started==0||engine==null)return;engine.setPaused(!engine.isPaused());Prefs.of(this).edit().putString("recording_state",engine.isPaused()?"paused":"recording").apply();if(control!=null)showControl(true);updateRunningNotification(engine.isPaused()?"已暂停":"继续录制");}
     private void edit(){if(!running||ending||started==0)return;removeControl();ink.edit();main.postDelayed(()->{if(running&&!ending)showControl(true);},180);}
-    private void stopRecording(){if(ending||released)return;ending=true;main.removeCallbacksAndMessages(null);removeControl();if(ink!=null)ink.close();if(started==0){release();if(exitRequested&&!destroyed)returnToSetup();stopSelf();}else if(engine!=null)engine.requestStop();else{release();if(exitRequested&&!destroyed)returnToSetup();stopSelf();}}
+    private void stopRecording(){if(ending||released)return;ending=true;removeRegionBoundary();main.removeCallbacksAndMessages(null);removeControl();if(ink!=null)ink.close();if(started==0){release();if(exitRequested&&!destroyed)returnToSetup();stopSelf();}else if(engine!=null)engine.requestStop();else{release();if(exitRequested&&!destroyed)returnToSetup();stopSelf();}}
     private void completed(RecordingEngine.Result result) {
         release();
         if (!destroyed) {
@@ -68,7 +97,7 @@ public class ScreenRecordingService extends Service {
         stopSelf();
     }
     private void returnToSetup(){if(spec==null)return;Intent setup=spec.write(new Intent(this,ScreenRecordingActivity.class)).putExtra("resume_setup",true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);try{startActivity(setup);}catch(RuntimeException e){Feedback.show(this,"无法返回录制准备，请重新打开录制");}}
-    private void release(){if(released)return;released=true;running=false;ending=true;if(FloatService.instance!=null)FloatService.instance.recordingChanged();main.removeCallbacksAndMessages(null);removeControl();if(ink!=null)ink.close();Prefs.of(this).edit().putString("recording_state","idle").apply();if(projection!=null){MediaProjection p=projection;projection=null;p.stop();}stopForeground(STOP_FOREGROUND_REMOVE);}
+    private void release(){if(released)return;released=true;removeRegionBoundary();running=false;ending=true;if(FloatService.instance!=null)FloatService.instance.recordingChanged();main.removeCallbacksAndMessages(null);removeControl();if(ink!=null)ink.close();Prefs.of(this).edit().putString("recording_state","idle").apply();if(projection!=null){MediaProjection p=projection;projection=null;p.stop();}stopForeground(STOP_FOREGROUND_REMOVE);}
     @Override public void onConfigurationChanged(Configuration config){super.onConfigurationChanged(config);if(running&&recordWindows.getDefaultDisplay().getRotation()!=rotation)stopRecording();}
     @Override public IBinder onBind(Intent i){return null;}
     @Override public void onDestroy(){destroyed=true;if(engine!=null)engine.requestStop();release();try{unregisterReceiver(screenOff);}catch(IllegalArgumentException ignored){}super.onDestroy();}

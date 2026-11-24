@@ -72,7 +72,12 @@ public class MainActivity extends Activity {
     static void accessibilityChanged(){MainActivity page=visible.get();if(page!=null)page.handler.post(()->{if(visible.get()==page&&page.tab==0&&page.intro==null)page.render();});}
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putInt("tab",tab);}
     @Override protected void onResume(){super.onResume();AccessibilityAccess.returnedTo(this);updateRecentsVisibility(Prefs.of(this).getBoolean(HIDE_FROM_RECENTS,true));UpdateRestoreReceiver.resumeIfEnabled(this);handler.postDelayed(()->{if(visible.get()==this)UpdateRestoreReceiver.resumeIfEnabled(this);},350);AppMotion.resume(this);if(!gestureEntrance){motionContent().setTranslationY(0);motionContent().setAlpha(1);motionContent().setScaleX(1);motionContent().setScaleY(1);}visible=new java.lang.ref.WeakReference<>(this);boolean keep=(intro!=null||gestureEntrance)||(skipFileResume&&renderedDark==ThemePolicy.isDark(this)&&renderedRunning==FloatService.running);skipFileResume=false;if(!keep)render();animateGestureEntrance();updateCheck.attach((result,error)->{if(isFinishing()||isDestroyed())return;if(result!=null)Prefs.of(this).edit().putString("update_latest_version",result.latest).apply();updateCheckingVisual();if(!updateCheck.automatic)startActivity(UpdateActivity.checkedIntent(this,result,error));});handler.removeCallbacks(themeTicker);handler.postDelayed(themeTicker,60000-System.currentTimeMillis()%60000);}
-    @Override protected void onPause(){AppMotion.pause(this);updateCheck.detach();if(visible.get()==this)visible.clear();handler.removeCallbacks(themeTicker);super.onPause();}
+    @Override protected void onPause(){finishBallResize();AppMotion.pause(this);updateCheck.detach();if(visible.get()==this)visible.clear();handler.removeCallbacks(themeTicker);super.onPause();}
+
+    private void finishBallResize() {
+        FloatService service = FloatService.instance;
+        if (service != null) service.endBallResize();
+    }
     @Override protected void onDestroy(){AppMotion.destroy(this);if(!isChangingConfigurations())updateCheck.close();handler.removeCallbacksAndMessages(null);if(powerTint!=null)powerTint.cancel();if(navMotion!=null)navMotion.cancel();if(tabMotion!=null)tabMotion.cancel();super.onDestroy();}
     private int dp(float v){return Ui.dp(this,v);}
     private void render() {
@@ -172,7 +177,8 @@ public class MainActivity extends Activity {
         chip.setBackground(Ui.bg(granted?Ui.PALE:Ui.GREEN,14,this));Ui.pad(chip,9,5,9,5);cell.addView(chip,new LinearLayout.LayoutParams(-2,-2));group.addView(cell,new LinearLayout.LayoutParams(0,-2,1));
     }
     private void gestures() {
-        label("外观与位置");ballAppearance();
+        label("外观与位置", this::resetAppearance);
+        ballAppearance();
         label("手势操作");
         LinearLayout card=group();card.setContentDescription("手势操作设置组");
         String[] icons={"gesture_tap","gesture_double","gesture_hold","up","down"};
@@ -235,6 +241,18 @@ public class MainActivity extends Activity {
         Feedback.show(this,"位置已重置");
     }
 
+    private void resetAppearance() {
+        finishBallResize();
+        Prefs.of(this).edit()
+                .remove("color").remove("custom_art")
+                .remove("size").remove("size_percent").remove("opacity").remove("fade")
+                .remove("edge_gap").remove("edge_percent").remove(BallSettings.EDGE_REFERENCE_SIZE).remove("snap")
+                .remove("x").remove("y").apply();
+        refreshBall();
+        render();
+        Feedback.show(this, "外观与位置已重置");
+    }
+
     private LinearLayout settingItem(LinearLayout group,String icon,String title,String subtitle,Runnable action){
         if(group.getChildCount()>0)divider(group);LinearLayout row=Ui.row(this);Ui.pad(row,16,12,16,12);row.setMinimumHeight(dp(64));
         FrameLayout badge=new FrameLayout(this);badge.setBackground(Ui.bg(Ui.dark?Ui.PALE:0xFFEEF3E8,10,this));badge.addView(Ui.icon(this,icon,Ui.GREEN,17),new FrameLayout.LayoutParams(dp(17),dp(17),Gravity.CENTER));row.addView(badge,new LinearLayout.LayoutParams(dp(30),dp(30)));
@@ -264,6 +282,16 @@ public class MainActivity extends Activity {
     }
     private LinearLayout group(){LinearLayout g=Ui.column(this);g.setBackground(Ui.bg(Ui.SURFACE,22,this));g.setClipToOutline(true);return g;}
     private void label(String title){if(content.getChildCount()>0)Ui.gap(content,22);TextView t=Ui.text(this,title,13,Ui.dark?Ui.MUTED:0xFF71806E,true);Ui.pad(t,6,0,6,8);content.addView(t);}
+    private void label(String title, Runnable reset) {
+        if (content.getChildCount() > 0) Ui.gap(content, 22);
+        LinearLayout row = Ui.row(this);
+        Ui.pad(row, 6, 0, 6, 8);
+        row.addView(Ui.text(this, title, 13, Ui.dark ? Ui.MUTED : 0xFF71806E, true),
+                new LinearLayout.LayoutParams(0, -2, 1));
+        View action = Ui.tool(this, "reset", "重置外观与位置", Ui.GREEN, reset);
+        row.addView(action, new LinearLayout.LayoutParams(dp(44), dp(40)));
+        content.addView(row);
+    }
     private void hint(String value){TextView t=Ui.text(this,value,12,Ui.MUTED,false);t.setLineSpacing(dp(3),1);Ui.pad(t,6,0,6,0);content.addView(t);}
     private TextView textButton(String title,Runnable action){TextView t=Ui.centeredText(this,title,14,Ui.GREEN,true);Ui.pad(t,16,12,16,12);touchable(t);t.setOnClickListener(v->action.run());return t;}
     private FrameLayout iconButton(String icon,String description,Runnable action){FrameLayout v=new FrameLayout(this);v.setContentDescription(description);v.addView(Ui.icon(this,icon,Ui.GREEN,22),new FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));TypedValue tv=new TypedValue();getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless,tv,true);v.setBackgroundResource(tv.resourceId);v.setOnClickListener(w->action.run());return v;}
@@ -284,7 +312,44 @@ public class MainActivity extends Activity {
         if(group.getChildCount()>1){View line=new View(this);line.setBackgroundColor(Ui.LINE);group.addView(line,new LinearLayout.LayoutParams(-1,1));}
         int current=Math.max(min,Math.min(max,Prefs.of(this).getInt(key,def)));LinearLayout box=Ui.column(this);Ui.pad(box,0,14,0,4);LinearLayout head=Ui.row(this);head.addView(Ui.text(this,title,13.5f,Ui.INK,true),new LinearLayout.LayoutParams(0,-2,1));TextView value=Ui.text(this,current+unit,12,Ui.GREEN,true);head.addView(value);box.addView(head);Ui.gap(box,6);
         SeekBar bar=new LeafSeekBar(this);bar.setContentDescription(title);bar.setMax(max-min);bar.setProgress(current-min);box.addView(bar,new LinearLayout.LayoutParams(-1,dp(32)));
-        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar s,int progress,boolean user){value.setText((progress+min)+unit);if(preview==null)return;if(key.equals("size_percent"))preview.size=progress+min;else if(key.equals("opacity"))preview.opacity=progress+min;else if(key.equals("edge_percent"))preview.gap=progress+min;preview.update();}public void onStartTrackingTouch(SeekBar s){}public void onStopTrackingTouch(SeekBar s){Prefs.of(MainActivity.this).edit().putInt(key,s.getProgress()+min).apply();refreshBall();}});group.addView(box);return box;
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            private boolean tracking;
+            @Override public void onProgressChanged(SeekBar bar, int progress, boolean user) {
+                int setting = progress + min;
+                value.setText(setting + unit);
+                if (!user) return;
+                if (key.equals("size_percent")) BallSettings.setSize(MainActivity.this, setting);
+                else Prefs.of(MainActivity.this).edit().putInt(key, setting).apply();
+                if (preview != null) {
+                    preview.size = BallSettings.percent(MainActivity.this);
+                    preview.opacity = Prefs.of(MainActivity.this).getInt("opacity", 90);
+                    preview.update();
+                }
+                FloatService service = FloatService.instance;
+                if (service != null) service.updateBallAppearance(!tracking);
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) {
+                tracking = true;
+                FloatService service = FloatService.instance;
+                if (service != null && key.equals("size_percent")) service.beginBallResize();
+            }
+            @Override public void onStopTrackingTouch(SeekBar bar) {
+                tracking = false;
+                FloatService service = FloatService.instance;
+                if (service != null) {
+                    if (key.equals("size_percent")) service.endBallResize();
+                    service.saveAppearancePosition();
+                }
+            }
+        });
+        if (key.equals("size_percent")) {
+            bar.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+                @Override public void onViewAttachedToWindow(View view) {}
+                @Override public void onViewDetachedFromWindow(View view) { finishBallResize(); }
+            });
+        }
+        group.addView(box);
+        return box;
     }
     private void relatedToggle(LinearLayout box,String title,String subtitle,String key,boolean def){LinearLayout row=Ui.row(this);Ui.pad(row,0,0,0,2);row.addView(Ui.text(this,title,11.5f,Ui.MUTED,false),new LinearLayout.LayoutParams(0,-2,1));addSwitch(row,key,def);View toggle=row.getChildAt(row.getChildCount()-1);toggle.getLayoutParams().height=dp(26);box.addView(row);}
     private void addSwitch(LinearLayout row,String key,boolean def){
@@ -293,6 +358,10 @@ public class MainActivity extends Activity {
             switch(key){
                 case "enhanced_overlay" -> OverlayWindows.refreshAll();
                 case HIDE_FROM_RECENTS -> {updateRecentsVisibility(on);updateRecentsIcon(row,on);}
+                case "fade", "snap" -> {
+                    FloatService service = FloatService.instance;
+                    if (service != null) service.updateBallAppearance(true);
+                }
                 default -> refreshBall();
             }
         });LinearLayout.LayoutParams at=new LinearLayout.LayoutParams(dp(38),dp(32));at.leftMargin=dp(8);row.addView(sw,at);touchable(row);row.setOnClickListener(v->sw.toggle());
@@ -349,19 +418,19 @@ public class MainActivity extends Activity {
     private void about(){startActivity(new Intent(this,AboutActivity.class));}
     /** Live appearance and edge-position preview for the unified settings card. */
     private final class Preview extends FrameLayout {
-        private final FrameLayout ball;private final View art,leaf;private final int fixed;private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);int size,opacity,gap;
+        private final FrameLayout ball;private final View art,leaf;private final int fixed;private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);int size,opacity;
         Preview(Context c,int fixedDp){
-            super(c);fixed=fixedDp;size=BallSettings.percent(c);gap=BallSettings.edge(c);opacity=fixedDp>0?100:Prefs.of(c).getInt("opacity",90);setContentDescription("悬浮球外观与位置实时预览");setWillNotDraw(fixedDp>0);
+            super(c);fixed=fixedDp;size=BallSettings.percent(c);opacity=fixedDp>0?100:Prefs.of(c).getInt("opacity",90);setContentDescription("悬浮球外观与位置实时预览");setWillNotDraw(fixedDp>0);
             ball=new FrameLayout(c);art=BallArt.create(c,dp(fixedDp>0?fixedDp:180));BallArt.styleContainer(ball,art!=null);if(art==null)ball.setElevation(dp(3));
             leaf=art!=null?art:new Ui.Icon(c,"ball_leaf",BallArt.FOREGROUND);ball.addView(leaf);addView(ball);update();
         }
         void update(){
-            int px=dp(fixed>0?fixed:BallScale.dp(size));int[] dims=art!=null?BallArt.dimensions(getContext(),px):new int[]{px,px};ball.setLayoutParams(new FrameLayout.LayoutParams(dims[0],dims[1],fixed>0?Gravity.CENTER:Gravity.RIGHT|Gravity.CENTER_VERTICAL));ball.setTranslationX(fixed>0?0:-BallScale.inset(gap,dims[0]));
+            int px=dp(fixed>0?fixed:BallScale.dp(size));int[] dims=art!=null?BallArt.dimensions(getContext(),px):new int[]{px,px};ball.setLayoutParams(new FrameLayout.LayoutParams(dims[0],dims[1],fixed>0?Gravity.CENTER:Gravity.RIGHT|Gravity.CENTER_VERTICAL));ball.setTranslationX(fixed>0?0:-BallSettings.edgeInset(getContext(),dims[0],false,art!=null));
             int inner=art!=null?px:Math.round(px*BallArt.LEAF_SCALE);leaf.setLayoutParams(new FrameLayout.LayoutParams(art!=null?-1:inner,art!=null?-1:inner,Gravity.CENTER));ball.setAlpha(opacity/100f);invalidate();
         }
         @Override protected void onDraw(Canvas canvas){
             super.onDraw(canvas);if(fixed>0)return;paint.setStrokeWidth(dp(.5f));paint.setColor(Ui.LINE);for(int x=dp(20);x<getWidth();x+=dp(20))canvas.drawLine(x,0,x,getHeight(),paint);for(int y=dp(20);y<getHeight();y+=dp(20))canvas.drawLine(0,y,getWidth(),y,paint);
-            paint.setColor(Ui.MUTED);paint.setTextSize(dp(10));canvas.drawText("位置预览",dp(12),dp(21),paint);paint.setTextSize(dp(9));String edge="屏幕边缘";canvas.drawText(edge,getWidth()-dp(10)-paint.measureText(edge),getHeight()-dp(13),paint);
+            paint.setColor(Ui.MUTED);paint.setTypeface(Ui.textTypeface(false));paint.setTextSize(Ui.sp(getContext(),10));canvas.drawText("位置预览",dp(12),dp(21),paint);paint.setTextSize(Ui.sp(getContext(),9));String edge="屏幕边缘";canvas.drawText(edge,getWidth()-dp(10)-paint.measureText(edge),getHeight()-dp(13),paint);
         }
     }
 }
