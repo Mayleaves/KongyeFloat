@@ -12,8 +12,8 @@ android {
         applicationId = "com.kongye.floatball"
         minSdk = 26
         targetSdk = 36
-        versionCode = 128
-        versionName = "3.5.0"
+        versionCode = 131
+        versionName = "3.5.3"
     }
     // Keep a universal build and emit smaller, functionally identical device builds.
     splits {

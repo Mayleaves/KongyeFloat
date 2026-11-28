@@ -296,6 +296,7 @@ final class Ui {
                 case "recent_apps" -> {canvas.drawCircle(12,12,9,p);canvas.drawLine(12,6,12,12,p);canvas.drawLine(12,12,18,12,p);}
                 case "favorite_apps", "star_on" -> {canvas.save();canvas.translate(2,2);canvas.scale(.833333f,.833333f);for(int i=0;i<10;i++){double angle=-Math.PI/2+i*Math.PI/5;float radius=i%2==0?10:5.5f;float x=12+(float)Math.cos(angle)*radius,y=12+(float)Math.sin(angle)*radius;if(i==0)path.moveTo(x,y);else path.lineTo(x,y);}path.close();if(name.equals("star_on"))p.setStyle(Paint.Style.FILL_AND_STROKE);canvas.drawPath(path,p);canvas.restore();}
                 case "text" -> {canvas.drawLine(4,5,20,5,p);canvas.drawLine(12,5,12,20,p);canvas.drawLine(8,20,16,20,p);canvas.drawLine(4,5,4,8,p);canvas.drawLine(20,5,20,8,p);}
+                case "comic" -> {canvas.drawRoundRect(2,3,22,21,2,2,p);canvas.drawLine(11,3,11,21,p);canvas.drawLine(11,11,22,11,p);canvas.drawLine(5,7,8,7,p);canvas.drawLine(5,11,8,11,p);canvas.drawLine(14,15,19,15,p);canvas.drawLine(14,18,18,18,p);}
                 case "subtitle" -> {
                     canvas.drawRoundRect(2.5f,4.5f,21.5f,19.5f,1,1,p);
                     canvas.drawArc(6,9,11.5f,15,48,264,false,p);

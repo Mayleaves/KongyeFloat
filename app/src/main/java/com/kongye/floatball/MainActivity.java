@@ -215,6 +215,7 @@ public class MainActivity extends Activity {
         label("悬浮球设置");LinearLayout display=group();
         LinearLayout enhanced=settingItem(display,"layers","增强悬浮层",null,null);addSwitch(enhanced,"enhanced_overlay",true);
         settingLink(display,"app_ball","应用内悬浮球",null,null,()->startActivity(new Intent(this,AppBehaviorActivity.class)));
+        settingLink(display,"comic","漫画翻译设置",null,null,()->startActivity(new Intent(this,ComicSettingsActivity.class)));
         settingLink(display,"recover","找回悬浮球",null,null,()->startService(new Intent(this,FloatService.class).setAction(FloatService.RECOVER)));
         settingLink(display,"position","重置位置",null,null,this::resetPosition);content.addView(display);
         label("通用与显示");LinearLayout theme=group();

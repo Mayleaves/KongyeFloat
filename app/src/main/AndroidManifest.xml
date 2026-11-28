@@ -15,6 +15,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <queries>
+        <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.HOME" /></intent>
         <package android:name="com.kongye.docs" />
         <intent><action android:name="android.intent.action.VIEW" /><category android:name="android.intent.category.BROWSABLE" /><data android:scheme="https" /></intent>
         <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent>
@@ -28,6 +29,7 @@
         <activity android:name=".AboutActivity" android:exported="false" android:theme="@style/TransparentTheme" />
         <activity android:name=".PasswordHelpActivity" android:exported="false" android:launchMode="singleTop" android:taskAffinity="com.kongye.floatball.password_help" android:excludeFromRecents="true" />
         <activity android:name=".ReleaseHistoryActivity" android:exported="false" />
+        <activity android:name=".ComicSettingsActivity" android:exported="false" />
         <activity android:name=".BackupActivity" android:exported="false" />
         <service android:name=".BackupJobService" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />
         <provider android:name=".UpdateProvider" android:authorities="com.kongye.floatball.update" android:exported="false" android:grantUriPermissions="true" />
@@ -35,7 +37,7 @@
         <activity android:name=".ScreenRecordingActivity" android:exported="false" android:theme="@style/TransparentTheme" android:excludeFromRecents="true" android:launchMode="singleTask" android:taskAffinity="com.kongye.floatball.recording" />
         <activity android:name=".RecordingResultActivity" android:exported="false" android:theme="@style/TransparentTheme" android:taskAffinity="com.kongye.floatball.result" android:excludeFromRecents="true" />
         <activity android:name=".QuickSettingsActivity" android:exported="false" android:theme="@style/TransparentTheme" android:taskAffinity="com.kongye.floatball.quick" android:excludeFromRecents="true" />
-        <activity android:name=".AppBehaviorActivity" android:exported="false" android:theme="@style/TransparentTheme" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".AppBehaviorActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".AppPickerActivity" android:exported="false" android:theme="@style/TransparentTheme" android:windowSoftInputMode="adjustResize" />
         <provider android:name=".ShareImageProvider" android:authorities="com.kongye.floatball.share" android:exported="false" android:grantUriPermissions="true" />
         <service android:name=".ScreenRecordingService" android:exported="false" android:foregroundServiceType="mediaProjection|microphone" />

@@ -7,7 +7,7 @@ import android.widget.CompoundButton;
 /** 38 x 22 HTML switch: colored track, inset white thumb. */
 final class LeafSwitch extends CompoundButton {
     private final Paint paint=new Paint(3);private float position;private ValueAnimator animator;
-    LeafSwitch(Context c){super(c);setButtonDrawable(null);setBackground(null);setFocusable(true);setLayerType(LAYER_TYPE_SOFTWARE,null);setPadding(0,0,0,0);}
+    LeafSwitch(Context c){super(c);setButtonDrawable(null);setBackground(null);setFocusable(true);setClickable(true);setLayerType(LAYER_TYPE_SOFTWARE,null);setPadding(0,0,0,0);}
     @Override public CharSequence getAccessibilityClassName(){return "android.widget.Switch";}
     @Override public void setChecked(boolean checked){boolean changed=checked!=isChecked();super.setChecked(checked);if(animator!=null)animator.cancel();float target=checked?1:0;if(changed&&isAttachedToWindow()&&ValueAnimator.areAnimatorsEnabled()){animator=ValueAnimator.ofFloat(position,target);animator.setDuration(300);animator.setInterpolator(new android.view.animation.PathInterpolator(.2f,.85f,.3f,1));animator.addUpdateListener(a->{position=(float)a.getAnimatedValue();invalidate();});animator.start();}else{position=target;invalidate();}}
     @Override protected void onMeasure(int w,int h){setMeasuredDimension(resolveSize(Ui.dp(getContext(),38),w),resolveSize(Ui.dp(getContext(),32),h));}

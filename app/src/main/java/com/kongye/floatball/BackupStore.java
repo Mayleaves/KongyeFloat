@@ -26,7 +26,7 @@ final class BackupStore {
             "edge_interaction_v2", "drag_center_region", "home_tools_subtitle_added",
             "ocr_keep_lines", "ocr_chinese_punctuation", "record_hide",
             "subtitle_frame", "subtitle_cover", "subtitle_follow_original", "subtitle_caption_below",
-            "subtitle_follow_background", "subtitle_follow_text_color");
+            "subtitle_follow_background", "subtitle_follow_text_color", "ad_skip_enabled");
     private static final Set<String> INTEGERS = Set.of(
             "color", "size", "size_percent", "opacity", "edge_gap", "edge_percent", BallSettings.EDGE_REFERENCE_SIZE, "x", "y",
             "dark_start", "dark_end", "quick_opacity", "record_resolution", "gif_resolution", "gif_fps",
@@ -35,7 +35,7 @@ final class BackupStore {
     private static final Set<String> STRINGS = Set.of(
             "theme", "browser_engine", "quick_actions", "home_tools", "recording_mode",
             "subtitle_source", "subtitle_target", "gesture_tap", "gesture_double", "gesture_long",
-            "gesture_up", "gesture_down");
+            "gesture_up", "gesture_down", "comic_source", "comic_engine");
     private static final String PACKAGE_PATTERN = "[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+";
 
     record Snapshot(Map<String, Object> settings, boolean includesNotes, byte[] image,
@@ -47,7 +47,8 @@ final class BackupStore {
 
     private static boolean setting(String key) {
         return BOOLEANS.contains(key) || INTEGERS.contains(key) || STRINGS.contains(key)
-                || key.equals("favorites") || key.startsWith("app_mode_") && key.substring(9).matches(PACKAGE_PATTERN);
+                || key.equals("favorites") || key.startsWith("app_mode_") && key.substring(9).matches(PACKAGE_PATTERN)
+                || key.startsWith("app_skip_") && key.substring(9).matches(PACKAGE_PATTERN);
     }
 
     static synchronized void export(Context context, Uri destination, boolean includeNotes) throws IOException {
@@ -136,7 +137,7 @@ final class BackupStore {
 
     private static Object validate(String key, Object value) throws IOException, JSONException {
         boolean valid;
-        if (BOOLEANS.contains(key)) valid = value instanceof Boolean;
+        if (BOOLEANS.contains(key) || key.startsWith("app_skip_")) valid = value instanceof Boolean;
         else if (INTEGERS.contains(key)) {
             valid = value instanceof Number number && number.doubleValue() == number.intValue();
             if (valid) { int number = ((Number) value).intValue(); validateNumber(key, number); return number; }
@@ -177,6 +178,8 @@ final class BackupStore {
     }
 
     private static void validateString(String key, String value) throws IOException, JSONException {
+        if (key.equals("comic_source") && !Set.of("ja","en","ko").contains(value)) throw new IOException("漫画源语言不正确");
+        if (key.equals("comic_engine") && !Set.of("offline","api").contains(value)) throw new IOException("漫画翻译方式不正确");
         if (key.startsWith("app_mode_") && !Set.of("normal", "hidden", "disabled").contains(value)) throw new IOException("应用显示规则不正确");
         if (key.equals("theme") && !Arrays.asList(ThemePolicy.MODES).contains(value)) throw new IOException("主题设置不正确");
         if (key.startsWith("gesture_") && !Arrays.asList(Prefs.ACTIONS).contains(Prefs.canonicalAction(value))

@@ -16,11 +16,14 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class AssistService extends AccessibilityService {
+    private final AdSkipController adSkip = new AdSkipController(this);
+    void adSkipSettingsChanged(){adSkip.settingsChanged();}
     public static AssistService instance;static volatile String foregroundPackage="";
     @Override protected void onServiceConnected(){super.onServiceConnected();instance=this;OverlayWindows.refreshAll();UpdateRestoreReceiver.resumeIfEnabled(this);MainActivity.accessibilityChanged();AccessibilityAccess.connected(this);}
-    @Override public boolean onUnbind(Intent intent){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();MainActivity.accessibilityChanged();return super.onUnbind(intent);}
-    @Override public void onDestroy(){if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();MainActivity.accessibilityChanged();foregroundPackage="";if(FloatService.instance!=null)FloatService.instance.foregroundChanged("");super.onDestroy();}
+    @Override public boolean onUnbind(Intent intent){adSkip.stop();if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();MainActivity.accessibilityChanged();return super.onUnbind(intent);}
+    @Override public void onDestroy(){adSkip.stop();if(instance==this){instance=null;if(FloatService.instance!=null)FloatService.instance.stopSubtitles();}OverlayWindows.refreshAll();MainActivity.accessibilityChanged();foregroundPackage="";if(FloatService.instance!=null)FloatService.instance.foregroundChanged("");super.onDestroy();}
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
+        if(FloatService.instance!=null)FloatService.instance.comicScreenEvent(event);
         if(event.getEventType()!=AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)return;
         CharSequence name=event.getPackageName(),clazz=event.getClassName();String pkg=name==null?null:name.toString();
         if((getApplicationInfo().flags&android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putString("qa_a11y_pkg",pkg==null?"":pkg).putInt("qa_a11y_events",Prefs.of(this).getInt("qa_a11y_events",0)+1).apply();
@@ -28,7 +31,7 @@ public class AssistService extends AccessibilityService {
         if(pkg!=null&&clazz!=null&&!pkg.equals("com.android.systemui")){try{getPackageManager().getActivityInfo(new ComponentName(pkg,clazz.toString()),0);publishForeground(pkg);return;}catch(android.content.pm.PackageManager.NameNotFoundException ignored){}}
         for(AccessibilityWindowInfo window:getWindows()){if(window.getType()!=AccessibilityWindowInfo.TYPE_APPLICATION)continue;if(window.getId()==event.getWindowId()&&pkg!=null){publishForeground(pkg);return;}if(!window.isFocused()&&!window.isActive())continue;AccessibilityNodeInfo root=window.getRoot();if(root!=null){CharSequence packageName=root.getPackageName();root.recycle();if(packageName!=null){publishForeground(packageName.toString());return;}}}
     }
-    private void publishForeground(String pkg){if(pkg.equals("com.android.systemui"))return;foregroundPackage=pkg;if(FloatService.instance!=null)FloatService.instance.foregroundChanged(pkg);}
+    private void publishForeground(String pkg){if(pkg.equals("com.android.systemui"))return;foregroundPackage=pkg;adSkip.foreground(pkg);if(FloatService.instance!=null)FloatService.instance.foregroundChanged(pkg);}
     @Override public void onInterrupt(){}
     static String captureError(int error){if(error==ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT)return "截图太快，请稍后重试";if(Build.VERSION.SDK_INT>=34&&error==ERROR_TAKE_SCREENSHOT_SECURE_WINDOW)return "当前页面禁止截图，增强悬浮层不能解除截图保护";return "当前界面受保护或无法截图";}
     /** Explicit region capture only: retain geometry and never read password nodes. */

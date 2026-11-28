@@ -24,6 +24,8 @@ public class FloatService extends Service {
     private WindowManager.LayoutParams ballParams, resizeWindow;
     private int ballSizePixels;
     private FrameLayout ballWindow,ball,panel,resizeRoot,resizeBall;
+    private BallLoadingIndicator ballLoading;
+    private boolean comicLoading;
     private boolean finishingResize;
     private boolean resizeReady;
     private float resizeCenterY;
@@ -36,14 +38,30 @@ public class FloatService extends Service {
     private boolean captureInFlight;
     private CaptureController captures;
     private SubtitleSession subtitles;
+    private ComicSession comics;
+    private boolean comicActive(){return comics!=null&&comics.isActive();}
+    private ComicSession comicSession(){if(comics==null)comics=new ComicSession(this,()->captureInFlight||captures.isActive()||ScreenRecordingService.running||panel!=null||browser!=null||quickDock.isVisible()||(touch!=null&&touch.pressed),this::setComicLoading);return comics;}
+    void stopComics(){if(comics!=null)comics.stop();setComicLoading(false);}
+    void comicScreenEvent(android.view.accessibility.AccessibilityEvent event){if(comics!=null)comics.screenEvent(event);}
+    private void setComicLoading(boolean loading){
+        if(comicLoading==loading)return;
+        comicLoading=loading;
+        if(ballLoading!=null)ballLoading.setLoading(loading);
+        if(ball==null||stopping)return;
+        if(loading){
+            handler.removeCallbacks(fade);
+            if(!appMode.equals("hidden")){ball.animate().cancel();ball.setAlpha(1f);}
+        }else wakeBall();
+    }
+
     private PasswordFillController passwordFill;private int vaultStartGeneration;
     private android.animation.AnimatorSet pullAnimator;
     private QuickDock quickDock;private GestureCaptureOverlay captureTarget;private boolean followReturning;private int followHomeX,followHomeY;
     private boolean renderedDark;private int displayRotation;
     private final Runnable themeTick=new Runnable(){public void run(){boolean now=ThemePolicy.isDark(FloatService.this);if(now!=renderedDark){ThemePolicy.apply(FloatService.this);renderedDark=now;closePanel();}handler.postDelayed(this,60000-System.currentTimeMillis()%60000);}};
     private final Runnable appPolicyTick=new Runnable(){public void run(){boolean configured=false;for(String key:Prefs.of(FloatService.this).getAll().keySet())if(key.startsWith("app_mode_")){configured=true;break;}if(configured&&AppCatalog.hasUsage(FloatService.this)){long now=System.currentTimeMillis();android.app.usage.UsageEvents events=getSystemService(android.app.usage.UsageStatsManager.class).queryEvents(now-10000,now);android.app.usage.UsageEvents.Event event=new android.app.usage.UsageEvents.Event();String pkg=null;long last=0;if(events!=null)while(events.hasNextEvent()){events.getNextEvent(event);if(event.getEventType()==android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED&&event.getTimeStamp()>=last&&!"com.android.systemui".equals(event.getPackageName())){last=event.getTimeStamp();pkg=event.getPackageName();}}if(pkg!=null)foregroundChanged(pkg);}handler.postDelayed(this,750);}};
-    private final Runnable fade=()->{if(ball!=null&&panel==null&&browser==null&&(quickDock==null||!quickDock.isVisible())&&!appMode.equals("hidden")&&Prefs.of(this).getBoolean("fade",true))ball.animate().alpha(baseAlpha()*.45f).setDuration(300).start();};
-    private final BroadcastReceiver screenReceiver=new BroadcastReceiver(){@Override public void onReceive(Context c,Intent i){if(Intent.ACTION_SCREEN_OFF.equals(i.getAction())){vaultStartGeneration++;if(passwordFill!=null)passwordFill.cancel();subtitles.stop();closePanel();if(captures!=null&&captures.isActive()){Prefs.of(c).edit().putString("last_capture_cancel_reason","screen_off").apply();captures.cancel();}hideCaptureTarget();if(ball!=null)ball.setVisibility(View.GONE);}else if(Intent.ACTION_USER_PRESENT.equals(i.getAction())||Intent.ACTION_SCREEN_ON.equals(i.getAction())){handler.postDelayed(()->{applyPolicy();wakeBall();},250);}}};
+    private final Runnable fade=()->{if(ball!=null&&!comicLoading&&panel==null&&browser==null&&(quickDock==null||!quickDock.isVisible())&&!appMode.equals("hidden")&&Prefs.of(this).getBoolean("fade",true))ball.animate().alpha(baseAlpha()*.45f).setDuration(300).start();};
+    private final BroadcastReceiver screenReceiver=new BroadcastReceiver(){@Override public void onReceive(Context c,Intent i){if(Intent.ACTION_SCREEN_OFF.equals(i.getAction())){vaultStartGeneration++;if(passwordFill!=null)passwordFill.cancel();subtitles.stop();stopComics();closePanel();if(captures!=null&&captures.isActive()){Prefs.of(c).edit().putString("last_capture_cancel_reason","screen_off").apply();captures.cancel();}hideCaptureTarget();if(ball!=null)ball.setVisibility(View.GONE);}else if(Intent.ACTION_USER_PRESENT.equals(i.getAction())||Intent.ACTION_SCREEN_ON.equals(i.getAction())){handler.postDelayed(()->{applyPolicy();wakeBall();},250);}}};
     @Override public void onCreate(){
         super.onCreate();instance=this;BallSettings.migrate(this);handler.postDelayed(appPolicyTick,300);handler.postDelayed(ballWatchdog,1500);foreground=AssistService.foregroundPackage;appMode=AppBehavior.mode(this,foreground);QuickActions.migrate(this);ThemePolicy.apply(this);renderedDark=Ui.dark;setTheme(Ui.dark?R.style.AppThemeDark:R.style.AppTheme);windows=OverlayWindows.get(this);displayRotation=windows.getDefaultDisplay().getRotation();quickDock=new QuickDock(this,this::perform);captures=new CaptureController(this,visible->{captureVisible=visible;applyPolicy();});subtitles=new SubtitleSession(this,()->captureInFlight||captures.isActive()||ScreenRecordingService.running||panel!=null||browser!=null||quickDock.isVisible()||(touch!=null&&touch.pressed));handler.postDelayed(themeTick,60000-System.currentTimeMillis()%60000);
         IntentFilter filter=new IntentFilter();filter.addAction(Intent.ACTION_SCREEN_OFF);filter.addAction(Intent.ACTION_USER_PRESENT);filter.addAction(Intent.ACTION_SCREEN_ON);
@@ -75,6 +93,7 @@ public class FloatService extends Service {
         ball=new FrameLayout(this);ball.setContentDescription("空叶悬浮球：点击菜单，双击返回，按住后拖动");
         if(Build.VERSION.SDK_INT>=29)ball.setSystemGestureExclusionRects(Collections.singletonList(new Rect(0,0,size,size)));
         View art=BallArt.create(this,size);customBallArt=art!=null;BallArt.styleContainer(ball,art!=null);View leaf=art==null?new Ui.Icon(this,"ball_leaf",BallArt.FOREGROUND):art;int iconSize=art==null?Math.round(size*BallArt.LEAF_SCALE):size;FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(iconSize,iconSize,Gravity.CENTER);ball.addView(leaf,lp);
+        ballLoading=new BallLoadingIndicator(this,customBallArt);ball.addView(ballLoading,new FrameLayout.LayoutParams(-1,-1));ballLoading.setLoading(comicLoading);
         int[] artSize=art!=null?BallArt.dimensions(this,size):new int[]{size,size};if(art!=null)leaf.setLayoutParams(new FrameLayout.LayoutParams(-1,-1));ballParams=new WindowManager.LayoutParams(artSize[0],artSize[1],WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,PixelFormat.TRANSLUCENT);
         centerLeaf(ball, artSize[0], artSize[1], iconSize);
         ballParams.setTitle("空叶悬浮球");if(Build.VERSION.SDK_INT>=30)ballParams.setFitInsetsTypes(0);if(Build.VERSION.SDK_INT>=28)ballParams.layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;ballParams.gravity=Gravity.TOP|Gravity.LEFT;
@@ -83,7 +102,7 @@ public class FloatService extends Service {
         ballParams.x=GestureRules.clamp(prefs.getInt("x",width-ballParams.width-gapX),gapX,width-ballParams.width-gapX);
         ballParams.y=GestureRules.clamp(prefs.getInt("y",height/3),gapY,height-ballParams.height-gapY);
         if(prefs.getBoolean("snap",true))ballParams.x=GestureRules.edgeWithInset(ballParams.x,width,ballParams.width,gapX);
-        touch=new BallTouch();ball.setAlpha(baseAlpha());ball.setOnTouchListener(touch);ball.setOnClickListener(v->{if(subtitles.isActive())subtitles.showActions();else perform(Prefs.action(this,"tap"));});
+        touch=new BallTouch();ball.setAlpha(baseAlpha());ball.setOnTouchListener(touch);ball.setOnClickListener(v->{if(comicActive())comics.showActions();else if(subtitles.isActive())subtitles.showActions();else perform(Prefs.action(this,"tap"));});
         ballWindow = new FrameLayout(this);
         ballWindow.addView(ball, new FrameLayout.LayoutParams(-1, -1));
         windows.addView(ballWindow, ballParams);
@@ -286,12 +305,12 @@ public class FloatService extends Service {
     void saveAppearancePosition() {
         if (ball != null && !stopping) savePosition();
     }
-    void foregroundChanged(String pkg){foreground=pkg==null?"":pkg;String next=AppBehavior.mode(this,foreground);if(!next.equals(appMode)){appMode=next;if(next.equals("disabled")){subtitles.stop();closePanel();quickDock.close();hideCaptureTarget();if(touch!=null){touch.pressed=false;handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);}}applyPolicy();}}
-    private void applyPolicy(){if(ball==null||stopping)return;String effective=SystemClock.uptimeMillis()<recoveryUntil?"normal":appMode;boolean disabled=effective.equals("disabled"),locked=getSystemService(KeyguardManager.class).isKeyguardLocked();ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);boolean hidden=effective.equals("hidden");if(hidden){ball.setBackground(null);ball.setElevation(0);ball.setAlpha(1);}else{BallArt.styleContainer(ball,customBallArt);ball.setAlpha(baseAlpha());}for(int i=0;i<ball.getChildCount();i++)ball.getChildAt(i).setAlpha(hidden?0:1);boolean recording=ScreenRecordingService.running;ball.setVisibility(disabled||locked||recording?View.GONE:captureVisible?View.VISIBLE:View.INVISIBLE);if(disabled||recording)ballParams.flags|=WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;else ballParams.flags&=~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;updateBall();if((getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putString("qa_ball_app_mode",appMode).putString("qa_ball_foreground",foreground).putBoolean("qa_ball_touchable",!disabled&&!recording).putBoolean("qa_ball_visible",ball.getVisibility()==View.VISIBLE).putFloat("qa_ball_alpha",appMode.equals("hidden")?0:ball.getAlpha()).apply();}
+    void foregroundChanged(String pkg){if(comics!=null)comics.foregroundChanged();foreground=pkg==null?"":pkg;String next=AppBehavior.mode(this,foreground);if(!next.equals(appMode)){appMode=next;if(next.equals("disabled")){subtitles.stop();stopComics();closePanel();quickDock.close();hideCaptureTarget();if(touch!=null){touch.pressed=false;handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);}}applyPolicy();}}
+    private void applyPolicy(){if(ball==null||stopping)return;String effective=SystemClock.uptimeMillis()<recoveryUntil?"normal":appMode;boolean disabled=effective.equals("disabled"),locked=getSystemService(KeyguardManager.class).isKeyguardLocked();ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);boolean hidden=effective.equals("hidden");if(hidden){ball.setBackground(null);ball.setElevation(0);ball.setAlpha(1);}else{BallArt.styleContainer(ball,customBallArt);ball.setAlpha(comicLoading?1f:baseAlpha());}for(int i=0;i<ball.getChildCount();i++){View child=ball.getChildAt(i);if(child!=ballLoading)child.setAlpha(hidden?0:1);}if(ballLoading!=null)ballLoading.setSuppressed(hidden);boolean recording=ScreenRecordingService.running;ball.setVisibility(disabled||locked||recording?View.GONE:captureVisible?View.VISIBLE:View.INVISIBLE);if(disabled||recording)ballParams.flags|=WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;else ballParams.flags&=~WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;updateBall();if((getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0)Prefs.of(this).edit().putString("qa_ball_app_mode",appMode).putString("qa_ball_foreground",foreground).putBoolean("qa_ball_touchable",!disabled&&!recording).putBoolean("qa_ball_visible",ball.getVisibility()==View.VISIBLE).putFloat("qa_ball_alpha",appMode.equals("hidden")?0:ball.getAlpha()).apply();}
     int[] recordingAnchor(){int size=ballParams==null?dp(48):ballParams.width;return new int[]{Math.max(0,Math.min(screenWidth()-dp(58),(ballParams==null?screenWidth()-size:ballParams.x)+size/2-dp(27))),Math.max(dp(30),Math.min(screenHeight()-dp(66),(ballParams==null?screenHeight()/3:ballParams.y)+(ballParams==null?size:ballParams.height)/2-dp(27)))};}
     void recordingChanged(){if(ScreenRecordingService.running){closePanel();hideCaptureTarget();if(touch!=null){touch.pressed=false;handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);}}applyPolicy();wakeBall();}
     private void stopWithMotion(){
-        subtitles.stop();
+        subtitles.stop();stopComics();
         endBallResize();
         if(stopping)return;stopping=true;running=false;MainActivity.runningChanged();closePanel();hideCaptureTarget();clearRecovery();handler.removeCallbacks(fade);
         if(captures!=null&&captures.isActive())captures.cancel();
@@ -321,8 +340,8 @@ public class FloatService extends Service {
         recoveryAnimator.addListener(new android.animation.AnimatorListenerAdapter(){boolean cancelled;@Override public void onAnimationCancel(android.animation.Animator a){cancelled=true;}@Override public void onAnimationEnd(android.animation.Animator a){if(cancelled)return;if(ball!=null){ballParams.x=toX;ballParams.y=toY;updateBall();savePosition();}clearRecovery();}});recoveryAnimator.start();handler.postDelayed(this::applyPolicy,8100);
     }
     private final Runnable ballWatchdog=new Runnable(){public void run(){if(instance!=FloatService.this)return;if(running&&Settings.canDrawOverlays(FloatService.this)){if(ball==null||!ball.isAttachedToWindow()){removeBall();try{addBall();}catch(RuntimeException ignored){}}if(captures!=null&&!captures.isActive())captureVisible=true;boolean locked=getSystemService(KeyguardManager.class).isKeyguardLocked();if(ball!=null&&!locked&&!ScreenRecordingService.running&&captureVisible&&!appMode.equals("disabled")){if(ball.getVisibility()!=View.VISIBLE)applyPolicy();if(SystemClock.uptimeMillis()>=recoveryUntil&&(touch==null||!touch.pressed)){int min=edgeGap(),minY=edgeGapY(),maxX=screenWidth()-ballParams.width-min,maxY=screenHeight()-ballParams.height-minY;int nx=GestureRules.clamp(ballParams.x,min,maxX),ny=GestureRules.clamp(ballParams.y,minY,maxY);if(nx!=ballParams.x||ny!=ballParams.y){ballParams.x=nx;ballParams.y=ny;updateBall();savePosition();}}}}handler.postDelayed(this,1500);}};
-    private void removeBall(){clearResizeReplica();cancelPull();clearRecovery();handler.removeCallbacks(fade);if(touch!=null){handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);touch=null;}if(snapAnimator!=null)snapAnimator.cancel();if(ballWindow!=null){ball.animate().cancel();try{windows.removeView(ballWindow);}catch(IllegalArgumentException ignored){}ballWindow=null;ball=null;resizeWindow=null;}}
-    private void wakeBall(){if(stopping)return;handler.removeCallbacks(fade);if(ball!=null){ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);ball.setAlpha(appMode.equals("hidden")?1:baseAlpha());handler.postDelayed(fade,3000);}}
+    private void removeBall(){clearResizeReplica();cancelPull();clearRecovery();handler.removeCallbacks(fade);if(ballLoading!=null){ballLoading.stopImmediate();ballLoading=null;}if(touch!=null){handler.removeCallbacks(touch.single);handler.removeCallbacks(touch.hold);handler.removeCallbacks(touch.arm);touch=null;}if(snapAnimator!=null)snapAnimator.cancel();if(ballWindow!=null){ball.animate().cancel();try{windows.removeView(ballWindow);}catch(IllegalArgumentException ignored){}ballWindow=null;ball=null;resizeWindow=null;}}
+    private void wakeBall(){if(stopping)return;handler.removeCallbacks(fade);if(ball!=null){ball.animate().cancel();ball.setScaleX(1);ball.setScaleY(1);ball.setAlpha(appMode.equals("hidden")?1:comicLoading?1f:baseAlpha());if(!comicLoading)handler.postDelayed(fade,3000);}}
     private void vibrate(){if(Prefs.of(this).getBoolean("haptic",true)){Vibrator v=(Vibrator)getSystemService(VIBRATOR_SERVICE);if(v!=null&&v.hasVibrator())v.vibrate(VibrationEffect.createOneShot(12,VibrationEffect.DEFAULT_AMPLITUDE));}}
     private void savePosition(){Prefs.of(this).edit().putInt("x",ballParams.x).putInt("y",ballParams.y).apply();if(browser!=null)browser.keepBallReachable();}
     private class BallTouch implements View.OnTouchListener {
@@ -371,7 +390,7 @@ public class FloatService extends Service {
                         if(exitNow)perform(action);
                     }
                     else if(!moved&&duration>=650){handler.removeCallbacks(single);pendingTap=false;perform(Prefs.action(FloatService.this,"long"));if(quickDock.isVisible())quickDock.close();}
-                    else if(!moved){restore();if(subtitles.isActive()){handler.removeCallbacks(single);pendingTap=false;subtitles.showActions();return true;}if(pendingTap){handler.removeCallbacks(single);pendingTap=false;vibrate();perform(Prefs.action(FloatService.this,"double"));}else{pendingTap=true;handler.postDelayed(single,ViewConfiguration.getDoubleTapTimeout());}}
+                    else if(!moved){restore();if(comicActive()){handler.removeCallbacks(single);pendingTap=false;comics.showActions();return true;}if(subtitles.isActive()){handler.removeCallbacks(single);pendingTap=false;subtitles.showActions();return true;}if(pendingTap){handler.removeCallbacks(single);pendingTap=false;vibrate();perform(Prefs.action(FloatService.this,"double"));}else{pendingTap=true;handler.postDelayed(single,ViewConfiguration.getDoubleTapTimeout());}}
                     else animateFollowHome(initialX,initialY,()->{});return true;
                 }
                 case MotionEvent.ACTION_CANCEL->{touchReceipt("CANCEL",event.getRawX(),event.getRawY());pressed=false;reset();handler.removeCallbacks(single);pendingTap=false;quickDock.close();if(dragging)snap();else restore();holdTriggered=false;return true;}
@@ -430,7 +449,7 @@ public class FloatService extends Service {
         int rotation = windows.getDefaultDisplay().getRotation();
         boolean rotated = rotation != displayRotation;
         displayRotation = rotation;
-        subtitles.displayChanged();
+        subtitles.displayChanged();if(comics!=null)comics.displayChanged();
         if (rotated && captures != null && captures.isActive()) {
             Prefs.of(this).edit().putString("last_capture_cancel_reason","rotation").apply();
             captures.cancel();
@@ -474,13 +493,15 @@ public class FloatService extends Service {
         int vaultRequest=++vaultStartGeneration;if(passwordFill!=null)passwordFill.cancel();
         if(captures!=null&&captures.isActive()&&!captures.allowsBall()){toast("请先完成或取消当前截图");return;}
         if("quick".equals(action)){if(touch==null||!touch.pressed)return;closeToolPanels();int[] center=ballCenter();if(center!=null)quickDock.show(center[0],center[1]);return;}
-        if(subtitles.isActive()&&java.util.Set.of("region","longshot","auto_longshot","screenshot","record","gif_record").contains(action)){toast("请先关闭字幕翻译");return;}
+        if((subtitles.isActive()||comicActive())&&java.util.Set.of("region","longshot","auto_longshot","screenshot","record","gif_record").contains(action)){toast("请先关闭字幕翻译");return;}
+        if("menu".equals(action)&&comicActive()){comics.showActions();return;}
         if("menu".equals(action)){if(panel!=null||browser!=null&&!browser.isPinned())closeToolPanels();else showMenu();return;}
         closeToolPanels();vibrate();if(action.startsWith("edit_slot:")){try{launch(new Intent(this,QuickSettingsActivity.class).putExtra("edit_slot",Integer.parseInt(action.substring(10))));}catch(NumberFormatException ignored){}return;}if(action.startsWith("app:")){launchApp(action.substring(4));return;}
         switch(action){
             case "password_fill" -> {if(passwordFill==null)passwordFill=new PasswordFillController(this);handler.postDelayed(()->{if(running&&vaultRequest==vaultStartGeneration)passwordFill.start();},180);}
             case "none" -> {}
-            case "subtitle" -> subtitles.start();
+            case "subtitle" -> {stopComics();subtitles.start();}
+            case "comic" -> {subtitles.stop();comicSession().start();}
             case "notes" -> showNotes();
             case "browser" -> showBrowser();
             case "apps" -> showApps();
@@ -612,6 +633,6 @@ public class FloatService extends Service {
         appLauncher=new AppLauncher(this,body,mode,title->{if(panelHeading!=null)panelHeading.setText(title);},pkg->{closeToolPanels();launchApp(pkg);},()->{closeToolPanels();launch(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS,Uri.parse("package:"+getPackageName())));},opened);
     }
     private void launchApp(String pkg){Intent intent=getPackageManager().getLaunchIntentForPackage(pkg);if(intent==null)toast("该应用已卸载或无法启动");else launch(intent);}
-    void stopSubtitles(){if(subtitles!=null)subtitles.stop();}
+    void stopSubtitles(){if(subtitles!=null)subtitles.stop();stopComics();}
     @Override public void onDestroy(){if(passwordFill!=null)passwordFill.destroy();stopSubtitles();stopping=true;if(ball!=null){ball.animate().cancel();ball.setAlpha(0);ball.setVisibility(View.INVISIBLE);ballParams.alpha=0;updateBall();}if(instance==this)instance=null;running=false;MainActivity.runningChanged();handler.removeCallbacksAndMessages(null);captureInFlight=false;hideCaptureTarget();if(captures!=null)captures.destroy();closePanel();removeBall();try{unregisterReceiver(screenReceiver);}catch(IllegalArgumentException ignored){}super.onDestroy();}
 }
